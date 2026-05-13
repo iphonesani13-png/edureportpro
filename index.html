@@ -33,7 +33,7 @@
             </div>
             
             <div class="grid grid-cols-2 gap-3 mb-8 bg-gray-100/50 p-2 rounded-2xl">
-                <button onclick="setLoginRole('guru')" id="role-btn-guru" class="py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200">
+                <button onclick="setLoginRole('guru')" id="role-btn-guru" class="py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2">
                     <span class="text-2xl">👨‍🏫</span> Guru
                 </button>
                 <button onclick="setLoginRole('orangtua')" id="role-btn-ortu" class="py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent">
@@ -303,10 +303,9 @@
         let currentRole = 'guru'; 
         let studentsData = [];
         let currentStudentId = null;
-        let unsubscribeStudents = null; // Menjaga memori tetap bersih
+        let unsubscribeStudents = null; 
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
-        // --- AUTH & LOGIN LOGIC (ANTI-CACHE / FORCE OVERRIDE) ---
         window.setLoginRole = (role) => {
             currentRole = role;
             document.getElementById('role-btn-guru').className = role === 'guru' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
@@ -329,7 +328,6 @@
             document.getElementById('loading-text').innerText = "Mengautentikasi...";
 
             try {
-                // KUNCI PERBAIKAN: Set niat login saat ini dengan sangat kuat untuk menimpa cache
                 localStorage.setItem('login_intent_role', currentRole);
                 if (currentRole === 'orangtua') {
                     localStorage.setItem('login_intent_child_id', childIdInput);
@@ -351,24 +349,20 @@
 
                     const userDocRef = doc(db, 'users', user.uid);
                     
-                    // Cek apakah user baru saja memencet tombol login secara sadar
                     let intentRole = localStorage.getItem('login_intent_role');
                     let intentChildId = localStorage.getItem('login_intent_child_id');
 
                     let profile = { role: 'guru', childId: null };
 
                     if (intentRole) {
-                        // User BARU SAJA klik tombol login. PAKSA TIMPA database dengan peran yang baru dipilih!
                         profile.role = intentRole;
                         profile.childId = intentChildId || null;
                         
                         await setDoc(userDocRef, { role: profile.role, email: user.email, childId: profile.childId }, { merge: true });
 
-                        // Bersihkan jejak niat login agar tidak mengganggu kedepannya
                         localStorage.removeItem('login_intent_role');
                         localStorage.removeItem('login_intent_child_id');
                     } else {
-                        // User hanya me-refresh halaman (tidak lewat layar login)
                         const userSnap = await getDoc(userDocRef);
                         if (userSnap.exists()) {
                             profile = userSnap.data();
@@ -417,7 +411,6 @@
             }
         }
 
-        // --- STREAMING_CHUNK:Realtime Data Sync & UI Updates ---
         function initRealtimeSync(profile) {
             if(unsubscribeStudents) unsubscribeStudents(); 
 
@@ -429,7 +422,6 @@
                     if(!document.getElementById('editor-section').classList.contains('hidden') && currentStudentId) window.openStudentEditor(currentStudentId);
                 });
             } else {
-                // Logika khusus untuk Orang Tua agar tidak tertolak sistem keamanan
                 if (!profile.childId) {
                     tampilkanErrorOrtu("ID Anak Kosong", "Sistem mendeteksi Anda belum memasukkan ID anak saat login.");
                     return;
@@ -461,7 +453,6 @@
             }
         }
 
-        // Fungsi menampilkan Kotak Error di Layar Orang Tua
         function tampilkanErrorOrtu(judul, pesan) {
             document.getElementById('ortu-content-box').classList.add('hidden');
             const errorBox = document.getElementById('ortu-error-box');
@@ -470,7 +461,6 @@
             document.getElementById('ortu-error-desc').innerHTML = pesan;
         }
 
-        // --- DATA AUTO-FIX (Mencegah Crash pada Data Lama) ---
         async function autoFixStudentData(st) {
             let needsUpdate = false;
             if (st.academic) { delete st.academic; needsUpdate = true; } 
@@ -500,7 +490,6 @@
             if(activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('active'); }
         };
 
-        // --- STREAMING_CHUNK:Guru Specific Functions ---
         window.renderDashboard = () => {
             const filter = document.getElementById('filter-kelas').value;
             const tbody = document.getElementById('student-table-body');
@@ -520,6 +509,7 @@
                 const poin = st.poin !== undefined ? st.poin : 100;
                 let badgeClass = poin >= 90 ? 'bg-green-100 text-green-800' : (poin >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
                 
+                // UX FIX: Menambahkan class pointer-events-none pada button agar tidak menghalangi event onclick di tag <tr>
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
                         <td class="px-6 py-5">
@@ -527,7 +517,7 @@
                         </td>
                         <td class="px-6 py-5 font-bold text-gray-700">${st.nama}</td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${poin}</span></td>
-                        <td class="px-6 py-5 text-right"><button class="text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button></td>
+                        <td class="px-6 py-5 text-right"><button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button></td>
                     </tr>
                 `);
             });
@@ -535,8 +525,10 @@
 
         window.openStudentEditor = async (docId) => {
             const st = studentsData.find(s => s.docId === docId);
-            const isFixing = await autoFixStudentData(st);
-            if (isFixing) return; 
+            
+            // BUG FIX: Menghapus "if (isFixing) return;" agar proses tidak berhenti, 
+            // sehingga layar pindah ke Editor dengan lancar.
+            await autoFixStudentData(st); 
 
             currentStudentId = docId;
             document.getElementById('editor-title').innerText = st.nama;
@@ -603,10 +595,8 @@
             document.getElementById('poin-catatan').value = '';
         };
 
-        // --- STREAMING_CHUNK:Parent Specific Functions ---
         function loadParentDashboard(st) {
             try {
-                // Tampilkan konten, sembunyikan kotak error
                 document.getElementById('ortu-error-box').classList.add('hidden');
                 document.getElementById('ortu-content-box').classList.remove('hidden');
 
@@ -615,7 +605,6 @@
                 document.getElementById('view-ortu-id').innerText = st.docId || "-";
                 document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 100;
 
-                // Render Mapel dengan Aman
                 const tbody = document.getElementById('ortu-subjects-body');
                 tbody.innerHTML = '';
                 
@@ -633,7 +622,6 @@
                     tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
                 }
 
-                // Render Timeline dengan Aman
                 const tl = document.getElementById('parent-timeline');
                 tl.innerHTML = '';
                 const history = st.point_history || [];
@@ -666,7 +654,6 @@
             }
         }
 
-        // --- STREAMING_CHUNK:CSV Import Logic ---
         window.handleFileUpload = async (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -682,7 +669,7 @@
                 if (cols.length >= 2 && cols[0].trim().length > 0) {
                     const id = cols[0].trim();
                     const name = cols[1].trim();
-                    const kelas = (cols[2] ? cols[2].trim() : "7"); // Default kelas 7
+                    const kelas = (cols[2] ? cols[2].trim() : "7"); 
                     
                     const data = { 
                         nama: name, 
