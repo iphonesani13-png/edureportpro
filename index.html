@@ -811,37 +811,51 @@
             
             // Render Poin Ledger for Parent
             const history = st?.pointHistory || [];
-            document.getElementById('parent-view-poin-total').innerText = calculateTotalPoints(history);
-            document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada progres tahfidz dicatat minggu ini.";
+        document.getElementById('parent-view-poin-total').innerText = calculateTotalPoints(history);
+        document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada progres tahfidz dicatat minggu ini.";
 
-            const timeline = document.getElementById('parent-timeline-poin');
-            timeline.innerHTML = '';
-            if(history.length === 0) {
-                timeline.innerHTML = `<p class="text-xs text-gray-400 italic">Belum ada catatan perilaku/prestasi.</p>`;
+        // NEW: Logika AI Insight (Analisis Sederhana)
+        const insightEl = document.getElementById('parent-ai-insight');
+        if (history.length > 0) {
+            const recentNegatives = history.slice(0, 5).filter(t => t.type === 'minus').length;
+            if (recentNegatives >= 2) {
+                insightEl.innerText = `Sistem mendeteksi beberapa penurunan kedisiplinan/fokus akhir-akhir ini. Mohon berikan motivasi ekstra di rumah terkait penyelesaian tugas dan adab kelas.`;
             } else {
-                // Show max 4 latest for parent view
-                history.slice(0, 4).forEach(t => {
-                    const isPlus = t.type === 'plus';
-                    const dotColor = isPlus ? 'bg-green-500' : 'bg-red-500';
-                    const textColor = isPlus ? 'text-green-600' : 'text-red-600';
-                    
-                    timeline.insertAdjacentHTML('beforeend', `
-                        <div class="timeline-item">
-                            <div class="timeline-dot ${dotColor}"></div>
-                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                <div class="flex justify-between items-start mb-1">
-                                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">${t.date}</span>
-                                    <span class="font-black text-xs ${textColor}">${isPlus?'+':''}${t.points} Poin</span>
-                                </div>
-                                <p class="text-sm font-bold text-gray-800">${t.description}</p>
-                                <p class="text-[10px] text-gray-400 mt-1">Kategori: ${t.category} | Pencatat: ${t.teacher}</p>
-                            </div>
-                        </div>
-                    `);
-                });
+                insightEl.innerText = `Siswa menunjukkan tren positif dan stabil. Fokus belajar dan adab terjaga dengan sangat baik. Pertahankan rutinitasnya!`;
             }
+        } else {
+            insightEl.innerText = "Belum ada cukup data aktivitas minggu ini untuk dianalisis oleh AI.";
+        }
 
-            // Load Agenda
+        const timeline = document.getElementById('parent-timeline-poin');
+        timeline.innerHTML = '';
+        if(history.length === 0) {
+            timeline.innerHTML = `<p class="text-xs text-gray-400 italic">Belum ada catatan aktivitas.</p>`;
+        } else {
+            // NEW: Timeline Feed ala Social Media
+            history.slice(0, 8).forEach(t => {
+                const isPlus = t.type === 'plus';
+                const textColor = isPlus ? 'text-green-600' : 'text-red-600';
+                const iconDisplay = t.icon ? `<span class="absolute -left-5 top-1 bg-white rounded-full text-2xl shadow-sm border border-gray-100 z-20">${t.icon}</span>` : `<div class="timeline-dot ${isPlus ? 'bg-green-500' : 'bg-red-500'}"></div>`;
+                
+                timeline.insertAdjacentHTML('beforeend', `
+                    <div class="timeline-item ${t.icon ? 'ml-4' : ''}">
+                        ${iconDisplay}
+                        <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 shadow-sm ml-2 relative">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">${t.date}</span>
+                                <span class="font-black text-xs px-2 py-1 rounded-md ${isPlus ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${isPlus?'+':''}${t.points} Poin</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-gray-900 mb-1">${t.category}</h4>
+                            <p class="text-xs text-gray-600 font-medium">${t.description}</p>
+                            <p class="text-[9px] text-gray-400 mt-2">Oleh: ${t.teacher}</p>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        // Load Agenda
             const snap = await getDoc(doc(db, 'agendas', `agenda_${cls}_${date}`));
             const list = document.getElementById('parent-agenda-list');
             const empty = document.getElementById('parent-agenda-empty');
