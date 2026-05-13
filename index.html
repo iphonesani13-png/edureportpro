@@ -455,7 +455,7 @@
                 document.getElementById('loading-overlay').classList.add('hidden');
                 const errorBox = document.getElementById('login-error-msg');
                 errorBox.classList.remove('hidden');
-                errorBox.innerText = "Masukkan NIS Anak terlebih dahulu!";
+                errorBox.innerText = "Tolak Akses: Masukkan ID Akses Ortu yang valid!";
                 return;
             }
             sessionStorage.setItem('pendingRole', currentRole);
@@ -535,16 +535,42 @@
 
         // --- CORE LOGIC ---
         function initRealtimeSync(profile) {
-            const studentsCol = collection(db, 'students');
-            onSnapshot(studentsCol, (snapshot) => {
-                studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
-                if (profile.role === 'guru') {
+            if (profile.role === 'guru') {
+                // Lapis 1: GURU boleh memuat semua koleksi data siswa
+                const studentsCol = collection(db, 'students');
+                onSnapshot(studentsCol, (snapshot) => {
+                    studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) window.renderDashboard();
-                } else {
-                    if(!document.getElementById('viewer-section').classList.contains('hidden')) window.updateViewer();
-                    if(!document.getElementById('parent-agenda-section').classList.contains('hidden')) window.loadParentAgenda();
+                }, (error) => {
+                    console.error("Guru Sync Error:", error);
+                });
+            } else if (profile.role === 'orangtua') {
+                // Lapis 1: ORTU hanya memuat 1 dokumen spesifik berdasarkan childId yang diinput
+                if (!profile.childId) {
+                    alert("Akses Ditolak: ID Akses Ortu tidak ditemukan di akun ini.");
+                    window.logout();
+                    return;
                 }
-            });
+                
+                const studentDoc = doc(db, 'students', profile.childId);
+                
+                onSnapshot(studentDoc, (docSnap) => {
+                    if (docSnap.exists()) {
+                        // Masukkan ke array tunggal agar sistem viewer tetap berjalan normal
+                        studentsData = [{ docId: docSnap.id, ...docSnap.data() }];
+                        if(!document.getElementById('viewer-section').classList.contains('hidden')) window.updateViewer();
+                        if(!document.getElementById('parent-agenda-section').classList.contains('hidden')) window.loadParentAgenda();
+                    } else {
+                        alert("Akses Ditolak: Data anak dengan ID '" + profile.childId + "' tidak ditemukan.");
+                        window.logout();
+                    }
+                }, (error) => {
+                    // Lapis 2: Jika tertangkap oleh Firewall Firestore Backend
+                    console.error("Firestore Security Error:", error);
+                    alert("Sistem Keamanan Diaktifkan: Anda tidak memiliki otorisasi untuk melihat data ID ini.");
+                    window.logout();
+                });
+            }
         }
 
         window.getSubjectFinalScore = (sub) => {
