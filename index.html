@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduReport Pro - Google Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --google-blue: #1a73e8;
+            --google-bg: #f8f9fa;
+            --google-surface: #ffffff;
+            --google-border: #dadce0;
+        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--google-bg); color: #3c4043; }
+        
+        .google-card { background: var(--google-surface); border: 1px solid var(--google-border); border-radius: 24px; transition: box-shadow 0.2s ease; }
+        .google-card:hover { box-shadow: 0 1px 3px 0 rgba(60,64,67,0.30), 0 4px 8px 3px rgba(60,64,67,0.15); }
+        
+        .nav-pill { border-radius: 12px; padding: 10px 24px; font-weight: 500; color: #5f6368; transition: all 0.2s; }
+        .nav-pill:hover { background-color: #f1f3f4; color: #202124; }
+        .nav-pill.active { background-color: #e8f0fe; color: var(--google-blue); }
+        
+        .google-btn-primary { background-color: var(--google-blue); color: white; border-radius: 24px; padding: 10px 24px; font-weight: 500; }
+        .google-btn-primary:hover { background-color: #1557b0; box-shadow: 0 1px 2px 0 rgba(66,133,244,0.3), 0 1px 3px 1px rgba(66,133,244,0.15); }
+        
+        .google-fab { position: fixed; bottom: 32px; right: 32px; background: white; border-radius: 16px; box-shadow: 0 1px 3px 0 rgba(60,64,67,.30), 0 4px 8px 3px rgba(60,64,67,.15); padding: 16px 24px; display: flex; align-items: center; gap: 12px; font-weight: 500; z-index: 50; }
+        
+        input, select, textarea { border: 1px solid var(--google-border) !important; border-radius: 8px !important; }
+        input:focus { border-color: var(--google-blue) !important; outline: none; box-shadow: 0 0 0 2px rgba(26,115,232,0.2); }
+        
+        @media print { .no-print { display: none !important; } }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6">
+        <div class="bg-white w-full max-w-md p-10 rounded-[2rem] border border-[#dadce0] shadow-sm text-center">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Classroom_icon.svg" class="w-16 mx-auto mb-6" alt="Logo">
+            <h1 class="text-2xl font-medium text-[#202124] mb-2">EduReport Pro</h1>
+            <p class="text-[#5f6368] mb-8">Masuk menggunakan akun pengajar</p>
+            <form onsubmit="handleLogin(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="text-xs font-medium text-[#5f6368] ml-1">Email</label>
+                    <input type="email" required placeholder="nama@sekolah.sch.id" class="w-full p-4 mt-1 bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-[#5f6368] ml-1">Password</label>
+                    <input type="password" required placeholder="Masukkan password" class="w-full p-4 mt-1 bg-white">
+                </div>
+                <div class="flex justify-between items-center pt-4">
+                    <button type="button" class="text-blue-600 font-medium text-sm">Lupa password?</button>
+                    <button type="submit" class="google-btn-primary">Masuk</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <header class="bg-white border-b border-[#dadce0] sticky top-0 z-50">
+            <div class="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <button class="p-2 hover:bg-gray-100 rounded-full">
+                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl text-[#5f6368]">EduReport <span class="font-bold text-[#202124]">Pro</span></span>
+                    </div>
+                </div>
+
+                <div class="flex gap-1 bg-[#f1f3f4] p-1 rounded-xl no-print">
+                    <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill active text-sm">Dashboard</button>
+                    <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-sm">Editor Nilai</button>
+                    <button id="btn-viewer" onclick="switchTab('viewer')" class="nav-pill text-sm">Pratinjau Raport</button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <button onclick="toggleConfig()" class="p-2 hover:bg-gray-100 rounded-full text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </button>
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs">G</div>
+                </div>
+            </div>
+        </header>
+
+        <div id="api-panel" class="hidden fixed top-20 right-6 w-80 bg-white border border-[#dadce0] shadow-2xl rounded-2xl z-[60] p-6">
+            <h4 class="font-medium mb-4">Pengaturan AI Gemini</h4>
+            <input type="password" id="api-key-input" placeholder="Masukkan API Key..." class="w-full p-3 text-sm mb-4">
+            <button onclick="saveApiKey()" class="w-full google-btn-primary">Simpan Perubahan</button>
+        </div>
+
+        <main class="max-w-[1440px] mx-auto p-6 lg:p-8">
+            <section id="dashboard-section" class="space-y-8">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl text-[#202124]">Ringkasan Kelas</h2>
+                        <div class="flex gap-3 mt-4">
+                            <select id="dash-year" onchange="renderDashboard()" class="p-2 text-sm">
+                                <option value="7">Kelas 7</option>
+                                <option value="8">Kelas 8</option>
+                                <option value="9">Kelas 9</option>
+                            </select>
+                            <select id="dash-semester" onchange="renderDashboard()" class="p-2 text-sm">
+                                <option value="1">Semester 1 (Ganjil)</option>
+                                <option value="2">Semester 2 (Genap)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="document.getElementById('csv-input').click()" class="px-4 py-2 border border-[#dadce0] rounded-full text-sm font-medium hover:bg-gray-50">Impor CSV</button>
+                        <input type="file" id="csv-input" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="google-card p-6">
+                        <p class="text-xs font-medium text-[#5f6368] uppercase tracking-wider mb-1">Populasi Siswa</p>
+                        <h3 id="stat-total-siswa" class="text-3xl font-medium text-[#202124]">0</h3>
+                    </div>
+                    <div class="google-card p-6">
+                        <p class="text-xs font-medium text-[#5f6368] uppercase tracking-wider mb-1">Rata-rata Kelas</p>
+                        <h3 id="stat-avg-kelas" class="text-3xl font-medium text-blue-600">0.0</h3>
+                    </div>
+                    <div class="google-card p-6">
+                        <p class="text-xs font-medium text-[#5f6368] uppercase tracking-wider mb-1">Progres Raport</p>
+                        <h3 id="stat-progress" class="text-3xl font-medium text-green-600">0%</h3>
+                    </div>
+                    <div class="google-card p-6">
+                        <p class="text-xs font-medium text-[#5f6368] uppercase tracking-wider mb-1">Status</p>
+                        <h3 class="text-sm font-medium text-orange-600 mt-2">Menunggu Finalisasi</h3>
+                    </div>
+                </div>
+
+                <div class="google-card overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-[#dadce0] text-xs font-medium text-[#5f6368]">
+                                <th class="px-6 py-4">Nama Siswa</th>
+                                <th class="px-6 py-4">Rata-rata Semester</th>
+                                <th class="px-6 py-4">Pertumbuhan (%)</th>
+                                <th class="px-6 py-4 text-right">Tindakan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-table-body" class="divide-y divide-[#dadce0]"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="editor-section" class="hidden space-y-8">
+                <div class="flex items-center gap-4">
+                    <button onclick="switchTab('dashboard')" class="p-2 hover:bg-gray-100 rounded-full">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h2 id="editor-title" class="text-2xl font-medium">Editor Nilai</h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div id="subjects-grid" class="lg:col-span-2 grid grid-cols-1 md:grid-cols-1 gap-4">
+                        <!-- Subject Cards via JS -->
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <div class="google-card p-6 bg-[#f8f9fa] border-none shadow-none">
+                            <h3 class="font-medium mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"></path></svg>
+                                Karakter
+                            </h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">Kemandirian</label>
+                                    <select id="edit-mandiri" onchange="saveCurrentStudent()" class="w-full p-2 text-sm">
+                                        <option>Belum Berkembang</option>
+                                        <option selected>Berkembang</option>
+                                        <option>Sangat Berkembang</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500 block mb-1">Kerja Sama</label>
+                                    <select id="edit-kerjasama" onchange="saveCurrentStudent()" class="w-full p-2 text-sm">
+                                        <option>Belum Berkembang</option>
+                                        <option selected>Berkembang</option>
+                                        <option>Sangat Berkembang</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="google-card p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-medium">Pesan Wali Kelas</h3>
+                                <button onclick="generateActionPlan()" class="text-xs text-blue-600 font-bold hover:underline">🪄 AI ANALYZE</button>
+                            </div>
+                            <textarea id="edit-pesan" oninput="saveCurrentStudent()" class="w-full h-32 p-3 text-sm" placeholder="Berikan pesan motivasi..."></textarea>
+                        </div>
+
+                        <button onclick="switchTab('viewer')" class="w-full google-btn-primary py-4 shadow-lg">Lihat Pratinjau Raport</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="viewer-section" class="hidden">
+                <div class="max-w-4xl mx-auto">
+                    <div class="flex justify-center gap-4 mb-8 no-print">
+                        <button onclick="window.print()" class="google-btn-primary">Cetak / Simpan PDF</button>
+                        <button onclick="switchTab('editor')" class="px-6 py-2 border rounded-full font-medium">Edit Kembali</button>
+                    </div>
+                    
+                    <div id="print-area" class="bg-white p-12 shadow-xl border border-gray-100 rounded-lg min-h-[11in]">
+                        <div class="border-b-2 border-blue-600 pb-8 mb-8 flex justify-between items-end">
+                            <div>
+                                <h1 class="text-3xl font-bold text-gray-800">Laporan Hasil Belajar</h1>
+                                <p id="view-period" class="text-blue-600 font-semibold mt-1 uppercase text-sm"></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-gray-400 font-bold uppercase">Nama Siswa</p>
+                                <p id="view-nama" class="text-xl font-bold text-gray-900">-</p>
+                            </div>
+                        </div>
+
+                        <table class="w-full mb-10 border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 text-left text-xs font-bold uppercase text-gray-500">
+                                    <th class="border-b-2 px-4 py-4">Mata Pelajaran</th>
+                                    <th class="border-b-2 px-4 py-4 text-center">Skor Akhir</th>
+                                    <th class="border-b-2 px-4 py-4">Capaian Naratif</th>
+                                </tr>
+                            </thead>
+                            <tbody id="view-table-body" class="text-sm"></tbody>
+                        </table>
+
+                        <div class="grid grid-cols-2 gap-8">
+                            <div class="bg-gray-50 p-6 rounded-2xl">
+                                <h4 class="font-bold text-gray-800 mb-4 border-b pb-2">Karakter & Sosial</h4>
+                                <div class="space-y-3">
+                                    <div class="flex justify-between"><span class="text-gray-500">Kemandirian</span><span id="view-mandiri" class="font-bold">-</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-500">Kerja Sama</span><span id="view-kerjasama" class="font-bold">-</span></div>
+                                </div>
+                            </div>
+                            <div class="border-2 border-blue-50 p-6 rounded-2xl">
+                                <h4 class="font-bold text-blue-800 mb-2">Catatan Wali Kelas</h4>
+                                <p id="view-pesan" class="text-sm leading-relaxed italic text-gray-700"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <button onclick="addNewStudent()" class="google-fab no-print">
+        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+        <span>Tambah Siswa</span>
+    </button>
+
+    <script>
+        const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
+        let studentsData = [];
+        let currentStudentId = null;
+
+        // Core Calculation Helper
+        function getSubjectFinalScore(sub) {
+            if (!sub || !sub.scores) return 0;
+            const s = sub.scores;
+            return (s.daily * 0.2) + (s.weekly * 0.2) + (s.uts * 0.3) + (s.pas * 0.3);
+        }
+
+        function calculateStudentAvg(st, year, sem) {
+            if (!st || !st.academic || !st.academic[year] || !st.academic[year][sem]) return 0;
+            const subs = st.academic[year][sem].subjects;
+            if (!subs || subs.length === 0) return 0;
+            let total = 0;
+            subs.forEach(s => total += getSubjectFinalScore(s));
+            return total / subs.length;
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            renderDashboard();
+        }
+
+        window.onload = () => {
+            const saved = localStorage.getItem('edureport_google_v1');
+            if (saved) {
+                studentsData = JSON.parse(saved);
+            } else {
+                studentsData = [createStudentInstance(Date.now(), "Siswa Contoh")];
+                saveToStorage();
+            }
+            initApiKey();
+            // Start at Login Screen by default (handled by CSS/HTML state)
+        };
+
+        function createStudentInstance(id, name) {
+            const data = { id, nama: name, academic: {} };
+            [7, 8, 9].forEach(year => {
+                data.academic[year] = { 
+                    sem1: { subjects: [], mandiri: 'Berkembang', kerjasama: 'Berkembang', pesan: '' }, 
+                    sem2: { subjects: [], mandiri: 'Berkembang', kerjasama: 'Berkembang', pesan: '' } 
+                };
+                ['sem1', 'sem2'].forEach(sem => {
+                    subjectsList.forEach(subName => {
+                        data.academic[year][sem].subjects.push({
+                            name: subName,
+                            scores: { daily: 0, weekly: 0, uts: 0, pas: 0 },
+                            note: ''
+                        });
+                    });
+                });
+            });
+            return data;
+        }
+
+        function saveToStorage() { localStorage.setItem('edureport_google_v1', JSON.stringify(studentsData)); }
+
+        function switchTab(mode) {
+            const sections = { dashboard: 'dashboard-section', editor: 'editor-section', viewer: 'viewer-section' };
+            const btns = { dashboard: 'btn-dashboard', editor: 'btn-editor', viewer: 'btn-viewer' };
+            
+            // Safety: Ensure a student is selected for Editor or Viewer
+            if ((mode === 'editor' || mode === 'viewer') && currentStudentId === null) {
+                if (studentsData.length > 0) {
+                    editStudent(studentsData[0].id);
+                } else {
+                    return; 
+                }
+            }
+
+            Object.keys(sections).forEach(k => {
+                document.getElementById(sections[k])?.classList.add('hidden');
+                document.getElementById(btns[k])?.classList.remove('active');
+            });
+
+            document.getElementById(sections[mode])?.classList.remove('hidden');
+            document.getElementById(btns[mode])?.classList.add('active');
+
+            if (mode === 'dashboard') renderDashboard();
+            if (mode === 'viewer') updateViewer();
+        }
+
+        function renderDashboard() {
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const tbody = document.getElementById('student-table-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            let classSum = 0;
+            let doneCount = 0;
+
+            studentsData.forEach(st => {
+                const avg = calculateStudentAvg(st, year, sem);
+                classSum += avg;
+                const isDone = st.academic[year][sem].pesan && st.academic[year][sem].pesan.length > 5;
+                if(isDone) doneCount++;
+
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="hover:bg-gray-50 cursor-pointer group" onclick="editStudent(${st.id})">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xs uppercase">
+                                    ${st.nama.charAt(0)}
+                                </div>
+                                <span class="font-medium text-gray-900">${st.nama}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold">${avg.toFixed(1)}</span>
+                        </td>
+                        <td class="px-6 py-4 text-xs font-medium text-gray-500">Stabil</td>
+                        <td class="px-6 py-4 text-right">
+                            <button class="text-blue-600 font-medium text-sm group-hover:underline">Buka →</button>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            document.getElementById('stat-total-siswa').innerText = studentsData.length;
+            document.getElementById('stat-avg-kelas').innerText = (classSum / (studentsData.length || 1)).toFixed(1);
+            document.getElementById('stat-progress').innerText = Math.round((doneCount / (studentsData.length || 1)) * 100) + '%';
+        }
+
+        function editStudent(id) {
+            currentStudentId = id;
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const st = studentsData.find(s => s.id === id);
+            
+            if (!st) return;
+
+            document.getElementById('editor-title').innerText = st.nama;
+            const data = st.academic[year][sem];
+            
+            document.getElementById('edit-mandiri').value = data.mandiri || 'Berkembang';
+            document.getElementById('edit-kerjasama').value = data.kerjasama || 'Berkembang';
+            document.getElementById('edit-pesan').value = data.pesan || '';
+
+            renderEditorGrid(data.subjects);
+            switchTab('editor');
+        }
+
+        function renderEditorGrid(subs) {
+            const container = document.getElementById('subjects-grid');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            subs.forEach((sub, idx) => {
+                const final = getSubjectFinalScore(sub).toFixed(0);
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="google-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-medium text-gray-700">${sub.name}</h4>
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">Nilai Akhir: ${final}</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-4 mb-4">
+                            <div><label class="text-[10px] uppercase text-gray-400 font-bold">HARIAN</label><input type="number" oninput="updateScore(${idx}, 'daily', this.value)" value="${sub.scores.daily}" class="w-full p-2 text-sm"></div>
+                            <div><label class="text-[10px] uppercase text-gray-400 font-bold">MINGGU</label><input type="number" oninput="updateScore(${idx}, 'weekly', this.value)" value="${sub.scores.weekly}" class="w-full p-2 text-sm"></div>
+                            <div><label class="text-[10px] uppercase text-gray-400 font-bold">UTS</label><input type="number" oninput="updateScore(${idx}, 'uts', this.value)" value="${sub.scores.uts}" class="w-full p-2 text-sm"></div>
+                            <div><label class="text-[10px] uppercase text-gray-400 font-bold">PAS</label><input type="number" oninput="updateScore(${idx}, 'pas', this.value)" value="${sub.scores.pas}" class="w-full p-2 text-sm"></div>
+                        </div>
+                        <textarea oninput="updateNote(${idx}, this.value)" class="w-full p-3 text-xs" rows="2" placeholder="Tulis capaian...">${sub.note || ''}</textarea>
+                    </div>
+                `);
+            });
+        }
+
+        function updateScore(subIdx, type, val) {
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const st = studentsData.find(s => s.id === currentStudentId);
+            if (st) {
+                st.academic[year][sem].subjects[subIdx].scores[type] = parseInt(val) || 0;
+                saveToStorage();
+            }
+        }
+
+        function updateNote(subIdx, val) {
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const st = studentsData.find(s => s.id === currentStudentId);
+            if (st) {
+                st.academic[year][sem].subjects[subIdx].note = val;
+                saveToStorage();
+            }
+        }
+
+        function saveCurrentStudent() {
+            if (currentStudentId === null) return;
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const st = studentsData.find(s => s.id === currentStudentId);
+            if (st) {
+                const context = st.academic[year][sem];
+                context.mandiri = document.getElementById('edit-mandiri').value;
+                context.kerjasama = document.getElementById('edit-kerjasama').value;
+                context.pesan = document.getElementById('edit-pesan').value;
+                saveToStorage();
+            }
+        }
+
+        function updateViewer() {
+            if (currentStudentId === null) return;
+            const year = document.getElementById('dash-year').value;
+            const sem = 'sem' + document.getElementById('dash-semester').value;
+            const st = studentsData.find(s => s.id === currentStudentId);
+            if (!st) return;
+
+            const data = st.academic[year][sem];
+            document.getElementById('view-nama').innerText = st.nama;
+            document.getElementById('view-period').innerText = `Kelas ${year} - SEMESTER ${sem === 'sem1' ? 'GANJIL' : 'GENAP'}`;
+            document.getElementById('view-mandiri').innerText = data.mandiri;
+            document.getElementById('view-kerjasama').innerText = data.kerjasama;
+            document.getElementById('view-pesan').innerText = data.pesan || "-";
+
+            const tbody = document.getElementById('view-table-body');
+            tbody.innerHTML = '';
+            data.subjects.forEach(s => {
+                const final = getSubjectFinalScore(s).toFixed(0);
+                tbody.insertAdjacentHTML('beforeend', `
+                    <tr class="border-b border-gray-100">
+                        <td class="px-4 py-4 font-bold text-gray-800">${s.name}</td>
+                        <td class="px-4 py-4 text-center font-bold text-blue-600">${final}</td>
+                        <td class="px-4 py-4 leading-relaxed">${s.note || '-'}</td>
+                    </tr>
+                `);
+            });
+        }
+
+        function toggleConfig() { document.getElementById('api-panel').classList.toggle('hidden'); }
+        function saveApiKey() { localStorage.setItem('gemini_api_key', document.getElementById('api-key-input').value); toggleConfig(); }
+        function initApiKey() { const k = localStorage.getItem('gemini_api_key'); if (k) document.getElementById('api-key-input').value = k; }
+
+        function addNewStudent() {
+            const name = prompt("Nama Siswa Baru:");
+            if (name) {
+                const st = createStudentInstance(Date.now(), name);
+                studentsData.push(st);
+                saveToStorage();
+                renderDashboard();
+            }
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const rows = e.target.result.split('\n');
+                rows.forEach(r => {
+                    const n = r.trim();
+                    if(n && n !== 'Nama Siswa') studentsData.push(createStudentInstance(Date.now() + Math.random(), n));
+                });
+                saveToStorage();
+                renderDashboard();
+            };
+            reader.readAsText(file);
+        }
+
+        async function generateActionPlan() {
+            const key = localStorage.getItem('gemini_api_key');
+            if (!key) { alert("API Key belum diset!"); return; }
+            const st = studentsData.find(s => s.id === currentStudentId);
+            const prompt = `Buat pesan penutup raport 2 kalimat untuk siswa bernama ${st.nama} agar lebih semangat belajar.`;
+            
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                const text = data.candidates[0].content.parts[0].text;
+                document.getElementById('edit-pesan').value = text.trim();
+                saveCurrentStudent();
+            } catch (e) { console.error(e); }
+        }
+    </script>
+</body>
+</html>
