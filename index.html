@@ -119,15 +119,20 @@
             </div>
 
             <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4 text-left">
-                <input type="email" id="auth-email" required placeholder="Email Sekolah / Orang Tua" class="w-full p-4 bg-white">
-                <input type="password" id="auth-password" required placeholder="Password" class="w-full p-4 bg-white">
                 <div id="parent-extra-fields" class="hidden">
-                    <input type="text" id="child-id" placeholder="ID Siswa (Cth: 172635...)" class="w-full p-4 bg-white mt-4 border-orange-200">
-                    <p class="text-[10px] text-orange-600 mt-2 px-2 font-bold uppercase tracking-widest">Wajib diisi untuk akses orang tua</p>
+                    <input type="text" id="child-id" placeholder="Masukkan ID Siswa (Wajib)" class="w-full p-4 bg-white mt-4 border-orange-200">
+                    <p class="text-[10px] text-orange-600 mt-2 px-2 font-bold uppercase tracking-widest">Dapatkan ID Siswa dari Wali Kelas</p>
                 </div>
-                <div class="flex justify-between items-center pt-6">
-                    <button type="button" class="text-blue-600 font-semibold text-sm">Lupa Password?</button>
-                    <button type="submit" class="google-btn-primary px-8 py-3">Masuk Sekarang</button>
+                <div class="pt-6">
+                    <button type="submit" class="w-full bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-8 py-4 rounded-full font-bold flex items-center justify-center gap-3 transition-all shadow-sm">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        Lanjutkan dengan Google
+                    </button>
                 </div>
             </form>
         </div>
@@ -365,15 +370,23 @@
     <!-- Firebase SDKs & App Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration (Injected environment)
-        const firebaseConfig = JSON.parse(__firebase_config);
+        // Konfigurasi Asli Milik Anda
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
+            authDomain: "smpitlaatahzan-raport.firebaseapp.com",
+            projectId: "smpitlaatahzan-raport",
+            storageBucket: "smpitlaatahzan-raport.firebasestorage.app",
+            messagingSenderId: "888443305012",
+            appId: "1:888443305012:web:5869fab053efecfd3bde61"
+        };
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'edureport-pro-v2';
+        const provider = new GoogleAuthProvider();
 
         // State Management
         let currentUser = null;
@@ -392,20 +405,48 @@
 
         window.handleAuth = async (e) => {
             e.preventDefault();
+            
+            // Validasi jika orang tua tapi belum isi ID Anak
+            const childId = document.getElementById('child-id').value.trim();
+            if (currentRole === 'orangtua' && !childId) {
+                alert("Mohon masukkan ID Siswa terlebih dahulu.");
+                return;
+            }
+
             document.getElementById('loading-overlay').classList.remove('hidden');
-            try { await signInAnonymously(auth); } 
-            catch (error) { alert("Gagal Login. Coba lagi."); document.getElementById('loading-overlay').classList.add('hidden'); }
+            document.getElementById('loading-text').innerText = "Memverifikasi Akun Google...";
+
+            try { 
+                await signInWithPopup(auth, provider); 
+            } 
+            catch (error) { 
+                console.error(error);
+                document.getElementById('loading-overlay').classList.add('hidden'); 
+                
+                if (error.code === 'auth/unauthorized-domain') {
+                    alert(`PENTING: Domain belum diizinkan oleh Firebase!\n\nUntuk menguji aplikasi ini, Anda harus mendaftarkan domain berikut ke Firebase Console Anda:\n\n${window.location.hostname}\n\nLangkah-langkah:\n1. Buka Firebase Console > Authentication > Settings\n2. Buka menu 'Authorized domains'\n3. Klik 'Add domain' dan paste teks domain di atas.`);
+                } else {
+                    alert("Gagal Login dengan Google: " + error.message); 
+                }
+            }
         };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
-                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid); // Correct even path
+                // Simpan profil user langsung ke root /users/uid
+                const userDocRef = doc(db, 'users', user.uid); 
                 let userSnap = await getDoc(userDocRef);
                 
+                // Jika ini login pertama kali, simpan role dan emailnya
                 if (!userSnap.exists()) {
-                    const childId = document.getElementById('child-id').value;
-                    await setDoc(userDocRef, { role: currentRole, email: document.getElementById('auth-email').value, childId: childId || null });
+                    const childId = document.getElementById('child-id').value.trim();
+                    await setDoc(userDocRef, { 
+                        role: currentRole, 
+                        email: user.email, 
+                        name: user.displayName,
+                        childId: childId || null 
+                    });
                     userSnap = await getDoc(userDocRef);
                 }
 
@@ -433,7 +474,7 @@
             const badge = document.getElementById('user-role-badge');
             badge.innerText = role === 'guru' ? 'Guru Kelas' : 'Orang Tua';
             badge.className = `role-badge ${role === 'guru' ? 'role-guru' : 'role-ortu'}`;
-            document.getElementById('user-initial').innerText = role.charAt(0);
+            document.getElementById('user-initial').innerText = currentUser.displayName ? currentUser.displayName.charAt(0) : '?';
 
             if (role === 'guru') {
                 document.getElementById('nav-guru').classList.remove('hidden');
@@ -453,15 +494,25 @@
 
         // --- FIRESTORE SYNC ---
         function initRealtimeSync(profile) {
-            const studentsCol = collection(db, 'artifacts', appId, 'public', 'students'); // Correct even path
-            onSnapshot(studentsCol, (snapshot) => {
-                studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
-                if (profile.role === 'guru') {
+            if (profile.role === 'guru') {
+                // Guru meload semua murid
+                const studentsCol = collection(db, 'students'); 
+                onSnapshot(studentsCol, (snapshot) => {
+                    studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
-                } else {
-                    updateViewer();
-                }
-            });
+                });
+            } else if (profile.role === 'orangtua' && profile.childId) {
+                // Ortu HANYA meload dokumen spesifik anaknya
+                const studentDoc = doc(db, 'students', profile.childId);
+                onSnapshot(studentDoc, (snapshot) => {
+                    if(snapshot.exists()) {
+                        studentsData = [{ docId: snapshot.id, ...snapshot.data() }];
+                        updateViewer();
+                    } else {
+                        alert("Data siswa tidak ditemukan. Silakan periksa kembali ID Siswa Anda.");
+                    }
+                });
+            }
         }
 
         // --- MATH CALCULATIONS ---
@@ -573,7 +624,7 @@
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             
             studentsData[stIdx].academic[year][sem].subjects[idx].scores[type] = parseInt(val) || 0;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'students', currentStudentId);
+            const docRef = doc(db, 'students', currentStudentId);
             await setDoc(docRef, studentsData[stIdx]);
             
             // Soft update UI badge
@@ -587,7 +638,7 @@
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             
             studentsData[stIdx].academic[year][sem].subjects[idx].note = val;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'students', currentStudentId);
+            const docRef = doc(db, 'students', currentStudentId);
             await setDoc(docRef, studentsData[stIdx]);
         };
 
@@ -597,7 +648,7 @@
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             
             studentsData[stIdx].academic[year][sem][field] = val;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'students', currentStudentId);
+            const docRef = doc(db, 'students', currentStudentId);
             await setDoc(docRef, studentsData[stIdx]);
         };
 
@@ -653,7 +704,7 @@
                 }
             };
             
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'students', newId), data);
+            await setDoc(doc(db, 'students', newId), data);
             if(!nameInput) alert(`Siswa berhasil ditambahkan!\n\nBerikan ID ini ke orang tua untuk login: ${newId}`);
         };
 
@@ -756,7 +807,7 @@
                 }
                 
                 // Save all new AI notes to Firestore
-                const docRef = doc(db, 'artifacts', appId, 'public', 'students', currentStudentId);
+                const docRef = doc(db, 'students', currentStudentId);
                 await setDoc(docRef, studentsData[stIdx]);
                 
                 alert("Wow! Narasi AI berhasil dibuat untuk semua mata pelajaran!");
