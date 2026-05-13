@@ -218,7 +218,7 @@
                                 <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
                                     <th class="px-6 py-4">Nama Siswa</th>
                                     <th class="px-6 py-4">ID Akses (Ortu)</th>
-                                    <th class="px-6 py-4 text-right">Penilaian & Progres</th>
+                                    <th class="px-6 py-4 text-right">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="student-table-body" class="divide-y divide-[#dadce0]"></tbody>
@@ -395,7 +395,6 @@
             document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'p-6 border-2 border-orange-400 rounded-3xl bg-orange-50 text-orange-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('parent-extra-fields').classList.toggle('hidden', role !== 'orangtua');
             
-            // Remove 'required' from input if role is guru to avoid HTML5 form validation blocking Google Signin
             if(role === 'guru') {
                 document.getElementById('child-id').removeAttribute('required');
             } else {
@@ -588,33 +587,42 @@
                     <tr class="hover:bg-blue-50 transition-colors">
                         <td class="px-6 py-4 font-bold text-gray-900">${st.nama}</td>
                         <td class="px-6 py-4 text-sm font-mono text-gray-500">${st.docId}</td>
-                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700">Buka Profil</button></td>
+                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700 transition-transform active:scale-95">Buka Profil</button></td>
                     </tr>
                 `);
             });
         };
 
+        // --- FITUR AUTO-FIX & PROTEKSI ERROR ---
         window.editStudent = (docId) => {
-            currentStudentId = docId;
-            const st = studentsData.find(s => s.docId === docId);
-            const year = document.getElementById('dash-year').value;
-            
-            document.getElementById('editor-title').innerText = st.nama;
-            document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
-            
-            // Init default values if new student
-            if(!st.academic) st.academic = {};
-            if(!st.academic[year]) st.academic[year] = { subjects: createEmptySubjects() };
-            
-            // Populate Extra Fields (Hafalan, Poin)
-            document.getElementById('input-poin').value = st.poin ?? 100;
-            document.getElementById('input-catatan-poin').value = st.catatan_poin || '';
-            document.getElementById('input-hafalan').value = st.hafalan || '';
+            try {
+                currentStudentId = docId;
+                const st = studentsData.find(s => s.docId === docId);
+                const year = document.getElementById('dash-year').value;
+                
+                document.getElementById('editor-title').innerText = st.nama;
+                document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
+                
+                // Mencegah ERROR jika data di database masih memakai format "Semester" lama
+                if(!st.academic) st.academic = {};
+                // Jika data subjects tidak ada atau masih berbentuk objek semester lama, maka PAKSA bersihkan dan buat format baru.
+                if(!st.academic[year] || !st.academic[year].subjects || !Array.isArray(st.academic[year].subjects)) {
+                    st.academic[year] = { subjects: createEmptySubjects() };
+                }
+                
+                // Isi Kolom Hafalan & Poin
+                document.getElementById('input-poin').value = st.poin !== undefined ? st.poin : 100;
+                document.getElementById('input-catatan-poin').value = st.catatan_poin || '';
+                document.getElementById('input-hafalan').value = st.hafalan || '';
 
-            renderEditorGrid(st.academic[year].subjects);
-            
-            document.getElementById('btn-editor').classList.remove('hidden');
-            window.switchTab('editor');
+                renderEditorGrid(st.academic[year].subjects);
+                
+                document.getElementById('btn-editor').classList.remove('hidden');
+                window.switchTab('editor');
+            } catch (error) {
+                console.error("Error membuka profil:", error);
+                alert("Sistem mendeteksi ada data yang corrupt pada siswa ini. Silakan Hapus data siswa ini di Firebase dan tambahkan kembali menggunakan fitur 'Siswa Baru'.");
+            }
         };
 
         function renderEditorGrid(subs) {
@@ -664,7 +672,7 @@
             document.getElementById('parent-view-nama').innerText = st?.nama || "Siswa";
             
             // Render Poin & Hafalan for Parent
-            document.getElementById('parent-view-poin').innerText = st?.poin ?? 100;
+            document.getElementById('parent-view-poin').innerText = st?.poin !== undefined ? st.poin : 100;
             document.getElementById('parent-view-catatan-poin').innerText = st?.catatan_poin ? `"${st.catatan_poin}"` : "Siswa mematuhi peraturan sekolah dengan baik.";
             document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada catatan progres hafalan terbaru dari guru.";
 
@@ -686,10 +694,11 @@
                 });
             } else { empty.classList.remove('hidden'); }
 
-            // Load Daily Grades
+            // Load Daily Grades (Safe checking)
             const tbody = document.getElementById('parent-daily-grades');
             tbody.innerHTML = '';
-            if (st?.academic?.[cls]) {
+            
+            if (st && st.academic && st.academic[cls] && st.academic[cls].subjects) {
                 st.academic[cls].subjects.forEach(sub => {
                     const scr = sub.daily || 0;
                     const badge = scr >= 80 ? 'bg-green-100 text-green-700' : (scr >= 70 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700');
