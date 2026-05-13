@@ -433,7 +433,8 @@
             document.getElementById('loading-text').innerText = "Mencari Data Siswa...";
 
             try {
-                const studentRef = doc(db, 'students', nis);
+                // Pastikan NIS diambil sebagai string untuk menghindari error tipe data
+                const studentRef = doc(db, 'students', String(nis));
                 const snap = await getDoc(studentRef);
                 
                 document.getElementById('loading-overlay').classList.add('hidden');
@@ -442,12 +443,19 @@
                     await setDoc(doc(db, 'users', auth.currentUser.uid), { childId: nis }, { merge: true });
                     setupUIForRole('orangtua', nis);
                 } else {
-                    errorMsg.innerText = `Data untuk NIS "${nis}" tidak ditemukan.`;
+                    errorMsg.innerText = `Data untuk NIS "${nis}" tidak ditemukan. Pastikan NIS yang dimasukkan benar.`;
                     errorMsg.classList.remove('hidden');
                 }
             } catch (err) {
                 document.getElementById('loading-overlay').classList.add('hidden');
-                errorMsg.innerText = "Terjadi kesalahan saat memeriksa data.";
+                console.error("Error Detail Firebase:", err); // Log error lengkap ke console
+                
+                // Cek apakah ini error permissions (hak akses ditolak)
+                if (err.code === 'permission-denied') {
+                    errorMsg.innerHTML = "<b>Akses Ditolak Server.</b><br>Pastikan Aturan Firebase Firestore mengizinkan user membaca data siswa.";
+                } else {
+                    errorMsg.innerText = `Terjadi kesalahan saat memeriksa data. (Error: ${err.message})`;
+                }
                 errorMsg.classList.remove('hidden');
             }
         };
