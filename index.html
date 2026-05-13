@@ -161,8 +161,14 @@
 
                 <div id="nav-guru" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full no-print">
                     <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill active text-sm">Dashboard</button>
+                    <button id="btn-agenda" onclick="switchTab('agenda')" class="nav-pill text-sm">Agenda Kelas</button>
                     <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-sm text-gray-400 cursor-not-allowed">Editor</button>
                     <button id="btn-viewer" onclick="switchTab('viewer')" class="nav-pill text-sm text-gray-400 cursor-not-allowed">Preview</button>
+                </div>
+
+                <div id="nav-ortu" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full no-print">
+                    <button id="btn-ortu-viewer" onclick="switchTab('viewer')" class="nav-pill active text-sm">Raport Semester</button>
+                    <button id="btn-ortu-agenda" onclick="switchTab('parent-agenda')" class="nav-pill text-sm">Agenda & Tugas</button>
                 </div>
 
                 <div class="flex items-center gap-3">
@@ -190,7 +196,7 @@
                         </div>
                     </div>
                     <div class="flex gap-3">
-                        <button onclick="document.getElementById('csv-input').click()" class="px-6 py-3 border border-[#dadce0] bg-white rounded-full text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm">
+                        <button onclick="document.getElementById('csv-input').click()" title="Format CSV: ID_Siswa, Nama_Siswa" class="px-6 py-3 border border-[#dadce0] bg-white rounded-full text-sm font-semibold hover:bg-gray-50 transition-colors flex items-center gap-2 shadow-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                             Impor CSV
                         </button>
@@ -360,6 +366,125 @@
                     </div>
                 </div>
             </section>
+
+            <!-- SECTION: AGENDA GURU -->
+            <section id="agenda-section" class="hidden space-y-6 animate-in slide-in-from-bottom duration-500">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <div>
+                        <h2 class="text-3xl font-medium text-[#202124] tracking-tight">Agenda Mengajar & Tugas</h2>
+                        <p class="text-sm text-gray-500 mt-1">Atur jadwal pelajaran dan tugas harian untuk kelas.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <input type="date" id="agenda-date" onchange="loadAgenda()" class="p-3 bg-white text-sm font-bold text-gray-700 rounded-xl border border-gray-300">
+                        <select id="agenda-class" onchange="loadAgenda()" class="p-3 bg-white text-sm font-bold text-gray-700 rounded-xl border border-gray-300">
+                            <option value="7">Kelas 7</option>
+                            <option value="8">Kelas 8</option>
+                            <option value="9">Kelas 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1 space-y-4">
+                        <div class="google-card p-6 bg-blue-50 border-blue-100">
+                            <h3 class="font-bold text-blue-800 mb-4">Tambah Agenda Hari Ini</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Mata Pelajaran</label>
+                                    <select id="agenda-input-subject" class="w-full p-3 mt-1 bg-white text-sm">
+                                        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+                                        <option value="Wafa">Wafa</option>
+                                        <option value="Bahasa Inggris">Bahasa Inggris</option>
+                                        <option value="IPA">IPA</option>
+                                        <option value="Matematika">Matematika</option>
+                                        <option value="Seni Musik">Seni Musik</option>
+                                        <option value="Civil Society">Civil Society</option>
+                                        <option value="Sport Class">Sport Class</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-blue-600 uppercase tracking-widest">Tugas / Aktivitas</label>
+                                    <textarea id="agenda-input-task" class="w-full p-3 mt-1 bg-white text-sm h-24" placeholder="Cth: Mengerjakan LKS halaman 12..."></textarea>
+                                </div>
+                                <button onclick="saveAgendaItem()" class="w-full google-btn-primary py-3 font-bold">Simpan Agenda</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-2">
+                        <div class="google-card overflow-hidden min-h-[300px]">
+                            <table class="w-full text-left">
+                                <thead class="bg-gray-50 border-b border-[#dadce0]">
+                                    <tr class="text-[11px] font-black text-[#5f6368] uppercase tracking-widest">
+                                        <th class="px-6 py-4 w-1/3">Mata Pelajaran</th>
+                                        <th class="px-6 py-4">Tugas / Aktivitas</th>
+                                        <th class="px-6 py-4 text-right">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="agenda-table-body" class="divide-y divide-[#dadce0]">
+                                    <!-- Agenda items -->
+                                </tbody>
+                            </table>
+                            <div id="agenda-empty-state" class="p-10 text-center hidden">
+                                <span class="text-4xl">📅</span>
+                                <p class="text-gray-500 mt-3 font-medium">Belum ada agenda untuk tanggal ini.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION: AGENDA ORANG TUA -->
+            <section id="parent-agenda-section" class="hidden space-y-8 animate-in slide-in-from-bottom duration-500">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <h2 class="text-3xl font-medium text-[#202124] tracking-tight">Agenda & Tugas Anak</h2>
+                        <p class="text-sm text-gray-500 mt-1">Pantau kegiatan belajar anak Anda hari ini.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <input type="date" id="parent-agenda-date" onchange="loadParentAgenda()" class="p-3 bg-white text-sm font-bold text-gray-700 rounded-xl">
+                        <select id="parent-agenda-class" onchange="loadParentAgenda()" class="p-3 bg-white text-sm font-bold text-gray-700 rounded-xl">
+                            <option value="7">Kelas 7</option>
+                            <option value="8">Kelas 8</option>
+                            <option value="9">Kelas 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Daftar Agenda -->
+                    <div class="google-card p-0 overflow-hidden">
+                        <div class="bg-blue-600 p-4 text-white">
+                            <h3 class="font-bold flex items-center gap-2">📝 Agenda Hari Ini</h3>
+                        </div>
+                        <div id="parent-agenda-list" class="divide-y divide-gray-100">
+                            <!-- Diisi JS -->
+                        </div>
+                        <div id="parent-agenda-empty" class="p-8 text-center text-gray-500 text-sm hidden">
+                            Tidak ada jadwal / tugas yang dicatat guru untuk hari ini.
+                        </div>
+                    </div>
+
+                    <!-- Nilai Harian -->
+                    <div class="google-card p-0 overflow-hidden border-orange-200">
+                        <div class="bg-orange-50 p-4 border-b border-orange-200">
+                            <h3 class="font-bold text-orange-800 flex items-center gap-2">📊 Nilai Harian (Saat Ini)</h3>
+                            <p class="text-xs text-orange-600 mt-1">Rangkuman nilai tugas harian anak di semester berjalan.</p>
+                        </div>
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-white border-b border-gray-100">
+                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    <th class="px-6 py-3">Mata Pelajaran</th>
+                                    <th class="px-6 py-3 text-center">Nilai Harian</th>
+                                </tr>
+                            </thead>
+                            <tbody id="parent-daily-grades" class="divide-y divide-gray-100 bg-white">
+                                <!-- Diisi JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -524,57 +649,177 @@
             badge.className = `role-badge ${role === 'guru' ? 'role-guru' : 'role-ortu'}`;
             document.getElementById('user-initial').innerText = role.charAt(0);
 
+            // Setup Default Date untuk Agenda
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('agenda-date').value = today;
+            document.getElementById('parent-agenda-date').value = today;
+
             if (role === 'guru') {
                 document.getElementById('nav-guru').classList.remove('hidden');
+                document.getElementById('nav-ortu').classList.add('hidden');
                 document.getElementById('fab-add-siswa').classList.remove('hidden');
                 document.getElementById('btn-settings').classList.remove('hidden');
                 checkAiStatus();
                 switchTab('dashboard');
             } else {
                 document.getElementById('nav-guru').classList.add('hidden');
+                document.getElementById('nav-ortu').classList.remove('hidden');
                 document.getElementById('fab-add-siswa').classList.add('hidden');
                 document.getElementById('parent-notice').classList.remove('hidden');
                 document.getElementById('btn-back-to-editor').classList.add('hidden');
                 currentStudentId = childId;
-                switchTab('viewer');
+                switchTab('parent-agenda'); // Arahkan Ortu ke Agenda Harian dulu
             }
         }
 
-        function initRealtimeSync(profile) {
-            const studentsCol = collection(db, 'students'); 
-            onSnapshot(studentsCol, (snapshot) => {
-                studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
-                if (profile.role === 'guru') {
-                    if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
-                } else {
-                    updateViewer();
-                }
-            });
-        }
-
-        window.getSubjectFinalScore = (sub) => {
-            const s = sub.scores || { daily: 0, weekly: 0, uts: 0, pas: 0 };
-            return (s.daily * 0.2) + (s.weekly * 0.2) + (s.uts * 0.3) + (s.pas * 0.3);
-        };
-
-        window.calculateStudentAvg = (st, year, sem) => {
-            if (!st.academic?.[year]?.[sem]) return 0;
-            const subs = st.academic[year][sem].subjects || [];
-            if (subs.length === 0) return 0;
-            return subs.reduce((acc, s) => acc + window.getSubjectFinalScore(s), 0) / subs.length;
-        };
-
+        // --- FIRESTORE SYNC ---
+        // --- UI NAVIGATION & RENDERING ---
         window.switchTab = (mode) => {
-            if(mode === 'viewer' && !currentStudentId) { alert("Pilih siswa terlebih dahulu."); return; }
-            const sections = ['dashboard', 'editor', 'viewer'];
-            sections.forEach(s => document.getElementById(`${s}-section`).classList.add('hidden'));
-            document.getElementById(`${mode}-section`).classList.remove('hidden');
+            if((mode === 'viewer' || mode === 'editor') && !currentStudentId && currentRole === 'guru') { 
+                alert("Pilih siswa terlebih dahulu dari Dashboard."); return; 
+            }
+            
+            const sections = ['dashboard', 'editor', 'viewer', 'agenda', 'parent-agenda'];
+            sections.forEach(s => {
+                const el = document.getElementById(`${s}-section`);
+                if(el) el.classList.add('hidden');
+            });
+            
+            const activeSection = document.getElementById(`${mode}-section`);
+            if(activeSection) activeSection.classList.remove('hidden');
             
             document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
-            const activeBtn = document.getElementById(`btn-${mode}`);
+            
+            let activeBtnId = `btn-${mode}`;
+            if (currentRole === 'orangtua' && mode === 'viewer') activeBtnId = 'btn-ortu-viewer';
+            if (currentRole === 'orangtua' && mode === 'parent-agenda') activeBtnId = 'btn-ortu-agenda';
+            
+            const activeBtn = document.getElementById(activeBtnId);
             if(activeBtn) activeBtn.classList.add('active');
 
             if (mode === 'viewer') updateViewer();
+            if (mode === 'agenda') loadAgenda();
+            if (mode === 'parent-agenda') loadParentAgenda();
+        };
+
+        // --- AGENDA LOGIC (GURU) ---
+        window.loadAgenda = async () => {
+            const date = document.getElementById('agenda-date').value;
+            const cls = document.getElementById('agenda-class').value;
+            if(!date || !cls) return;
+
+            const docId = `agenda_${cls}_${date}`;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'agendas', docId);
+            
+            onSnapshot(docRef, (docSnap) => {
+                const tbody = document.getElementById('agenda-table-body');
+                const emptyState = document.getElementById('agenda-empty-state');
+                tbody.innerHTML = '';
+                
+                if (docSnap.exists() && docSnap.data().items && docSnap.data().items.length > 0) {
+                    emptyState.classList.add('hidden');
+                    const items = docSnap.data().items;
+                    items.forEach((item, index) => {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 font-bold text-blue-700">${item.subject}</td>
+                                <td class="px-6 py-4 text-gray-700">${item.task}</td>
+                                <td class="px-6 py-4 text-right">
+                                    <button onclick="deleteAgendaItem('${docId}', ${index})" class="text-red-500 hover:text-red-700 font-bold text-xs px-3 py-1 bg-red-50 rounded-lg">Hapus</button>
+                                </td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    emptyState.classList.remove('hidden');
+                }
+            });
+        };
+
+        window.saveAgendaItem = async () => {
+            const date = document.getElementById('agenda-date').value;
+            const cls = document.getElementById('agenda-class').value;
+            const subject = document.getElementById('agenda-input-subject').value;
+            const task = document.getElementById('agenda-input-task').value;
+            
+            if(!task.trim()) { alert("Tugas/Aktivitas tidak boleh kosong!"); return; }
+
+            const docId = `agenda_${cls}_${date}`;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'agendas', docId);
+            
+            const docSnap = await getDoc(docRef);
+            let items = [];
+            if (docSnap.exists() && docSnap.data().items) {
+                items = docSnap.data().items;
+            }
+            
+            items.push({ subject, task });
+            await setDoc(docRef, { class: cls, date: date, items: items }, { merge: true });
+            
+            document.getElementById('agenda-input-task').value = ''; 
+        };
+
+        window.deleteAgendaItem = async (docId, index) => {
+            if(!confirm("Hapus agenda ini?")) return;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'agendas', docId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                let items = docSnap.data().items;
+                items.splice(index, 1);
+                await setDoc(docRef, { items: items }, { merge: true });
+            }
+        };
+
+        // --- AGENDA LOGIC (ORANG TUA) ---
+        window.loadParentAgenda = async () => {
+            const date = document.getElementById('parent-agenda-date').value;
+            const cls = document.getElementById('parent-agenda-class').value;
+            const st = studentsData.find(s => s.docId === currentStudentId);
+            
+            // 1. Muat Agenda Mengajar
+            const docId = `agenda_${cls}_${date}`;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'agendas', docId);
+            
+            const docSnap = await getDoc(docRef);
+            const listEl = document.getElementById('parent-agenda-list');
+            const emptyEl = document.getElementById('parent-agenda-empty');
+            listEl.innerHTML = '';
+            
+            if (docSnap.exists() && docSnap.data().items && docSnap.data().items.length > 0) {
+                emptyEl.classList.add('hidden');
+                docSnap.data().items.forEach(item => {
+                    listEl.insertAdjacentHTML('beforeend', `
+                        <div class="p-4 hover:bg-gray-50 transition-colors">
+                            <h4 class="font-bold text-blue-700 text-sm">${item.subject}</h4>
+                            <p class="text-sm text-gray-700 mt-1">${item.task}</p>
+                        </div>
+                    `);
+                });
+            } else {
+                emptyEl.classList.remove('hidden');
+            }
+
+            // 2. Muat Nilai Harian (Dari Raport Semester 1)
+            const gradesTbody = document.getElementById('parent-daily-grades');
+            gradesTbody.innerHTML = '';
+            
+            if (st && st.academic[cls]) {
+                const semData = st.academic[cls]['sem1'].subjects; 
+                semData.forEach(sub => {
+                    const dailyScore = sub.scores.daily || 0;
+                    let badgeClass = dailyScore >= 80 ? 'bg-green-100 text-green-700' : (dailyScore >= 70 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700');
+                    gradesTbody.insertAdjacentHTML('beforeend', `
+                        <tr class="hover:bg-orange-50/30">
+                            <td class="px-6 py-3 font-medium text-gray-800">${sub.name}</td>
+                            <td class="px-6 py-3 text-center">
+                                <span class="px-2 py-1 rounded font-bold text-xs ${badgeClass}">${dailyScore}</span>
+                            </td>
+                        </tr>
+                    `);
+                });
+            } else {
+                gradesTbody.innerHTML = '<tr><td colspan="2" class="px-6 py-4 text-center text-xs text-gray-500">Data nilai belum tersedia.</td></tr>';
+            }
         };
 
         window.renderDashboard = () => {
@@ -722,11 +967,29 @@
             return subjectsList.map(name => ({ name, scores: { daily: 0, weekly: 0, uts: 0, pas: 0 }, note: '' }));
         }
 
-        window.addNewStudent = async (nameInput = null) => {
-            const name = nameInput || prompt("Nama Lengkap Siswa Baru:");
-            if (!name) return;
+        window.addNewStudent = async (nameInput = null, idInput = null) => {
+            // Meminta input ID Siswa (NIS) jika tidak diimpor via CSV
+            const newId = idInput || prompt("Masukkan NIS / ID Siswa (Contoh: 2026001):");
+            if (!newId || newId.trim() === "") return;
+
+            // Meminta input Nama
+            const name = nameInput || prompt("Masukkan Nama Lengkap Siswa:");
+            if (!name || name.trim() === "") return;
             
-            const newId = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit ID
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Menyimpan data siswa...";
+
+            // Cek apakah ID sudah dipakai (Mencegah data tertimpa tidak sengaja)
+            const docRef = doc(db, 'students', newId);
+            if (!idInput) {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    alert(`Gagal: ID Siswa ${newId} sudah terdaftar di sistem!`);
+                    return;
+                }
+            }
+
             const data = { 
                 nama: name, 
                 academic: {
@@ -736,8 +999,9 @@
                 }
             };
             
-            await setDoc(doc(db, 'students', newId), data);
-            if(!nameInput) alert(`Siswa berhasil ditambahkan!\n\nBerikan ID ini ke orang tua untuk login: ${newId}`);
+            await setDoc(docRef, data);
+            document.getElementById('loading-overlay').classList.add('hidden');
+            if(!nameInput) alert(`Siswa berhasil ditambahkan!\n\nID Siswa: ${newId}\nNama: ${name}`);
         };
 
         window.handleFileUpload = async (event) => {
@@ -745,25 +1009,44 @@
             if (!file) return;
             
             document.getElementById('loading-overlay').classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "Mengimpor Data...";
+            document.getElementById('loading-text').innerText = "Mengimpor Data CSV...";
 
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const text = e.target.result;
                 const rows = text.split('\n');
                 let count = 0;
+                let failedCount = 0;
                 
                 for (let i = 0; i < rows.length; i++) {
-                    const name = rows[i].trim().replace(/,/g, ''); 
-                    if (name && name.length > 2) {
-                        await window.addNewStudent(name);
-                        count++;
+                    const rowText = rows[i].trim();
+                    if (!rowText) continue;
+
+                    // Mengurai CSV berformat: ID_Siswa, Nama_Siswa
+                    const columns = rowText.split(',');
+                    
+                    if (columns.length >= 2) {
+                        const id = columns[0].trim();
+                        // Gabungkan kembali sisa kolom untuk mengantisipasi koma di dalam nama (opsional)
+                        const name = columns.slice(1).join(',').trim(); 
+                        
+                        if (id && name) {
+                            await window.addNewStudent(name, id);
+                            count++;
+                        } else {
+                            failedCount++;
+                        }
+                    } else {
+                        failedCount++;
                     }
                 }
                 
                 document.getElementById('loading-overlay').classList.add('hidden');
                 document.getElementById('csv-input').value = ""; 
-                alert(`Berhasil mengimpor ${count} siswa dari CSV!`);
+                
+                let msg = `Berhasil mengimpor ${count} siswa.`;
+                if (failedCount > 0) msg += `\n\n(Gagal membaca ${failedCount} baris. Pastikan format CSV Anda tepat: "ID, Nama")`;
+                alert(msg);
             };
             reader.readAsText(file);
         };
