@@ -78,6 +78,16 @@
         .role-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
         .role-guru { background: #e8f0fe; color: #1a73e8; }
         .role-ortu { background: #fef7e0; color: #f29900; }
+        
+        /* Timeline styling for Parent View */
+        .timeline-container { position: relative; padding-left: 24px; }
+        .timeline-container::before {
+            content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #e5e7eb;
+        }
+        .timeline-item { position: relative; margin-bottom: 20px; }
+        .timeline-dot {
+            position: absolute; left: -24px; top: 4px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; z-index: 10;
+        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -90,7 +100,7 @@
     <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 bg-white">
         <div class="w-full max-w-md p-8 text-center">
             <h1 class="text-3xl font-bold text-[#202124] mb-2">EduTrack Pro</h1>
-            <p class="text-[#5f6368] mb-8 text-sm">Portal Agenda & Penilaian Harian Sekolah</p>
+            <p class="text-[#5f6368] mb-8 text-sm">Portal Agenda, Nilai & Karakter Siswa</p>
             
             <div class="grid grid-cols-2 gap-4 mb-8">
                 <button onclick="setLoginRole('guru')" id="role-btn-guru" class="p-6 border-2 border-blue-600 rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all">
@@ -130,15 +140,14 @@
                     </div>
                 </div>
 
-                <!-- Navigation -->
                 <div class="overflow-x-auto hide-scrollbar w-full md:w-auto">
                     <div id="nav-guru" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full w-max">
                         <button id="btn-agenda" onclick="switchTab('agenda')" class="nav-pill text-sm active">Agenda Kelas</button>
                         <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill text-sm">Siswa & Nilai</button>
-                        <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-sm text-gray-400 hidden">Penilaian</button>
+                        <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-sm text-gray-400 hidden">Profil & Penilaian</button>
                     </div>
                     <div id="nav-ortu" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full w-max">
-                        <button id="btn-parent-agenda" onclick="switchTab('parent-agenda')" class="nav-pill active text-sm">Pantau Tugas & Nilai</button>
+                        <button id="btn-parent-agenda" onclick="switchTab('parent-agenda')" class="nav-pill active text-sm">Pantau Harian Siswa</button>
                     </div>
                 </div>
 
@@ -217,6 +226,7 @@
                             <thead class="bg-gray-50 border-b border-[#dadce0]">
                                 <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
                                     <th class="px-6 py-4">Nama Siswa</th>
+                                    <th class="px-6 py-4 text-center">Skor Karakter</th>
                                     <th class="px-6 py-4">ID Akses (Ortu)</th>
                                     <th class="px-6 py-4 text-right">Aksi</th>
                                 </tr>
@@ -238,116 +248,155 @@
                             <p class="text-xs text-blue-600 font-black uppercase mt-1" id="editor-context-label">Konteks</p>
                         </div>
                     </div>
-                    <button onclick="generateAllNotes()" class="w-full md:w-auto px-6 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-bold hover:bg-blue-100">🪄 AI Catatan Otomatis</button>
                 </div>
 
-                <!-- Bagian Hafalan & Poin Kesiswaan -->
+                <!-- Modul Data Transaksional (Karakter & Hafalan) -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <!-- NEW LEDGER SYSTEM: Poin Kedisiplinan -->
+                    <div class="google-card border-orange-200 overflow-hidden flex flex-col">
+                        <div class="bg-orange-50 p-5 border-b border-orange-100 flex justify-between items-center">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl">⭐</span>
+                                <h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Buku Poin Karakter</h3>
+                            </div>
+                            <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-orange-200">
+                                <span class="text-[10px] text-orange-500 font-bold uppercase block leading-none mb-1">Total Poin</span>
+                                <span id="display-total-poin" class="text-2xl font-black text-orange-600 leading-none">100</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Input Transaksi Poin -->
+                        <div class="p-5 border-b border-gray-100 bg-white">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 block">Catat Perilaku Baru (Ledger)</label>
+                            <div class="space-y-3">
+                                <div class="flex gap-2">
+                                    <select id="poin-kategori" class="flex-1 p-2 text-xs font-bold bg-gray-50 border-none rounded-lg" onchange="updatePoinPreview()">
+                                        <option value="" disabled selected>Pilih Kategori Rubrik...</option>
+                                        <optgroup label="🌟 Prestasi / Kebaikan (+)">
+                                            <option value="plus|Ibadah|Shalat jamaah tepat waktu / Dhuha|5">Shalat Berjamaah / Dhuha (+5)</option>
+                                            <option value="plus|Sosial|Membantu teman / Inisiatif kebersihan|5">Membantu Teman / Kebersihan (+5)</option>
+                                            <option value="plus|Akademik|Aktif bertanya atau membantu diskusi kelas|5">Aktif di Kelas (+5)</option>
+                                            <option value="plus|Prestasi|Mendapat penghargaan khusus|10">Penghargaan Khusus (+10)</option>
+                                        </optgroup>
+                                        <optgroup label="⚠️ Pelanggaran (-)">
+                                            <option value="minus|Kedisiplinan|Terlambat masuk kelas|-5">Terlambat Masuk (-5)</option>
+                                            <option value="minus|Kedisiplinan|Tidak mengerjakan tugas/PR|-5">Tidak Mengerjakan Tugas (-5)</option>
+                                            <option value="minus|Adab|Berperilaku/berkata kurang baik|-10">Perilaku Kurang Baik (-10)</option>
+                                            <option value="minus|Kehadiran|Alpha / Bolos|-15">Alpha / Bolos (-15)</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <input type="text" id="poin-deskripsi" placeholder="Catatan spesifik (Opsional)..." class="w-full p-2 text-xs border-gray-200 rounded-lg">
+                                <button onclick="tambahTransaksiPoin()" id="btn-tambah-poin" class="w-full py-2 bg-orange-100 text-orange-700 font-bold rounded-lg text-xs hover:bg-orange-200 transition-colors opacity-50 cursor-not-allowed" disabled>
+                                    Catat ke Riwayat
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Riwayat Transaksi -->
+                        <div class="p-5 bg-gray-50 flex-1 h-48 overflow-y-auto hide-scrollbar">
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 block">Riwayat Transaksi Terakhir</label>
+                            <div id="poin-history-list" class="space-y-3">
+                                <!-- Ledger items will go here -->
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Progress Hafalan -->
-                    <div class="google-card p-5 border-blue-200 bg-blue-50/30">
+                    <div class="google-card p-5 border-blue-200 bg-blue-50/30 flex flex-col">
                         <div class="flex items-center gap-2 mb-4">
                             <span class="text-xl">📖</span>
                             <h3 class="font-bold text-blue-900 text-sm uppercase tracking-widest">Progress Hafalan (Tahfidz)</h3>
                         </div>
-                        <textarea id="input-hafalan" onchange="updateExtraData('hafalan', this.value)" class="w-full p-4 h-24 bg-white border-blue-100 text-sm" placeholder="Contoh: Juz 30 - Surah Al-Ghashiyah ayat 1-15. Sudah lancar namun perlu perbaikan tajwid."></textarea>
+                        <textarea id="input-hafalan" onchange="updateExtraData('hafalan', this.value)" class="w-full p-4 flex-1 bg-white border-blue-100 text-sm" placeholder="Contoh: Juz 30 - Surah Al-Ghashiyah ayat 1-15. Sudah lancar namun perlu perbaikan tajwid."></textarea>
                     </div>
 
-                    <!-- Poin Kesiswaan -->
-                    <div class="google-card p-5 border-orange-200 bg-orange-50/30">
-                        <div class="flex items-center gap-2 mb-4">
-                            <span class="text-xl">⭐</span>
-                            <h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Poin Kesiswaan & Perilaku</h3>
-                        </div>
-                        <div class="flex items-start gap-4">
-                            <div class="w-1/3">
-                                <label class="text-[10px] text-orange-700 font-bold uppercase mb-1 block">Skor Poin</label>
-                                <input type="number" id="input-poin" onchange="updateExtraData('poin', this.value)" class="w-full p-4 text-xl font-black text-center text-orange-600 bg-white border-orange-200 rounded-xl" placeholder="100">
-                            </div>
-                            <div class="w-2/3">
-                                <label class="text-[10px] text-orange-700 font-bold uppercase mb-1 block">Catatan Perilaku</label>
-                                <textarea id="input-catatan-poin" onchange="updateExtraData('catatan_poin', this.value)" class="w-full p-3 h-16 text-xs bg-white border-orange-200" placeholder="Keterangan poin... (Cth: Terlambat, Berprestasi, dll)"></textarea>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 font-medium">
-                    ✏️ <strong>Nilai Tugas/Harian:</strong> Masukkan skor nilai terbaru untuk setiap mapel di bawah ini.
+                <div class="flex items-center justify-between mt-8 mb-4">
+                    <div class="bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl text-sm text-blue-800 font-medium">
+                        ✏️ <strong>Nilai Tugas/Harian</strong>
+                    </div>
+                    <button onclick="generateAllNotes()" class="px-6 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded-full text-xs font-bold hover:bg-blue-200 transition-colors">🪄 AI Catatan Otomatis</button>
                 </div>
 
                 <div id="subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </section>
 
             <section id="parent-agenda-section" class="hidden space-y-6 animate-in fade-in duration-500">
-                <div class="bg-blue-600 rounded-2xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 md:p-8 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl">
                     <div>
-                        <p class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Memantau Data Siswa</p>
-                        <h2 id="parent-view-nama" class="text-2xl md:text-3xl font-bold">Nama Anak</h2>
+                        <p class="text-blue-200 text-[10px] font-black uppercase tracking-widest mb-1">Sistem Pemantauan Terpadu</p>
+                        <h2 id="parent-view-nama" class="text-3xl md:text-4xl font-bold tracking-tight">Nama Anak</h2>
                     </div>
-                    <div class="flex items-center gap-2 w-full md:w-auto">
-                        <input type="date" id="parent-agenda-date" onchange="loadParentDashboard()" class="p-3 rounded-xl text-gray-900 text-sm font-bold w-full md:w-auto">
-                        <select id="parent-agenda-class" onchange="loadParentDashboard()" class="p-3 rounded-xl text-gray-900 text-sm font-bold w-full md:w-auto">
+                    <div class="flex items-center gap-2 w-full md:w-auto bg-white/10 p-2 rounded-2xl backdrop-blur-sm border border-white/20">
+                        <input type="date" id="parent-agenda-date" onchange="loadParentDashboard()" class="p-3 rounded-xl bg-white/90 text-gray-900 text-sm font-bold w-full md:w-auto border-none">
+                        <select id="parent-agenda-class" onchange="loadParentDashboard()" class="p-3 rounded-xl bg-white/90 text-gray-900 text-sm font-bold w-full md:w-auto border-none">
                             <option value="7">Kelas 7</option> <option value="8">Kelas 8</option> <option value="9">Kelas 9</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Baris 1: Agenda & Nilai Mapel -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                    <!-- Agenda Hari Ini -->
-                    <div class="google-card overflow-hidden border-2 border-blue-100">
-                        <div class="bg-blue-50 p-4 border-b border-blue-100 flex items-center gap-3">
-                            <span class="text-xl">📅</span><h3 class="font-bold text-blue-900 text-lg">Agenda & Tugas Hari Ini</h3>
+                <!-- Baris 1: Karakter & Hafalan (Transparansi Utama) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mt-2">
+                    <!-- Ledger Transparansi Poin -->
+                    <div class="google-card border-2 border-orange-100 overflow-hidden flex flex-col">
+                        <div class="bg-orange-50 p-5 border-b border-orange-100 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">⭐</span><h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Karakter & Kedisiplinan</h3>
+                            </div>
+                            <div class="bg-white px-4 py-2 rounded-2xl shadow-sm border border-orange-200 text-center">
+                                <span class="text-[10px] text-orange-500 font-bold uppercase block leading-none mb-1">Skor Total</span>
+                                <span id="parent-view-poin-total" class="text-3xl font-black text-orange-600 leading-none">100</span>
+                            </div>
                         </div>
-                        <div id="parent-agenda-list" class="divide-y divide-gray-100"></div>
-                        <div id="parent-agenda-empty" class="p-10 text-center text-gray-400 text-sm hidden">Tidak ada catatan agenda dari guru untuk hari ini.</div>
+                        <div class="p-6 bg-white flex-1">
+                            <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">Riwayat Aktivitas Terakhir</h4>
+                            <div id="parent-timeline-poin" class="timeline-container">
+                                <!-- Timeline items inserted by JS -->
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Nilai Harian -->
-                    <div class="google-card overflow-hidden border-2 border-green-100">
-                        <div class="bg-green-50 p-4 border-b border-green-100 flex items-center gap-3">
-                            <span class="text-xl">📈</span><h3 class="font-bold text-green-900 text-lg">Skor Tugas Harian Terkini</h3>
+                    <!-- Panel Hafalan -->
+                    <div class="google-card border-2 border-indigo-100 overflow-hidden flex flex-col">
+                        <div class="bg-indigo-50 p-5 border-b border-indigo-100 flex items-center gap-3">
+                            <span class="text-2xl">📖</span><h3 class="font-bold text-indigo-900 text-sm uppercase tracking-widest">Progress Tahfidz</h3>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-white border-b border-gray-100">
-                                    <tr class="text-[10px] text-gray-500 uppercase tracking-widest">
-                                        <th class="px-5 py-3">Mata Pelajaran</th>
-                                        <th class="px-5 py-3 text-center">Skor</th>
-                                        <th class="px-5 py-3">Catatan</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="parent-daily-grades" class="divide-y divide-gray-50"></tbody>
-                            </table>
+                        <div class="p-6 bg-white flex-1 flex items-center justify-center text-center">
+                            <p id="parent-view-hafalan" class="text-gray-700 font-medium leading-relaxed text-lg">Memuat data hafalan...</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Baris 2: Hafalan & Poin Kesiswaan -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mt-2">
-                    <!-- Panel Hafalan -->
-                    <div class="google-card border-2 border-indigo-100 overflow-hidden">
-                        <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex items-center gap-3">
-                            <span class="text-xl">📖</span><h3 class="font-bold text-indigo-900 text-sm uppercase tracking-widest">Progress Hafalan</h3>
+                <!-- Baris 2: Agenda & Nilai Mapel -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                    <!-- Agenda Hari Ini -->
+                    <div class="google-card overflow-hidden border-2 border-blue-100">
+                        <div class="bg-blue-50 p-5 border-b border-blue-100 flex items-center gap-3">
+                            <span class="text-2xl">📅</span><h3 class="font-bold text-blue-900 text-sm uppercase tracking-widest">Agenda & Tugas Hari Ini</h3>
                         </div>
-                        <div class="p-6">
-                            <p id="parent-view-hafalan" class="text-gray-700 font-medium leading-relaxed">Memuat data hafalan...</p>
-                        </div>
+                        <div id="parent-agenda-list" class="divide-y divide-gray-100 bg-white"></div>
+                        <div id="parent-agenda-empty" class="p-10 text-center text-gray-400 text-sm hidden bg-white">Tidak ada catatan agenda dari guru untuk hari ini.</div>
                     </div>
 
-                    <!-- Panel Poin Kesiswaan -->
-                    <div class="google-card border-2 border-orange-100 overflow-hidden">
-                        <div class="bg-orange-50 p-4 border-b border-orange-100 flex items-center gap-3">
-                            <span class="text-xl">⭐</span><h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Poin Kedisiplinan</h3>
+                    <!-- Nilai Harian -->
+                    <div class="google-card overflow-hidden border-2 border-green-100">
+                        <div class="bg-green-50 p-5 border-b border-green-100 flex items-center gap-3">
+                            <span class="text-2xl">📈</span><h3 class="font-bold text-green-900 text-sm uppercase tracking-widest">Skor Tugas Harian Terkini</h3>
                         </div>
-                        <div class="p-6 flex items-center gap-6">
-                            <div class="bg-orange-100 text-orange-600 font-black text-4xl w-24 h-24 flex items-center justify-center rounded-2xl shrink-0" id="parent-view-poin">
-                                100
-                            </div>
-                            <div>
-                                <p class="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Catatan Wali Kelas:</p>
-                                <p id="parent-view-catatan-poin" class="text-gray-700 text-sm italic">"Siswa menaati peraturan sekolah dengan baik."</p>
-                            </div>
+                        <div class="overflow-x-auto bg-white">
+                            <table class="w-full text-left text-sm">
+                                <thead class="border-b border-gray-100">
+                                    <tr class="text-[10px] text-gray-400 font-bold uppercase tracking-widest bg-gray-50">
+                                        <th class="px-5 py-4">Mata Pelajaran</th>
+                                        <th class="px-5 py-4 text-center">Skor</th>
+                                        <th class="px-5 py-4">Catatan Evaluasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="parent-daily-grades" class="divide-y divide-gray-50"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -382,73 +431,70 @@
         const db = getFirestore(app);
 
         // State variables
-        let currentUser = null;
+        let currentUserProfile = null;
         let currentRole = 'guru';
         let studentsData = [];
         let currentStudentId = null;
+        let activeSnapshotUnsubscribe = null;
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
-        // --- AUTH ---
+        // --- AUTH & RBAC ---
         window.setLoginRole = (role) => {
             currentRole = role;
             document.getElementById('role-btn-guru').className = role === 'guru' ? 'p-6 border-2 border-blue-600 rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'p-6 border-2 border-orange-400 rounded-3xl bg-orange-50 text-orange-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('parent-extra-fields').classList.toggle('hidden', role !== 'orangtua');
             
-            if(role === 'guru') {
-                document.getElementById('child-id').removeAttribute('required');
-            } else {
-                document.getElementById('child-id').setAttribute('required', 'true');
-            }
+            if(role === 'guru') { document.getElementById('child-id').removeAttribute('required'); } 
+            else { document.getElementById('child-id').setAttribute('required', 'true'); }
         };
 
         window.handleAuth = async (e) => {
             e.preventDefault();
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            const errorBox = document.getElementById('login-error-msg');
-            errorBox.classList.add('hidden');
-
             const childId = document.getElementById('child-id').value.trim();
-            if (currentRole === 'orangtua' && !childId) {
-                errorBox.innerText = "Akses Ditolak: Anda wajib memasukkan ID Akses Anak / NIS.";
-                errorBox.classList.remove('hidden');
-                document.getElementById('loading-overlay').classList.add('hidden');
-                return;
-            }
+            if (currentRole === 'orangtua' && !childId) { showAuthError("Wajib isi ID Siswa untuk Orang Tua."); return; }
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('login-error-msg').classList.add('hidden');
 
             try {
                 sessionStorage.setItem('pendingRole', currentRole);
                 if (childId) sessionStorage.setItem('pendingChildId', childId);
-                
                 const provider = new GoogleAuthProvider();
                 await signInWithPopup(auth, provider);
             } catch (error) {
-                errorBox.innerText = "Error: " + error.message;
-                errorBox.classList.remove('hidden');
+                showAuthError(error.message);
                 document.getElementById('loading-overlay').classList.add('hidden');
             }
         };
+
+        function showAuthError(msg) {
+            const errBox = document.getElementById('login-error-msg');
+            errBox.innerText = `Error: ${msg}`;
+            errBox.classList.remove('hidden');
+        }
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userDocRef = doc(db, 'users', user.uid);
                 const pendingRole = sessionStorage.getItem('pendingRole');
                 
-                if (pendingRole) {
-                    await setDoc(userDocRef, { role: pendingRole, childId: sessionStorage.getItem('pendingChildId') || null, email: user.email }, { merge: true });
+                if (pendingRole) { // Force update role on fresh login click
+                    const payload = { role: pendingRole, email: user.email, name: user.displayName || 'User' };
+                    if (pendingRole === 'orangtua') payload.childId = sessionStorage.getItem('pendingChildId');
+                    await setDoc(userDocRef, payload, { merge: true });
                     sessionStorage.removeItem('pendingRole');
                     sessionStorage.removeItem('pendingChildId');
                 }
 
                 const userSnap = await getDoc(userDocRef);
                 if(userSnap.exists()) {
-                    const profile = userSnap.data();
-                    setupUIForRole(profile.role, profile.childId);
-                    initRealtimeSync(profile);
-                } else {
-                    signOut(auth);
-                }
+                    currentUserProfile = userSnap.data();
+                    setupUIForRole(currentUserProfile.role, currentUserProfile.childId);
+                    initRealtimeSync(currentUserProfile);
+                } else { signOut(auth); }
             } else {
+                if(activeSnapshotUnsubscribe) activeSnapshotUnsubscribe();
                 document.getElementById('loading-overlay').classList.add('hidden');
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('main-app').classList.add('hidden');
@@ -487,25 +533,24 @@
         }
 
         function initRealtimeSync(profile) {
+            if (activeSnapshotUnsubscribe) activeSnapshotUnsubscribe();
+
             if (profile.role === 'guru') {
                 const studentsCol = collection(db, 'students');
-                onSnapshot(studentsCol, (snapshot) => {
+                activeSnapshotUnsubscribe = onSnapshot(studentsCol, (snapshot) => {
                     studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) window.renderDashboard();
-                });
+                    if(!document.getElementById('editor-section').classList.contains('hidden')) window.refreshEditorLedger();
+                }, (error) => { console.error(error); alert("Akses Ditolak Server Firebase."); });
             } else if (profile.role === 'orangtua') {
-                if (!profile.childId) { alert("ID Siswa tidak terdaftar di akun ini."); signOut(auth); return; }
+                if (!profile.childId) { alert("ID Siswa tidak terdaftar."); signOut(auth); return; }
                 const studentDoc = doc(db, 'students', profile.childId);
-                onSnapshot(studentDoc, (docSnap) => {
+                activeSnapshotUnsubscribe = onSnapshot(studentDoc, (docSnap) => {
                     if (docSnap.exists()) {
                         studentsData = [{ docId: docSnap.id, ...docSnap.data() }];
                         if(!document.getElementById('parent-agenda-section').classList.contains('hidden')) window.loadParentDashboard();
-                    } else {
-                        alert("Akses Ditolak: Data siswa tidak ditemukan."); signOut(auth);
-                    }
-                }, (error) => {
-                    alert("Akses Ditolak oleh Server. ID Siswa tidak valid."); signOut(auth);
-                });
+                    } else { alert("Akses Ditolak: Data siswa tidak ditemukan."); signOut(auth); }
+                }, (error) => { alert("Akses Ditolak oleh Server. Anda hanya bisa melihat ID anak Anda sendiri."); signOut(auth); });
             }
         }
 
@@ -546,9 +591,7 @@
                             </tr>
                         `);
                     });
-                } else {
-                    empty.classList.remove('hidden');
-                }
+                } else { empty.classList.remove('hidden'); }
             });
         };
 
@@ -577,52 +620,148 @@
             }
         };
 
+        function calculateTotalPoints(pointHistory) {
+            if(!pointHistory || !Array.isArray(pointHistory)) return 100;
+            return pointHistory.reduce((total, trans) => total + parseInt(trans.points), 100);
+        }
+
         window.renderDashboard = () => {
             const year = document.getElementById('dash-year').value;
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
             
             studentsData.forEach(st => {
+                const totalPts = calculateTotalPoints(st.pointHistory);
+                const badgeClass = totalPts >= 100 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50 transition-colors">
                         <td class="px-6 py-4 font-bold text-gray-900">${st.nama}</td>
+                        <td class="px-6 py-4 text-center"><span class="px-3 py-1 rounded font-black text-xs ${badgeClass}">${totalPts}</span></td>
                         <td class="px-6 py-4 text-sm font-mono text-gray-500">${st.docId}</td>
-                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700 transition-transform active:scale-95">Buka Profil</button></td>
+                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-blue-700 text-xs font-bold bg-blue-50 border border-blue-200 px-4 py-2 rounded-full hover:bg-blue-100 active:scale-95">Buka Profil</button></td>
                     </tr>
                 `);
             });
         };
 
-        // --- FITUR AUTO-FIX & PROTEKSI ERROR ---
-        window.editStudent = (docId) => {
-            try {
-                currentStudentId = docId;
-                const st = studentsData.find(s => s.docId === docId);
-                const year = document.getElementById('dash-year').value;
-                
-                document.getElementById('editor-title').innerText = st.nama;
-                document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
-                
-                // Mencegah ERROR jika data di database masih memakai format "Semester" lama
-                if(!st.academic) st.academic = {};
-                // Jika data subjects tidak ada atau masih berbentuk objek semester lama, maka PAKSA bersihkan dan buat format baru.
-                if(!st.academic[year] || !st.academic[year].subjects || !Array.isArray(st.academic[year].subjects)) {
-                    st.academic[year] = { subjects: createEmptySubjects() };
-                }
-                
-                // Isi Kolom Hafalan & Poin
-                document.getElementById('input-poin').value = st.poin !== undefined ? st.poin : 100;
-                document.getElementById('input-catatan-poin').value = st.catatan_poin || '';
-                document.getElementById('input-hafalan').value = st.hafalan || '';
-
-                renderEditorGrid(st.academic[year].subjects);
-                
-                document.getElementById('btn-editor').classList.remove('hidden');
-                window.switchTab('editor');
-            } catch (error) {
-                console.error("Error membuka profil:", error);
-                alert("Sistem mendeteksi ada data yang corrupt pada siswa ini. Silakan Hapus data siswa ini di Firebase dan tambahkan kembali menggunakan fitur 'Siswa Baru'.");
+        window.editStudent = async (docId) => {
+            currentStudentId = docId;
+            const st = studentsData.find(s => s.docId === docId);
+            const year = document.getElementById('dash-year').value;
+            
+            document.getElementById('editor-title').innerText = st.nama;
+            document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
+            
+            // Auto-Fix Migration to New Structure (No Semesters)
+            let needSave = false;
+            if(!st.academic) { st.academic = {}; needSave = true; }
+            if(!st.academic[year] || !st.academic[year].subjects) {
+                st.academic[year] = { subjects: createEmptySubjects() };
+                needSave = true;
             }
+            if(!st.pointHistory) { st.pointHistory = []; needSave = true; }
+
+            if(needSave) {
+                await setDoc(doc(db, 'students', docId), st, {merge:true});
+            }
+            
+            document.getElementById('input-hafalan').value = st.hafalan || '';
+            renderEditorGrid(st.academic[year].subjects);
+            window.refreshEditorLedger();
+            
+            document.getElementById('btn-editor').classList.remove('hidden');
+            window.switchTab('editor');
+        };
+
+        window.updatePoinPreview = () => {
+            const select = document.getElementById('poin-kategori');
+            const btn = document.getElementById('btn-tambah-poin');
+            if(select.value) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.classList.add('bg-orange-600', 'text-white');
+                btn.classList.remove('bg-orange-100', 'text-orange-700');
+            }
+        };
+
+        window.tambahTransaksiPoin = async () => {
+            const selectVal = document.getElementById('poin-kategori').value;
+            const desc = document.getElementById('poin-deskripsi').value;
+            if(!selectVal) return;
+
+            const [type, category, defaultDesc, points] = selectVal.split('|');
+            const finalDesc = desc.trim() !== '' ? desc : defaultDesc;
+
+            const transaction = {
+                id: Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                type: type,
+                category: category,
+                description: finalDesc,
+                points: parseInt(points),
+                teacher: currentUserProfile?.name || 'Guru'
+            };
+
+            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
+            let history = studentsData[stIdx].pointHistory || [];
+            history.unshift(transaction); // Add to beginning
+            if(history.length > 50) history.pop(); // Keep max 50 records per student for performance
+
+            studentsData[stIdx].pointHistory = history;
+            await setDoc(doc(db, 'students', currentStudentId), { pointHistory: history }, { merge: true });
+            
+            // Reset Form
+            document.getElementById('poin-kategori').value = "";
+            document.getElementById('poin-deskripsi').value = "";
+            window.updatePoinPreview(); // disable button again
+        };
+
+        window.hapusTransaksiPoin = async (transId) => {
+            if(!confirm("Hapus catatan riwayat ini?")) return;
+            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
+            let history = studentsData[stIdx].pointHistory || [];
+            history = history.filter(t => t.id !== transId);
+            
+            await setDoc(doc(db, 'students', currentStudentId), { pointHistory: history }, { merge: true });
+        };
+
+        window.refreshEditorLedger = () => {
+            if(!currentStudentId) return;
+            const st = studentsData.find(s => s.docId === currentStudentId);
+            if(!st) return;
+
+            const history = st.pointHistory || [];
+            const total = calculateTotalPoints(history);
+            document.getElementById('display-total-poin').innerText = total;
+
+            const list = document.getElementById('poin-history-list');
+            list.innerHTML = '';
+
+            if(history.length === 0) {
+                list.innerHTML = `<p class="text-xs text-gray-400 text-center mt-4">Belum ada riwayat tercatat.</p>`;
+                return;
+            }
+
+            history.forEach(t => {
+                const isPlus = t.type === 'plus';
+                const sign = isPlus ? '+' : '';
+                const color = isPlus ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50';
+                
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
+                        <div>
+                            <p class="text-[10px] font-bold text-gray-400">${t.date} • ${t.category}</p>
+                            <p class="text-xs font-semibold text-gray-800">${t.description}</p>
+                            <p class="text-[9px] text-gray-400 mt-1">Oleh: ${t.teacher}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-sm px-2 py-1 rounded-md ${color}">${sign}${t.points}</span>
+                            <button onclick="hapusTransaksiPoin(${t.id})" class="text-gray-300 hover:text-red-500 transition-colors">×</button>
+                        </div>
+                    </div>
+                `);
+            });
         };
 
         function renderEditorGrid(subs) {
@@ -659,7 +798,6 @@
 
         window.updateExtraData = async (field, val) => {
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            if(field === 'poin') val = parseInt(val) || 0;
             studentsData[stIdx][field] = val;
             await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
@@ -671,10 +809,37 @@
             
             document.getElementById('parent-view-nama').innerText = st?.nama || "Siswa";
             
-            // Render Poin & Hafalan for Parent
-            document.getElementById('parent-view-poin').innerText = st?.poin !== undefined ? st.poin : 100;
-            document.getElementById('parent-view-catatan-poin').innerText = st?.catatan_poin ? `"${st.catatan_poin}"` : "Siswa mematuhi peraturan sekolah dengan baik.";
-            document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada catatan progres hafalan terbaru dari guru.";
+            // Render Poin Ledger for Parent
+            const history = st?.pointHistory || [];
+            document.getElementById('parent-view-poin-total').innerText = calculateTotalPoints(history);
+            document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada progres tahfidz dicatat minggu ini.";
+
+            const timeline = document.getElementById('parent-timeline-poin');
+            timeline.innerHTML = '';
+            if(history.length === 0) {
+                timeline.innerHTML = `<p class="text-xs text-gray-400 italic">Belum ada catatan perilaku/prestasi.</p>`;
+            } else {
+                // Show max 4 latest for parent view
+                history.slice(0, 4).forEach(t => {
+                    const isPlus = t.type === 'plus';
+                    const dotColor = isPlus ? 'bg-green-500' : 'bg-red-500';
+                    const textColor = isPlus ? 'text-green-600' : 'text-red-600';
+                    
+                    timeline.insertAdjacentHTML('beforeend', `
+                        <div class="timeline-item">
+                            <div class="timeline-dot ${dotColor}"></div>
+                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">${t.date}</span>
+                                    <span class="font-black text-xs ${textColor}">${isPlus?'+':''}${t.points} Poin</span>
+                                </div>
+                                <p class="text-sm font-bold text-gray-800">${t.description}</p>
+                                <p class="text-[10px] text-gray-400 mt-1">Kategori: ${t.category} | Pencatat: ${t.teacher}</p>
+                            </div>
+                        </div>
+                    `);
+                });
+            }
 
             // Load Agenda
             const snap = await getDoc(doc(db, 'agendas', `agenda_${cls}_${date}`));
@@ -686,15 +851,15 @@
                 empty.classList.add('hidden');
                 snap.data().items.forEach(it => {
                     list.insertAdjacentHTML('beforeend', `
-                        <div class="p-4 hover:bg-blue-50 transition-colors">
-                            <h4 class="font-bold text-blue-800">${it.subject}</h4>
-                            <p class="text-sm text-gray-700 mt-1">${it.task}</p>
+                        <div class="p-5 hover:bg-blue-50/50 transition-colors">
+                            <h4 class="font-bold text-blue-800 text-sm mb-1">${it.subject}</h4>
+                            <p class="text-sm text-gray-700 leading-relaxed">${it.task}</p>
                         </div>
                     `);
                 });
             } else { empty.classList.remove('hidden'); }
 
-            // Load Daily Grades (Safe checking)
+            // Load Daily Grades
             const tbody = document.getElementById('parent-daily-grades');
             tbody.innerHTML = '';
             
@@ -703,10 +868,10 @@
                     const scr = sub.daily || 0;
                     const badge = scr >= 80 ? 'bg-green-100 text-green-700' : (scr >= 70 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700');
                     tbody.insertAdjacentHTML('beforeend', `
-                        <tr>
+                        <tr class="hover:bg-gray-50">
                             <td class="px-5 py-4 font-bold text-gray-800">${sub.name}</td>
                             <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded text-sm font-black ${badge}">${scr}</span></td>
-                            <td class="px-5 py-4 text-gray-600 text-xs italic">${sub.note || '-'}</td>
+                            <td class="px-5 py-4 text-gray-600 text-xs italic leading-relaxed">${sub.note || '-'}</td>
                         </tr>
                     `);
                 });
@@ -727,8 +892,7 @@
             
             const data = { 
                 nama: name, 
-                poin: 100,
-                catatan_poin: '',
+                pointHistory: [],
                 hafalan: '',
                 academic: {
                     7: { subjects: createEmptySubjects() },
@@ -787,7 +951,7 @@
                         if(res.candidates) {
                             const note = res.candidates[0].content.parts[0].text.replace(/\n/g, '').replace(/"/g, '').trim();
                             subs[i].note = note;
-                            document.getElementById(`note-${i}`).value = note;
+                            document.getElementById(`note-${idx}`).value = note;
                         }
                     }
                 }
