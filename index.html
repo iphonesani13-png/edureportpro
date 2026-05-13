@@ -82,13 +82,11 @@
 </head>
 <body class="min-h-screen">
 
-    <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center hidden">
         <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
         <p id="loading-text" class="text-sm font-medium text-gray-600 tracking-wide">Memproses data...</p>
     </div>
 
-    <!-- Login Screen -->
     <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 bg-white">
         <div class="w-full max-w-md p-8 text-center">
             <h1 class="text-3xl font-bold text-[#202124] mb-2">EduTrack Pro</h1>
@@ -119,7 +117,6 @@
         </div>
     </div>
 
-    <!-- Main App Content -->
     <div id="main-app" class="hidden">
         <header class="bg-white border-b border-[#dadce0] sticky top-0 z-50">
             <div class="max-w-[1440px] mx-auto px-4 lg:px-10 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -156,9 +153,6 @@
 
         <main class="max-w-[1440px] mx-auto p-4 lg:p-10 pb-24">
             
-            <!-- ============================== -->
-            <!-- SECTION GURU: AGENDA KELAS -->
-            <!-- ============================== -->
             <section id="agenda-section" class="hidden space-y-6 animate-in fade-in duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                     <div><h2 class="text-3xl font-bold text-[#202124]">Agenda & Tugas Harian</h2></div>
@@ -203,9 +197,6 @@
                 </div>
             </section>
 
-            <!-- ============================== -->
-            <!-- SECTION GURU: DAFTAR SISWA -->
-            <!-- ============================== -->
             <section id="dashboard-section" class="hidden space-y-6 animate-in slide-in-from-right duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                     <div>
@@ -227,7 +218,7 @@
                                 <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
                                     <th class="px-6 py-4">Nama Siswa</th>
                                     <th class="px-6 py-4">ID Akses (Ortu)</th>
-                                    <th class="px-6 py-4 text-right">Penilaian</th>
+                                    <th class="px-6 py-4 text-right">Penilaian & Progres</th>
                                 </tr>
                             </thead>
                             <tbody id="student-table-body" class="divide-y divide-[#dadce0]"></tbody>
@@ -236,9 +227,6 @@
                 </div>
             </section>
 
-            <!-- ============================== -->
-            <!-- SECTION GURU: INPUT NILAI HARIAN -->
-            <!-- ============================== -->
             <section id="editor-section" class="hidden space-y-6 animate-in slide-in-from-right duration-500">
                 <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div class="flex items-center gap-4">
@@ -253,16 +241,43 @@
                     <button onclick="generateAllNotes()" class="w-full md:w-auto px-6 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-bold hover:bg-blue-100">🪄 AI Catatan Otomatis</button>
                 </div>
 
-                <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl text-sm text-orange-800 font-medium">
-                    ✏️ <strong>Instruksi:</strong> Masukkan skor nilai tugas/harian terbaru untuk setiap mata pelajaran. Orang tua akan langsung melihat *update* nilai ini di HP mereka.
+                <!-- Bagian Hafalan & Poin Kesiswaan -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Progress Hafalan -->
+                    <div class="google-card p-5 border-blue-200 bg-blue-50/30">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-xl">📖</span>
+                            <h3 class="font-bold text-blue-900 text-sm uppercase tracking-widest">Progress Hafalan (Tahfidz)</h3>
+                        </div>
+                        <textarea id="input-hafalan" onchange="updateExtraData('hafalan', this.value)" class="w-full p-4 h-24 bg-white border-blue-100 text-sm" placeholder="Contoh: Juz 30 - Surah Al-Ghashiyah ayat 1-15. Sudah lancar namun perlu perbaikan tajwid."></textarea>
+                    </div>
+
+                    <!-- Poin Kesiswaan -->
+                    <div class="google-card p-5 border-orange-200 bg-orange-50/30">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-xl">⭐</span>
+                            <h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Poin Kesiswaan & Perilaku</h3>
+                        </div>
+                        <div class="flex items-start gap-4">
+                            <div class="w-1/3">
+                                <label class="text-[10px] text-orange-700 font-bold uppercase mb-1 block">Skor Poin</label>
+                                <input type="number" id="input-poin" onchange="updateExtraData('poin', this.value)" class="w-full p-4 text-xl font-black text-center text-orange-600 bg-white border-orange-200 rounded-xl" placeholder="100">
+                            </div>
+                            <div class="w-2/3">
+                                <label class="text-[10px] text-orange-700 font-bold uppercase mb-1 block">Catatan Perilaku</label>
+                                <textarea id="input-catatan-poin" onchange="updateExtraData('catatan_poin', this.value)" class="w-full p-3 h-16 text-xs bg-white border-orange-200" placeholder="Keterangan poin... (Cth: Terlambat, Berprestasi, dll)"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 font-medium">
+                    ✏️ <strong>Nilai Tugas/Harian:</strong> Masukkan skor nilai terbaru untuk setiap mapel di bawah ini.
                 </div>
 
                 <div id="subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </section>
 
-            <!-- ============================== -->
-            <!-- SECTION ORTU: PANTAU TUGAS & NILAI -->
-            <!-- ============================== -->
             <section id="parent-agenda-section" class="hidden space-y-6 animate-in fade-in duration-500">
                 <div class="bg-blue-600 rounded-2xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg">
                     <div>
@@ -277,8 +292,9 @@
                     </div>
                 </div>
 
+                <!-- Baris 1: Agenda & Nilai Mapel -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                    <!-- Kolom Kiri: Agenda Hari Ini -->
+                    <!-- Agenda Hari Ini -->
                     <div class="google-card overflow-hidden border-2 border-blue-100">
                         <div class="bg-blue-50 p-4 border-b border-blue-100 flex items-center gap-3">
                             <span class="text-xl">📅</span><h3 class="font-bold text-blue-900 text-lg">Agenda & Tugas Hari Ini</h3>
@@ -287,18 +303,18 @@
                         <div id="parent-agenda-empty" class="p-10 text-center text-gray-400 text-sm hidden">Tidak ada catatan agenda dari guru untuk hari ini.</div>
                     </div>
 
-                    <!-- Kolom Kanan: Nilai Harian -->
+                    <!-- Nilai Harian -->
                     <div class="google-card overflow-hidden border-2 border-green-100">
                         <div class="bg-green-50 p-4 border-b border-green-100 flex items-center gap-3">
-                            <span class="text-xl">📈</span><h3 class="font-bold text-green-900 text-lg">Skor Penilaian Harian Terkini</h3>
+                            <span class="text-xl">📈</span><h3 class="font-bold text-green-900 text-lg">Skor Tugas Harian Terkini</h3>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left text-sm">
                                 <thead class="bg-white border-b border-gray-100">
                                     <tr class="text-[10px] text-gray-500 uppercase tracking-widest">
                                         <th class="px-5 py-3">Mata Pelajaran</th>
-                                        <th class="px-5 py-3 text-center">Skor Tugas</th>
-                                        <th class="px-5 py-3">Catatan Evaluasi</th>
+                                        <th class="px-5 py-3 text-center">Skor</th>
+                                        <th class="px-5 py-3">Catatan</th>
                                     </tr>
                                 </thead>
                                 <tbody id="parent-daily-grades" class="divide-y divide-gray-50"></tbody>
@@ -306,6 +322,36 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Baris 2: Hafalan & Poin Kesiswaan -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mt-2">
+                    <!-- Panel Hafalan -->
+                    <div class="google-card border-2 border-indigo-100 overflow-hidden">
+                        <div class="bg-indigo-50 p-4 border-b border-indigo-100 flex items-center gap-3">
+                            <span class="text-xl">📖</span><h3 class="font-bold text-indigo-900 text-sm uppercase tracking-widest">Progress Hafalan</h3>
+                        </div>
+                        <div class="p-6">
+                            <p id="parent-view-hafalan" class="text-gray-700 font-medium leading-relaxed">Memuat data hafalan...</p>
+                        </div>
+                    </div>
+
+                    <!-- Panel Poin Kesiswaan -->
+                    <div class="google-card border-2 border-orange-100 overflow-hidden">
+                        <div class="bg-orange-50 p-4 border-b border-orange-100 flex items-center gap-3">
+                            <span class="text-xl">⭐</span><h3 class="font-bold text-orange-900 text-sm uppercase tracking-widest">Poin Kedisiplinan</h3>
+                        </div>
+                        <div class="p-6 flex items-center gap-6">
+                            <div class="bg-orange-100 text-orange-600 font-black text-4xl w-24 h-24 flex items-center justify-center rounded-2xl shrink-0" id="parent-view-poin">
+                                100
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Catatan Wali Kelas:</p>
+                                <p id="parent-view-catatan-poin" class="text-gray-700 text-sm italic">"Siswa menaati peraturan sekolah dengan baik."</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </section>
         </main>
     </div>
@@ -318,13 +364,11 @@
         <span class="text-blue-700">Siswa Baru</span>
     </button>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
             authDomain: "smpitlaatahzan-raport.firebaseapp.com",
@@ -350,6 +394,13 @@
             document.getElementById('role-btn-guru').className = role === 'guru' ? 'p-6 border-2 border-blue-600 rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'p-6 border-2 border-orange-400 rounded-3xl bg-orange-50 text-orange-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('parent-extra-fields').classList.toggle('hidden', role !== 'orangtua');
+            
+            // Remove 'required' from input if role is guru to avoid HTML5 form validation blocking Google Signin
+            if(role === 'guru') {
+                document.getElementById('child-id').removeAttribute('required');
+            } else {
+                document.getElementById('child-id').setAttribute('required', 'true');
+            }
         };
 
         window.handleAuth = async (e) => {
@@ -367,7 +418,6 @@
             }
 
             try {
-                // Drop a cookie/session marker to force role overwrite after popup resolves
                 sessionStorage.setItem('pendingRole', currentRole);
                 if (childId) sessionStorage.setItem('pendingChildId', childId);
                 
@@ -383,9 +433,8 @@
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userDocRef = doc(db, 'users', user.uid);
-                
-                // If there's a pending role from the login form, force overwrite the database
                 const pendingRole = sessionStorage.getItem('pendingRole');
+                
                 if (pendingRole) {
                     await setDoc(userDocRef, { role: pendingRole, childId: sessionStorage.getItem('pendingChildId') || null, email: user.email }, { merge: true });
                     sessionStorage.removeItem('pendingRole');
@@ -438,7 +487,6 @@
             }
         }
 
-        // --- FIRESTORE SYNC ---
         function initRealtimeSync(profile) {
             if (profile.role === 'guru') {
                 const studentsCol = collection(db, 'students');
@@ -457,12 +505,11 @@
                         alert("Akses Ditolak: Data siswa tidak ditemukan."); signOut(auth);
                     }
                 }, (error) => {
-                    alert("Akses Ditolak oleh Server (Permission Denied). ID Siswa tidak valid."); signOut(auth);
+                    alert("Akses Ditolak oleh Server. ID Siswa tidak valid."); signOut(auth);
                 });
             }
         }
 
-        // --- NAVIGATION ---
         window.switchTab = (mode) => {
             const sections = ['agenda', 'dashboard', 'editor', 'parent-agenda'];
             sections.forEach(s => document.getElementById(`${s}-section`).classList.add('hidden'));
@@ -479,7 +526,6 @@
             if (mode === 'dashboard') window.renderDashboard();
         };
 
-        // --- GURU: AGENDA LOGIC ---
         window.loadAgenda = async () => {
             const date = document.getElementById('agenda-date').value;
             const cls = document.getElementById('agenda-class').value;
@@ -532,7 +578,6 @@
             }
         };
 
-        // --- GURU: DAFTAR SISWA ---
         window.renderDashboard = () => {
             const year = document.getElementById('dash-year').value;
             const tbody = document.getElementById('student-table-body');
@@ -543,13 +588,12 @@
                     <tr class="hover:bg-blue-50 transition-colors">
                         <td class="px-6 py-4 font-bold text-gray-900">${st.nama}</td>
                         <td class="px-6 py-4 text-sm font-mono text-gray-500">${st.docId}</td>
-                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700">Input Nilai</button></td>
+                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700">Buka Profil</button></td>
                     </tr>
                 `);
             });
         };
 
-        // --- GURU: PENILAIAN HARIAN (EDITOR) ---
         window.editStudent = (docId) => {
             currentStudentId = docId;
             const st = studentsData.find(s => s.docId === docId);
@@ -558,10 +602,15 @@
             document.getElementById('editor-title').innerText = st.nama;
             document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
             
-            // Initialization structure if missing
+            // Init default values if new student
             if(!st.academic) st.academic = {};
             if(!st.academic[year]) st.academic[year] = { subjects: createEmptySubjects() };
             
+            // Populate Extra Fields (Hafalan, Poin)
+            document.getElementById('input-poin').value = st.poin ?? 100;
+            document.getElementById('input-catatan-poin').value = st.catatan_poin || '';
+            document.getElementById('input-hafalan').value = st.hafalan || '';
+
             renderEditorGrid(st.academic[year].subjects);
             
             document.getElementById('btn-editor').classList.remove('hidden');
@@ -577,7 +626,7 @@
                         <h4 class="font-bold text-gray-800 text-sm mb-4">${sub.name}</h4>
                         <div class="mb-4">
                             <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Skor Tugas/Harian Saat Ini (0-100)</label>
-                            <input type="number" value="${sub.daily || 0}" onchange="updateDailyScore(${idx}, this.value)" class="w-full p-3 text-lg font-black text-blue-700 bg-blue-50 border-none rounded-xl">
+                            <input type="number" value="${sub.daily || 0}" onchange="updateDailyScore(${idx}, this.value)" class="w-full p-3 text-lg font-black text-blue-700 bg-blue-50 border-none rounded-xl text-center">
                         </div>
                         <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Catatan Evaluasi Singkat</label>
                         <textarea id="note-${idx}" onchange="updateDailyNote(${idx}, this.value)" class="w-full p-3 text-xs h-16 bg-gray-50 focus:bg-white border-gray-200" placeholder="Ketik catatan evaluasi tugas...">${sub.note || ''}</textarea>
@@ -600,13 +649,24 @@
             await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
 
-        // --- ORTU: PANTAU DASHBOARD ---
+        window.updateExtraData = async (field, val) => {
+            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
+            if(field === 'poin') val = parseInt(val) || 0;
+            studentsData[stIdx][field] = val;
+            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
+        };
+
         window.loadParentDashboard = async () => {
             const date = document.getElementById('parent-agenda-date').value;
             const cls = document.getElementById('parent-agenda-class').value;
             const st = studentsData.find(s => s.docId === currentStudentId);
             
             document.getElementById('parent-view-nama').innerText = st?.nama || "Siswa";
+            
+            // Render Poin & Hafalan for Parent
+            document.getElementById('parent-view-poin').innerText = st?.poin ?? 100;
+            document.getElementById('parent-view-catatan-poin').innerText = st?.catatan_poin ? `"${st.catatan_poin}"` : "Siswa mematuhi peraturan sekolah dengan baik.";
+            document.getElementById('parent-view-hafalan').innerText = st?.hafalan || "Belum ada catatan progres hafalan terbaru dari guru.";
 
             // Load Agenda
             const snap = await getDoc(doc(db, 'agendas', `agenda_${cls}_${date}`));
@@ -646,7 +706,6 @@
             }
         };
 
-        // --- UTILS & AI ---
         function createEmptySubjects() {
             return subjectsList.map(name => ({ name, daily: 0, note: '' }));
         }
@@ -659,6 +718,9 @@
             
             const data = { 
                 nama: name, 
+                poin: 100,
+                catatan_poin: '',
+                hafalan: '',
                 academic: {
                     7: { subjects: createEmptySubjects() },
                     8: { subjects: createEmptySubjects() },
@@ -690,7 +752,6 @@
             reader.readAsText(file);
         };
 
-        // --- GEMINI AI ---
         window.setApiKey = () => {
             const key = prompt("API Key Gemini:", localStorage.getItem('gemini_api_key')||'');
             if(key !== null) localStorage.setItem('gemini_api_key', key.trim());
@@ -707,7 +768,7 @@
                 const subs = studentsData[stIdx].academic[year].subjects;
 
                 for (let i = 0; i < subs.length; i++) {
-                    if (subs[i].daily > 0) { // Hanya proses yang ada nilainya
+                    if (subs[i].daily > 0) { 
                         const prompt = `Bertindak sebagai guru. Murid mendapat nilai harian tugas ${subs[i].daily}/100 untuk mapel ${subs[i].name}. Buat 1 kalimat catatan harian yang evaluatif. Tanpa tanda kutip.`;
                         const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
