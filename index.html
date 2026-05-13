@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EduReport Pro - Cloud Edition</title>
+    <title>EduTrack Pro - Daily Agenda & Grades</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -24,23 +24,21 @@
         .google-card { 
             background: var(--google-surface); 
             border: 1px solid var(--google-border); 
-            border-radius: 16px; /* Lebih ramping untuk mobile */
+            border-radius: 24px; 
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
         }
-        @media (min-width: 768px) { .google-card { border-radius: 24px; } }
         .google-card:hover { box-shadow: 0 4px 12px 0 rgba(60,64,67,0.15); }
         
         .nav-pill { 
             border-radius: 100px; 
-            padding: 8px 16px; 
+            padding: 8px 20px; 
             font-weight: 600; 
             color: #5f6368; 
             transition: all 0.2s; 
-            white-space: nowrap; /* Mencegah teks patah di HP */
+            white-space: nowrap;
         }
         .nav-pill.active { background-color: #e8f0fe; color: var(--google-blue); }
         
-        /* Hide Scrollbar for Mobile Navigation */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -48,7 +46,7 @@
             background-color: var(--google-blue); 
             color: white; 
             border-radius: 100px; 
-            padding: 10px 20px; 
+            padding: 10px 24px; 
             font-weight: 600; 
             transition: box-shadow 0.2s;
         }
@@ -61,7 +59,7 @@
             background: white; 
             border-radius: 16px; 
             box-shadow: 0 4px 12px 4px rgba(60,64,67,0.15); 
-            padding: 12px 20px; 
+            padding: 14px 20px; 
             display: flex; 
             align-items: center; 
             gap: 12px; 
@@ -69,7 +67,6 @@
             z-index: 50; 
             border: 1px solid #dadce0;
         }
-        @media (min-width: 768px) { .google-fab { bottom: 32px; right: 32px; padding: 16px 24px; } }
 
         input, select, textarea { 
             border: 1px solid var(--google-border) !important; 
@@ -81,12 +78,6 @@
         .role-badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
         .role-guru { background: #e8f0fe; color: #1a73e8; }
         .role-ortu { background: #fef7e0; color: #f29900; }
-
-        @media print { 
-            .no-print { display: none !important; } 
-            body { background-color: white; } 
-            #print-area { border: none !important; box-shadow: none !important; padding: 0 !important; }
-        }
     </style>
 </head>
 <body class="min-h-screen">
@@ -98,28 +89,28 @@
     </div>
 
     <!-- Login Screen -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center p-4 md:p-6 bg-white">
-        <div class="w-full max-w-md p-6 sm:p-8 text-center">
-            <h1 class="text-3xl font-bold text-[#202124] mb-2">EduReport Pro</h1>
-            <p class="text-[#5f6368] mb-8 text-sm md:text-base">Pilih Peran Anda untuk Masuk</p>
+    <div id="login-screen" class="min-h-screen flex items-center justify-center p-6 bg-white">
+        <div class="w-full max-w-md p-8 text-center">
+            <h1 class="text-3xl font-bold text-[#202124] mb-2">EduTrack Pro</h1>
+            <p class="text-[#5f6368] mb-8 text-sm">Portal Agenda & Penilaian Harian Sekolah</p>
             
-            <div class="grid grid-cols-2 gap-3 mb-8">
-                <button onclick="setLoginRole('guru')" id="role-btn-guru" class="p-4 sm:p-6 border-2 border-blue-600 rounded-2xl sm:rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all">
-                    <div class="text-2xl sm:text-3xl mb-1 sm:mb-2">👨‍🏫</div>
-                    <span class="text-xs sm:text-base">Guru</span>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <button onclick="setLoginRole('guru')" id="role-btn-guru" class="p-6 border-2 border-blue-600 rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all">
+                    <div class="text-3xl mb-2">👨‍🏫</div>
+                    Guru
                 </button>
-                <button onclick="setLoginRole('orangtua')" id="role-btn-ortu" class="p-4 sm:p-6 border-2 border-gray-100 rounded-2xl sm:rounded-3xl hover:border-orange-400 font-bold transition-all">
-                    <div class="text-2xl sm:text-3xl mb-1 sm:mb-2">👨‍👩-👧</div>
-                    <span class="text-xs sm:text-base">Orang Tua</span>
+                <button onclick="setLoginRole('orangtua')" id="role-btn-ortu" class="p-6 border-2 border-gray-100 rounded-3xl hover:border-orange-400 font-bold transition-all">
+                    <div class="text-3xl mb-2">👨‍👩-👧</div>
+                    Orang Tua
                 </button>
             </div>
 
             <form id="auth-form" onsubmit="handleAuth(event)" class="space-y-4 text-left">
                 <div id="parent-extra-fields" class="hidden mb-4">
-                    <input type="text" id="child-id" placeholder="ID Siswa / NIS" class="w-full p-4 bg-white border-orange-200">
-                    <p class="text-[10px] text-orange-600 mt-2 px-2 font-bold uppercase tracking-widest">Wajib untuk orang tua</p>
+                    <input type="text" id="child-id" required placeholder="ID Akses Siswa / NIS (Cth: 2026001)" class="w-full p-4 bg-orange-50 border-orange-200 font-bold">
+                    <p class="text-[10px] text-orange-600 mt-2 px-2 font-bold uppercase tracking-widest">Wajib diisi untuk akses orang tua</p>
                 </div>
-                <button type="submit" class="w-full py-4 bg-white border border-gray-300 rounded-xl text-gray-700 font-bold flex items-center justify-center gap-3 shadow-sm hover:bg-gray-50 active:scale-95 transition-all">
+                <button type="submit" class="w-full py-4 bg-white border border-gray-300 rounded-2xl text-gray-700 font-bold flex items-center justify-center gap-3 shadow-sm hover:bg-gray-50 active:scale-95 transition-all">
                     <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
                     Lanjutkan dengan Google
                 </button>
@@ -130,114 +121,50 @@
 
     <!-- Main App Content -->
     <div id="main-app" class="hidden">
-        <!-- HEADER MOBILE FRIENDLY -->
         <header class="bg-white border-b border-[#dadce0] sticky top-0 z-50">
-            <div class="max-w-[1440px] mx-auto px-4 md:px-6 py-2 md:h-16 flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-0">
-                <!-- Top Row (Mobile) / Left Side (Desktop) -->
-                <div class="flex items-center justify-between w-full md:w-auto">
-                    <div class="flex items-center gap-2 sm:gap-4">
-                        <span class="text-lg md:text-xl font-bold text-[#5f6368]">EduReport <span class="text-[#202124]">Pro</span></span>
+            <div class="max-w-[1440px] mx-auto px-4 lg:px-10 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-bold text-[#5f6368]">EduTrack <span class="text-[#202124]">Pro</span></span>
                         <span id="user-role-badge" class="role-badge"></span>
                     </div>
-                    
-                    <!-- Mobile Right Action (Avatar & Logout) -->
                     <div class="flex md:hidden items-center gap-2">
-                        <button onclick="logout()" class="text-[10px] font-bold text-red-600 px-2 py-1 bg-red-50 rounded-md">LOGOUT</button>
-                        <div id="user-initial-mobile" class="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs">?</div>
+                        <button onclick="logout()" class="text-[10px] font-bold text-red-600 px-2 py-1 bg-red-50 rounded">LOGOUT</button>
                     </div>
                 </div>
 
-                <!-- Scrollable Navigation Bar -->
-                <div class="overflow-x-auto hide-scrollbar w-full md:w-auto border-t border-gray-100 md:border-none pt-2 md:pt-0">
-                    <div id="nav-guru" class="hidden flex gap-1 md:gap-2 bg-[#f1f3f4] p-1 rounded-full no-print w-max">
-                        <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill active text-xs md:text-sm">Dashboard</button>
-                        <button id="btn-agenda" onclick="switchTab('agenda')" class="nav-pill text-xs md:text-sm">Agenda</button>
-                        <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-xs md:text-sm text-gray-400">Editor</button>
-                        <button id="btn-viewer" onclick="switchTab('viewer')" class="nav-pill text-xs md:text-sm text-gray-400">Preview</button>
+                <!-- Navigation -->
+                <div class="overflow-x-auto hide-scrollbar w-full md:w-auto">
+                    <div id="nav-guru" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full w-max">
+                        <button id="btn-agenda" onclick="switchTab('agenda')" class="nav-pill text-sm active">Agenda Kelas</button>
+                        <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill text-sm">Siswa & Nilai</button>
+                        <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill text-sm text-gray-400 hidden">Penilaian</button>
                     </div>
-
-                    <div id="nav-ortu" class="hidden flex gap-1 md:gap-2 bg-[#f1f3f4] p-1 rounded-full no-print w-max">
-                        <button id="btn-ortu-viewer" onclick="switchTab('viewer')" class="nav-pill active text-xs md:text-sm">Raport Semester</button>
-                        <button id="btn-ortu-agenda" onclick="switchTab('parent-agenda')" class="nav-pill text-xs md:text-sm">Tugas Harian</button>
+                    <div id="nav-ortu" class="hidden flex gap-2 bg-[#f1f3f4] p-1 rounded-full w-max">
+                        <button id="btn-parent-agenda" onclick="switchTab('parent-agenda')" class="nav-pill active text-sm">Pantau Tugas & Nilai</button>
                     </div>
                 </div>
 
-                <!-- Desktop User Actions -->
                 <div class="hidden md:flex items-center gap-3">
-                    <button onclick="setApiKey()" id="btn-settings" class="hidden text-gray-500 hover:bg-gray-100 p-2 rounded-full no-print" title="Pengaturan AI">
+                    <button onclick="setApiKey()" id="btn-settings" class="hidden text-gray-500 hover:bg-gray-100 p-2 rounded-full" title="Pengaturan AI">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     </button>
-                    <button onclick="logout()" class="text-sm font-bold text-red-600 px-4 py-2 hover:bg-red-50 rounded-full transition-colors no-print">Log Out</button>
-                    <div id="user-initial" class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs uppercase shadow-sm">?</div>
+                    <button onclick="logout()" class="text-sm font-bold text-red-600 px-4 py-2 hover:bg-red-50 rounded-full transition-colors">Log Out</button>
                 </div>
             </div>
         </header>
 
-        <main class="max-w-[1440px] mx-auto p-4 md:p-6 lg:p-10 pb-24"> <!-- pb-24 for mobile FAB spacing -->
+        <main class="max-w-[1440px] mx-auto p-4 lg:p-10 pb-24">
             
-            <!-- SECTION: DASHBOARD GURU -->
-            <section id="dashboard-section" class="hidden space-y-6 animate-in fade-in duration-500">
+            <!-- ============================== -->
+            <!-- SECTION GURU: AGENDA KELAS -->
+            <!-- ============================== -->
+            <section id="agenda-section" class="hidden space-y-6 animate-in fade-in duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                    <div class="w-full md:w-auto">
-                        <h2 class="text-2xl md:text-3xl font-bold text-[#202124] tracking-tight">Manajemen Kelas</h2>
-                        <div class="flex gap-2 mt-4 w-full">
-                            <select id="dash-year" onchange="renderDashboard()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl">
-                                <option value="7">Kelas 7</option><option value="8">Kelas 8</option><option value="9">Kelas 9</option>
-                            </select>
-                            <select id="dash-semester" onchange="renderDashboard()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl">
-                                <option value="1">Semester 1</option><option value="2">Semester 2</option>
-                            </select>
-                        </div>
-                    </div>
+                    <div><h2 class="text-3xl font-bold text-[#202124]">Agenda & Tugas Harian</h2></div>
                     <div class="flex gap-2 w-full md:w-auto">
-                        <button onclick="document.getElementById('csv-input').click()" class="flex-1 md:flex-none px-6 py-3 border border-[#dadce0] bg-white rounded-xl text-sm font-bold flex justify-center items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                            Impor CSV
-                        </button>
-                        <input type="file" id="csv-input" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-                    <div class="google-card p-4 md:p-6 bg-blue-50/50">
-                        <p class="text-[9px] md:text-[10px] font-black text-[#5f6368] uppercase mb-1">Siswa</p>
-                        <h3 id="stat-total-siswa" class="text-2xl md:text-4xl font-bold">0</h3>
-                    </div>
-                    <div class="google-card p-4 md:p-6 border-l-4 border-l-blue-600">
-                        <p class="text-[9px] md:text-[10px] font-black text-[#5f6368] uppercase mb-1">Rata-rata</p>
-                        <h3 id="stat-avg-kelas" class="text-2xl md:text-4xl font-bold text-blue-600">0.0</h3>
-                    </div>
-                    <div class="google-card p-4 md:p-6 col-span-2 md:col-span-1 border-l-4 border-l-green-500">
-                        <p class="text-[9px] md:text-[10px] font-black text-[#5f6368] uppercase mb-1">Status AI</p>
-                        <h3 id="stat-ai-status" class="text-sm md:text-lg font-bold text-gray-700 mt-1">Belum Diatur</h3>
-                    </div>
-                </div>
-
-                <div class="google-card overflow-hidden">
-                    <div class="overflow-x-auto hide-scrollbar">
-                        <table class="w-full text-left min-w-[500px]"> <!-- Force min-width for mobile scroll -->
-                            <thead class="bg-gray-50 border-b border-[#dadce0]">
-                                <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
-                                    <th class="px-4 md:px-8 py-4">Identitas Siswa</th>
-                                    <th class="px-4 md:px-8 py-4 text-center">Rata-rata</th>
-                                    <th class="px-4 md:px-8 py-4 text-right">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody id="student-table-body" class="divide-y divide-[#dadce0] text-sm md:text-base"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- SECTION: AGENDA GURU -->
-            <section id="agenda-section" class="hidden space-y-6 animate-in slide-in-from-bottom duration-500">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                    <div>
-                        <h2 class="text-2xl md:text-3xl font-bold text-[#202124]">Agenda Kelas</h2>
-                    </div>
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <input type="date" id="agenda-date" onchange="loadAgenda()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl border border-gray-300 w-full">
-                        <select id="agenda-class" onchange="loadAgenda()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl border border-gray-300 w-full">
+                        <input type="date" id="agenda-date" onchange="loadAgenda()" class="flex-1 p-3 bg-white text-sm font-bold w-full">
+                        <select id="agenda-class" onchange="loadAgenda()" class="flex-1 p-3 bg-white text-sm font-bold w-full">
                             <option value="7">Kelas 7</option> <option value="8">Kelas 8</option> <option value="9">Kelas 9</option>
                         </select>
                     </div>
@@ -246,161 +173,136 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-1">
                         <div class="google-card p-5 bg-blue-50 border-blue-100">
-                            <h3 class="font-bold text-blue-800 mb-3 text-sm">Tambah Agenda</h3>
+                            <h3 class="font-bold text-blue-800 mb-4 text-sm">Tambah Jadwal Hari Ini</h3>
                             <div class="space-y-3">
-                                <select id="agenda-input-subject" class="w-full p-3 bg-white text-sm rounded-xl font-medium">
+                                <select id="agenda-input-subject" class="w-full p-3 bg-white text-sm font-bold">
                                     <option value="Bahasa Indonesia">Bahasa Indonesia</option> <option value="Wafa">Wafa</option> <option value="Bahasa Inggris">Bahasa Inggris</option> <option value="IPA">IPA</option> <option value="Matematika">Matematika</option> <option value="Seni Musik">Seni Musik</option> <option value="Civil Society">Civil Society</option> <option value="Sport Class">Sport Class</option>
                                 </select>
-                                <textarea id="agenda-input-task" class="w-full p-3 bg-white text-sm rounded-xl h-20" placeholder="Tugas / Aktivitas hari ini..."></textarea>
-                                <button onclick="saveAgendaItem()" class="w-full google-btn-primary py-3">Simpan</button>
+                                <textarea id="agenda-input-task" class="w-full p-3 bg-white text-sm h-24" placeholder="Detail Tugas / Topik Pembelajaran..."></textarea>
+                                <button onclick="saveAgendaItem()" class="w-full google-btn-primary py-3">Tambahkan ke Agenda</button>
                             </div>
                         </div>
                     </div>
                     <div class="lg:col-span-2">
-                        <div class="google-card overflow-hidden min-h-[250px]">
-                            <div class="overflow-x-auto hide-scrollbar">
-                                <table class="w-full text-left min-w-[400px]">
+                        <div class="google-card overflow-hidden min-h-[300px]">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left min-w-[500px]">
                                     <thead class="bg-gray-50 border-b border-[#dadce0]">
                                         <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
-                                            <th class="px-4 md:px-6 py-4 w-1/3">Mata Pelajaran</th>
-                                            <th class="px-4 md:px-6 py-4">Tugas</th>
-                                            <th class="px-4 md:px-6 py-4"></th>
+                                            <th class="px-6 py-4 w-1/3">Mata Pelajaran</th>
+                                            <th class="px-6 py-4">Tugas / Aktivitas</th>
+                                            <th class="px-6 py-4"></th>
                                         </tr>
                                     </thead>
                                     <tbody id="agenda-table-body" class="divide-y divide-[#dadce0] text-sm"></tbody>
                                 </table>
                             </div>
-                            <div id="agenda-empty-state" class="p-8 text-center text-gray-400 text-sm hidden">Belum ada agenda.</div>
+                            <div id="agenda-empty-state" class="p-10 text-center text-gray-400 text-sm hidden">Belum ada agenda terdaftar di tanggal ini.</div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- SECTION: EDITOR NILAI -->
-            <section id="editor-section" class="hidden space-y-6 animate-in slide-in-from-right duration-500">
-                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div class="flex items-center gap-3">
-                        <button onclick="switchTab('dashboard')" class="p-2 md:p-3 hover:bg-gray-200 rounded-full bg-white shadow-sm border border-gray-100">
-                            <svg class="w-5 h-5 md:w-6 md:h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                        </button>
-                        <div>
-                            <h2 id="editor-title" class="text-xl md:text-2xl font-bold leading-tight">Nama Siswa</h2>
-                            <p class="text-[10px] md:text-xs text-blue-600 font-black uppercase mt-1" id="editor-context-label">Konteks</p>
-                        </div>
+            <!-- ============================== -->
+            <!-- SECTION GURU: DAFTAR SISWA -->
+            <!-- ============================== -->
+            <section id="dashboard-section" class="hidden space-y-6 animate-in slide-in-from-right duration-500">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-[#202124]">Data Siswa</h2>
+                        <div class="mt-4"><select id="dash-year" onchange="renderDashboard()" class="p-3 bg-white text-sm font-bold w-48"><option value="7">Kelas 7</option><option value="8">Kelas 8</option><option value="9">Kelas 9</option></select></div>
                     </div>
                     <div class="flex gap-2 w-full md:w-auto">
-                        <button onclick="generateAllNotes()" class="flex-1 md:flex-none p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 rounded-xl text-sm font-bold text-center">🪄 Auto-Fill</button>
-                        <button onclick="switchTab('viewer')" class="flex-1 md:flex-none google-btn-primary p-3 rounded-xl text-center">Pratinjau</button>
+                        <button onclick="document.getElementById('csv-input').click()" class="flex-1 px-6 py-3 border border-[#dadce0] bg-white rounded-xl text-sm font-bold flex justify-center items-center gap-2">
+                            Impor CSV
+                        </button>
+                        <input type="file" id="csv-input" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
                     </div>
                 </div>
 
-                <div id="subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"></div>
-                
-                <div class="google-card p-5 md:p-8 bg-blue-50/30">
-                    <h3 class="text-sm md:text-base font-bold mb-4 text-blue-800">■ Catatan Karakter Wali Kelas</h3>
-                    <div class="grid grid-cols-2 gap-3 md:gap-6 mb-4">
-                        <div>
-                            <label class="block text-[10px] font-black text-gray-500 uppercase mb-2">Kemandirian</label>
-                            <select id="input-mandiri" onchange="updateCharacter('mandiri', this.value)" class="w-full p-2 text-sm bg-white rounded-xl"><option value="Sangat Baik">Sangat Baik</option><option value="Berkembang">Berkembang</option><option value="Perlu Bimbingan">Perlu Bimbingan</option></select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-gray-500 uppercase mb-2">Kerja Sama</label>
-                            <select id="input-kerjasama" onchange="updateCharacter('kerjasama', this.value)" class="w-full p-2 text-sm bg-white rounded-xl"><option value="Sangat Baik">Sangat Baik</option><option value="Berkembang">Berkembang</option><option value="Perlu Bimbingan">Perlu Bimbingan</option></select>
-                        </div>
-                    </div>
-                    <textarea id="input-pesan" onchange="updateCharacter('pesan', this.value)" class="w-full p-3 h-20 bg-white text-sm rounded-xl" placeholder="Pesan motivasi / saran..."></textarea>
-                </div>
-            </section>
-
-            <!-- SECTION: AGENDA ORANG TUA -->
-            <section id="parent-agenda-section" class="hidden space-y-6 animate-in slide-in-from-bottom duration-500">
-                <div class="flex flex-col md:flex-row justify-between gap-4">
-                    <h2 class="text-2xl md:text-3xl font-bold text-[#202124]">Tugas Anak Hari Ini</h2>
-                    <div class="flex gap-2">
-                        <input type="date" id="parent-agenda-date" onchange="loadParentAgenda()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl border border-gray-200 w-full">
-                        <select id="parent-agenda-class" onchange="loadParentAgenda()" class="flex-1 p-3 bg-white text-sm font-bold rounded-xl border border-gray-200 w-full">
-                            <option value="7">Kelas 7</option> <option value="8">Kelas 8</option> <option value="9">Kelas 9</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
-                    <div class="google-card p-0 overflow-hidden border border-blue-100">
-                        <div class="bg-blue-600 p-3 md:p-4 text-white font-bold text-sm">📝 Agenda & Tugas</div>
-                        <div id="parent-agenda-list" class="divide-y divide-gray-100"></div>
-                        <div id="parent-agenda-empty" class="p-6 text-center text-gray-400 text-xs hidden">Tidak ada tugas tercatat.</div>
-                    </div>
-                    <div class="google-card p-0 overflow-hidden border border-orange-200">
-                        <div class="bg-orange-50 p-3 md:p-4 font-bold text-orange-800 text-sm">📊 Skor Tugas Harian Saat Ini</div>
-                        <table class="w-full text-left text-sm">
-                            <tbody id="parent-daily-grades" class="divide-y divide-gray-100"></tbody>
+                <div class="google-card overflow-hidden">
+                    <div class="overflow-x-auto hide-scrollbar">
+                        <table class="w-full text-left min-w-[500px]">
+                            <thead class="bg-gray-50 border-b border-[#dadce0]">
+                                <tr class="text-[10px] font-black text-[#5f6368] uppercase tracking-widest">
+                                    <th class="px-6 py-4">Nama Siswa</th>
+                                    <th class="px-6 py-4">ID Akses (Ortu)</th>
+                                    <th class="px-6 py-4 text-right">Penilaian</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-table-body" class="divide-y divide-[#dadce0]"></tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- SECTION: VIEWER / RAPORT -->
-            <section id="viewer-section" class="hidden">
-                <div class="max-w-4xl mx-auto">
-                    <div id="parent-notice" class="hidden bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 flex items-start gap-3 text-blue-800">
-                        <span class="text-xl">💡</span>
-                        <p class="text-xs sm:text-sm">Anda sedang melihat raport digital. Data ini diperbarui secara real-time dari sekolah.</p>
+            <!-- ============================== -->
+            <!-- SECTION GURU: INPUT NILAI HARIAN -->
+            <!-- ============================== -->
+            <section id="editor-section" class="hidden space-y-6 animate-in slide-in-from-right duration-500">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <button onclick="switchTab('dashboard')" class="p-3 bg-white border border-gray-200 hover:bg-gray-100 rounded-full transition-colors">
+                            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <div>
+                            <h2 id="editor-title" class="text-2xl font-bold">Nama Siswa</h2>
+                            <p class="text-xs text-blue-600 font-black uppercase mt-1" id="editor-context-label">Konteks</p>
+                        </div>
+                    </div>
+                    <button onclick="generateAllNotes()" class="w-full md:w-auto px-6 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-sm font-bold hover:bg-blue-100">🪄 AI Catatan Otomatis</button>
+                </div>
+
+                <div class="bg-orange-50 border border-orange-200 p-4 rounded-xl text-sm text-orange-800 font-medium">
+                    ✏️ <strong>Instruksi:</strong> Masukkan skor nilai tugas/harian terbaru untuk setiap mata pelajaran. Orang tua akan langsung melihat *update* nilai ini di HP mereka.
+                </div>
+
+                <div id="subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- ============================== -->
+            <!-- SECTION ORTU: PANTAU TUGAS & NILAI -->
+            <!-- ============================== -->
+            <section id="parent-agenda-section" class="hidden space-y-6 animate-in fade-in duration-500">
+                <div class="bg-blue-600 rounded-2xl p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg">
+                    <div>
+                        <p class="text-blue-200 text-xs font-bold uppercase tracking-widest mb-1">Memantau Data Siswa</p>
+                        <h2 id="parent-view-nama" class="text-2xl md:text-3xl font-bold">Nama Anak</h2>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="date" id="parent-agenda-date" onchange="loadParentDashboard()" class="p-3 rounded-xl text-gray-900 text-sm font-bold w-full md:w-auto">
+                        <select id="parent-agenda-class" onchange="loadParentDashboard()" class="p-3 rounded-xl text-gray-900 text-sm font-bold w-full md:w-auto">
+                            <option value="7">Kelas 7</option> <option value="8">Kelas 8</option> <option value="9">Kelas 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                    <!-- Kolom Kiri: Agenda Hari Ini -->
+                    <div class="google-card overflow-hidden border-2 border-blue-100">
+                        <div class="bg-blue-50 p-4 border-b border-blue-100 flex items-center gap-3">
+                            <span class="text-xl">📅</span><h3 class="font-bold text-blue-900 text-lg">Agenda & Tugas Hari Ini</h3>
+                        </div>
+                        <div id="parent-agenda-list" class="divide-y divide-gray-100"></div>
+                        <div id="parent-agenda-empty" class="p-10 text-center text-gray-400 text-sm hidden">Tidak ada catatan agenda dari guru untuk hari ini.</div>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row justify-center gap-3 mb-6 no-print" id="viewer-controls">
-                        <button onclick="window.print()" class="google-btn-primary py-3 md:py-4 px-6 text-sm md:text-base w-full sm:w-auto shadow-md">Cetak PDF</button>
-                        <button id="btn-back-to-editor" onclick="switchTab('editor')" class="py-3 px-6 bg-white border border-gray-300 rounded-full font-bold text-gray-600 text-sm w-full sm:w-auto text-center">Kembali Edit</button>
-                    </div>
-                    
-                    <div id="print-area" class="bg-white p-4 sm:p-8 md:p-16 shadow-lg rounded-xl border border-gray-200 text-gray-900">
-                        <!-- Kop -->
-                        <div class="border-b-2 border-gray-900 pb-4 mb-6">
-                            <div class="flex flex-col sm:flex-row justify-between items-start mb-4 gap-2">
-                                <div>
-                                    <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">RAPORT HASIL BELAJAR</h1>
-                                    <p class="text-gray-500 font-semibold text-xs mt-1">EduReport Interaktif</p>
-                                </div>
-                                <span class="px-3 py-1 bg-gray-100 rounded text-xs font-bold uppercase border border-gray-300" id="view-period">Semester</span>
-                            </div>
-                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div><p class="text-[9px] font-black text-gray-400 uppercase">Nama Siswa</p><p id="view-nama" class="font-bold text-sm sm:text-base">-</p></div>
-                                <div><p class="text-[9px] font-black text-gray-400 uppercase">NIS / ID</p><p id="view-student-id" class="font-mono text-xs sm:text-sm mt-1">-</p></div>
-                                <div><p class="text-[9px] font-black text-gray-400 uppercase">Kelas</p><p id="view-kelas-label" class="font-bold text-xs sm:text-sm mt-1">-</p></div>
-                                <div><p class="text-[9px] font-black text-gray-400 uppercase">Rata-rata</p><p id="view-rata-rata" class="font-bold text-blue-600 text-sm sm:text-base">-</p></div>
-                            </div>
+                    <!-- Kolom Kanan: Nilai Harian -->
+                    <div class="google-card overflow-hidden border-2 border-green-100">
+                        <div class="bg-green-50 p-4 border-b border-green-100 flex items-center gap-3">
+                            <span class="text-xl">📈</span><h3 class="font-bold text-green-900 text-lg">Skor Penilaian Harian Terkini</h3>
                         </div>
-
-                        <!-- Akademik Mobile Responsive -->
-                        <div class="mb-8">
-                            <h3 class="text-sm md:text-base font-black text-gray-900 mb-4 uppercase tracking-widest flex items-center gap-2">
-                                <span class="w-1.5 h-4 bg-blue-600 inline-block rounded-full"></span> I. Akademik
-                            </h3>
-                            <div class="overflow-x-auto hide-scrollbar">
-                                <table class="w-full min-w-[500px]">
-                                    <thead>
-                                        <tr class="bg-gray-100 text-left text-[9px] font-black uppercase text-gray-600">
-                                            <th class="px-4 py-3 rounded-tl-lg">Mata Pelajaran</th>
-                                            <th class="px-4 py-3 text-center">Nilai</th>
-                                            <th class="px-4 py-3 rounded-tr-lg">Deskripsi Capaian</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="view-table-body" class="text-xs sm:text-sm divide-y divide-gray-200 border-b border-gray-200"></tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
-                            <div class="bg-gray-50 p-4 sm:p-6 rounded-2xl border border-gray-200">
-                                <h4 class="font-black text-gray-900 mb-4 text-[10px] md:text-xs uppercase">II. Karakter</h4>
-                                <div class="space-y-3 text-xs md:text-sm">
-                                    <div class="flex justify-between border-b pb-2"><span class="text-gray-600">Kemandirian</span><span id="view-mandiri" class="font-bold text-blue-700">-</span></div>
-                                    <div class="flex justify-between pt-1"><span class="text-gray-600">Kerja Sama</span><span id="view-kerjasama" class="font-bold text-blue-700">-</span></div>
-                                </div>
-                            </div>
-                            <div class="p-4 sm:p-6 rounded-2xl border-2 border-blue-100 bg-blue-50/30">
-                                <h4 class="font-black text-blue-900 mb-3 text-[10px] md:text-xs uppercase">III. Pesan Wali Kelas</h4>
-                                <p id="view-pesan" class="text-xs md:text-sm text-gray-700 italic">"-"</p>
-                            </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-white border-b border-gray-100">
+                                    <tr class="text-[10px] text-gray-500 uppercase tracking-widest">
+                                        <th class="px-5 py-3">Mata Pelajaran</th>
+                                        <th class="px-5 py-3 text-center">Skor Tugas</th>
+                                        <th class="px-5 py-3">Catatan Evaluasi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="parent-daily-grades" class="divide-y divide-gray-50"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -408,19 +310,21 @@
         </main>
     </div>
 
-    <button id="fab-add-siswa" onclick="addNewStudent()" class="hidden google-fab no-print transition-transform active:scale-95 group">
-        <span class="p-2 md:p-2.5 bg-blue-50 text-blue-600 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">
-            <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+    <!-- Guru FAB -->
+    <button id="fab-add-siswa" onclick="addNewStudent()" class="hidden google-fab no-print hover:bg-gray-50 transition-colors">
+        <span class="p-2 bg-blue-100 text-blue-700 rounded-full mr-1">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
         </span>
-        <span class="text-sm md:text-base">Siswa</span>
+        <span class="text-blue-700">Siswa Baru</span>
     </button>
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Gunakan Firebase Anda (Sandbox config untuk Immersive ini)
+        // Firebase Setup
         const firebaseConfig = {
             apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
             authDomain: "smpitlaatahzan-raport.firebaseapp.com",
@@ -432,66 +336,69 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
+
+        // State variables
         let currentUser = null;
-        let currentRole = 'guru'; 
+        let currentRole = 'guru';
         let studentsData = [];
         let currentStudentId = null;
-        const subjectsList = ['B. Indo', 'Wafa', 'B. Inggris', 'IPA', 'Matematika', 'S. Musik', 'Civ Soc', 'Sport']; // Singkatan untuk mobile
+        const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
+        // --- AUTH ---
         window.setLoginRole = (role) => {
             currentRole = role;
-            document.getElementById('role-btn-guru').className = role === 'guru' ? 'p-4 sm:p-6 border-2 border-blue-600 rounded-2xl sm:rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all' : 'p-4 sm:p-6 border-2 border-gray-100 rounded-2xl sm:rounded-3xl font-bold';
-            document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'p-4 sm:p-6 border-2 border-orange-400 rounded-2xl sm:rounded-3xl bg-orange-50 text-orange-700 font-bold transition-all' : 'p-4 sm:p-6 border-2 border-gray-100 rounded-2xl sm:rounded-3xl font-bold';
+            document.getElementById('role-btn-guru').className = role === 'guru' ? 'p-6 border-2 border-blue-600 rounded-3xl bg-blue-50 text-blue-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
+            document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'p-6 border-2 border-orange-400 rounded-3xl bg-orange-50 text-orange-700 font-bold transition-all' : 'p-6 border-2 border-gray-100 rounded-3xl font-bold transition-all';
             document.getElementById('parent-extra-fields').classList.toggle('hidden', role !== 'orangtua');
         };
 
         window.handleAuth = async (e) => {
             e.preventDefault();
             document.getElementById('loading-overlay').classList.remove('hidden');
-            const childId = document.getElementById('child-id').value;
-            
+            const errorBox = document.getElementById('login-error-msg');
+            errorBox.classList.add('hidden');
+
+            const childId = document.getElementById('child-id').value.trim();
             if (currentRole === 'orangtua' && !childId) {
-                document.getElementById('loading-overlay').classList.add('hidden');
-                const errorBox = document.getElementById('login-error-msg');
+                errorBox.innerText = "Akses Ditolak: Anda wajib memasukkan ID Akses Anak / NIS.";
                 errorBox.classList.remove('hidden');
-                errorBox.innerText = "Tolak Akses: Masukkan ID Akses Ortu yang valid!";
+                document.getElementById('loading-overlay').classList.add('hidden');
                 return;
             }
-            sessionStorage.setItem('pendingRole', currentRole);
-            if(childId) sessionStorage.setItem('pendingChildId', childId);
-            
-            try { 
+
+            try {
+                // Drop a cookie/session marker to force role overwrite after popup resolves
+                sessionStorage.setItem('pendingRole', currentRole);
+                if (childId) sessionStorage.setItem('pendingChildId', childId);
+                
                 const provider = new GoogleAuthProvider();
-                await signInWithPopup(auth, provider); 
-            } 
-            catch (error) { 
-                document.getElementById('loading-overlay').classList.add('hidden');
-                const errorBox = document.getElementById('login-error-msg');
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                errorBox.innerText = "Error: " + error.message;
                 errorBox.classList.remove('hidden');
-                errorBox.innerText = "Gagal Login: " + error.message;
-                console.error("Authentication Error:", error);
+                document.getElementById('loading-overlay').classList.add('hidden');
             }
         };
 
-        window.logout = () => signOut(auth);
-
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                currentUser = user;
                 const userDocRef = doc(db, 'users', user.uid);
                 
+                // If there's a pending role from the login form, force overwrite the database
                 const pendingRole = sessionStorage.getItem('pendingRole');
                 if (pendingRole) {
-                    await setDoc(userDocRef, { role: pendingRole, childId: sessionStorage.getItem('pendingChildId') || null }, { merge: true });
-                    sessionStorage.removeItem('pendingRole'); sessionStorage.removeItem('pendingChildId');
+                    await setDoc(userDocRef, { role: pendingRole, childId: sessionStorage.getItem('pendingChildId') || null, email: user.email }, { merge: true });
+                    sessionStorage.removeItem('pendingRole');
+                    sessionStorage.removeItem('pendingChildId');
                 }
-                
+
                 const userSnap = await getDoc(userDocRef);
                 if(userSnap.exists()) {
                     const profile = userSnap.data();
                     setupUIForRole(profile.role, profile.childId);
                     initRealtimeSync(profile);
+                } else {
+                    signOut(auth);
                 }
             } else {
                 document.getElementById('loading-overlay').classList.add('hidden');
@@ -499,6 +406,8 @@
                 document.getElementById('main-app').classList.add('hidden');
             }
         });
+
+        window.logout = () => signOut(auth);
 
         function setupUIForRole(role, childId) {
             document.getElementById('loading-overlay').classList.add('hidden');
@@ -508,8 +417,6 @@
             const badge = document.getElementById('user-role-badge');
             badge.innerText = role === 'guru' ? 'GURU' : 'ORTU';
             badge.className = `role-badge ${role === 'guru' ? 'role-guru' : 'role-ortu'}`;
-            document.getElementById('user-initial').innerText = role.charAt(0);
-            document.getElementById('user-initial-mobile').innerText = role.charAt(0);
 
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('agenda-date').value = today;
@@ -520,132 +427,144 @@
                 document.getElementById('nav-ortu').classList.add('hidden');
                 document.getElementById('fab-add-siswa').classList.remove('hidden');
                 document.getElementById('btn-settings').classList.remove('hidden');
-                window.checkAiStatus();
-                window.switchTab('dashboard');
+                window.switchTab('agenda');
             } else {
                 document.getElementById('nav-guru').classList.add('hidden');
                 document.getElementById('nav-ortu').classList.remove('hidden');
                 document.getElementById('fab-add-siswa').classList.add('hidden');
-                document.getElementById('parent-notice').classList.remove('hidden');
-                document.getElementById('btn-back-to-editor').classList.add('hidden');
+                document.getElementById('btn-settings').classList.add('hidden');
                 currentStudentId = childId;
                 window.switchTab('parent-agenda');
             }
         }
 
-        // --- CORE LOGIC ---
+        // --- FIRESTORE SYNC ---
         function initRealtimeSync(profile) {
             if (profile.role === 'guru') {
-                // Lapis 1: GURU boleh memuat semua koleksi data siswa
                 const studentsCol = collection(db, 'students');
                 onSnapshot(studentsCol, (snapshot) => {
                     studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) window.renderDashboard();
-                }, (error) => {
-                    console.error("Guru Sync Error:", error);
                 });
             } else if (profile.role === 'orangtua') {
-                // Lapis 1: ORTU hanya memuat 1 dokumen spesifik berdasarkan childId yang diinput
-                if (!profile.childId) {
-                    alert("Akses Ditolak: ID Akses Ortu tidak ditemukan di akun ini.");
-                    window.logout();
-                    return;
-                }
-                
+                if (!profile.childId) { alert("ID Siswa tidak terdaftar di akun ini."); signOut(auth); return; }
                 const studentDoc = doc(db, 'students', profile.childId);
-                
                 onSnapshot(studentDoc, (docSnap) => {
                     if (docSnap.exists()) {
-                        // Masukkan ke array tunggal agar sistem viewer tetap berjalan normal
                         studentsData = [{ docId: docSnap.id, ...docSnap.data() }];
-                        if(!document.getElementById('viewer-section').classList.contains('hidden')) window.updateViewer();
-                        if(!document.getElementById('parent-agenda-section').classList.contains('hidden')) window.loadParentAgenda();
+                        if(!document.getElementById('parent-agenda-section').classList.contains('hidden')) window.loadParentDashboard();
                     } else {
-                        alert("Akses Ditolak: Data anak dengan ID '" + profile.childId + "' tidak ditemukan.");
-                        window.logout();
+                        alert("Akses Ditolak: Data siswa tidak ditemukan."); signOut(auth);
                     }
                 }, (error) => {
-                    // Lapis 2: Jika tertangkap oleh Firewall Firestore Backend
-                    console.error("Firestore Security Error:", error);
-                    alert("Sistem Keamanan Diaktifkan: Anda tidak memiliki otorisasi untuk melihat data ID ini.");
-                    window.logout();
+                    alert("Akses Ditolak oleh Server (Permission Denied). ID Siswa tidak valid."); signOut(auth);
                 });
             }
         }
 
-        window.getSubjectFinalScore = (sub) => {
-            const s = sub.scores || { daily: 0, weekly: 0, uts: 0, pas: 0 };
-            return (s.daily * 0.2) + (s.weekly * 0.2) + (s.uts * 0.3) + (s.pas * 0.3);
-        };
-        window.calculateStudentAvg = (st, year, sem) => {
-            if (!st.academic?.[year]?.[sem]) return 0;
-            const subs = st.academic[year][sem].subjects || [];
-            if (subs.length === 0) return 0;
-            return subs.reduce((acc, s) => acc + window.getSubjectFinalScore(s), 0) / subs.length;
-        };
-
+        // --- NAVIGATION ---
         window.switchTab = (mode) => {
-            if((mode === 'viewer' || mode === 'editor') && !currentStudentId && currentRole === 'guru') { alert("Pilih siswa dulu dari Dashboard"); return; }
-            const sections = ['dashboard', 'editor', 'viewer', 'agenda', 'parent-agenda'];
+            const sections = ['agenda', 'dashboard', 'editor', 'parent-agenda'];
             sections.forEach(s => document.getElementById(`${s}-section`).classList.add('hidden'));
             document.getElementById(`${mode}-section`).classList.remove('hidden');
             
             document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
             let activeBtnId = `btn-${mode}`;
-            if (currentRole === 'orangtua' && mode === 'viewer') activeBtnId = 'btn-ortu-viewer';
-            if (currentRole === 'orangtua' && mode === 'parent-agenda') activeBtnId = 'btn-ortu-agenda';
+            if (currentRole === 'orangtua' && mode === 'parent-agenda') activeBtnId = 'btn-parent-agenda';
             const activeBtn = document.getElementById(activeBtnId);
             if(activeBtn) activeBtn.classList.add('active');
 
-            if (mode === 'viewer') window.updateViewer();
             if (mode === 'agenda') window.loadAgenda();
-            if (mode === 'parent-agenda') window.loadParentAgenda();
+            if (mode === 'parent-agenda') window.loadParentDashboard();
+            if (mode === 'dashboard') window.renderDashboard();
         };
 
+        // --- GURU: AGENDA LOGIC ---
+        window.loadAgenda = async () => {
+            const date = document.getElementById('agenda-date').value;
+            const cls = document.getElementById('agenda-class').value;
+            if(!date || !cls) return;
+            
+            onSnapshot(doc(db, 'agendas', `agenda_${cls}_${date}`), (docSnap) => {
+                const tbody = document.getElementById('agenda-table-body');
+                const empty = document.getElementById('agenda-empty-state');
+                tbody.innerHTML = '';
+                
+                if (docSnap.exists() && docSnap.data().items?.length > 0) {
+                    empty.classList.add('hidden');
+                    docSnap.data().items.forEach((it, i) => {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr>
+                                <td class="px-6 py-4 font-bold text-blue-800">${it.subject}</td>
+                                <td class="px-6 py-4 text-gray-700">${it.task}</td>
+                                <td class="px-6 py-4 text-right"><button onclick="delAgenda('${docSnap.id}', ${i})" class="text-red-500 text-xs px-3 py-1 bg-red-50 font-bold rounded">HAPUS</button></td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    empty.classList.remove('hidden');
+                }
+            });
+        };
+
+        window.saveAgendaItem = async () => {
+            const date = document.getElementById('agenda-date').value;
+            const cls = document.getElementById('agenda-class').value;
+            const sub = document.getElementById('agenda-input-subject').value;
+            const task = document.getElementById('agenda-input-task').value;
+            if(!task.trim()) return;
+
+            const ref = doc(db, 'agendas', `agenda_${cls}_${date}`);
+            const snap = await getDoc(ref);
+            let items = snap.exists() ? (snap.data().items||[]) : [];
+            items.push({ subject: sub, task: task });
+            await setDoc(ref, { items }, { merge: true });
+            document.getElementById('agenda-input-task').value = ''; 
+        };
+
+        window.delAgenda = async (docId, idx) => {
+            const ref = doc(db, 'agendas', docId);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                let items = snap.data().items;
+                items.splice(idx, 1);
+                await setDoc(ref, { items });
+            }
+        };
+
+        // --- GURU: DAFTAR SISWA ---
         window.renderDashboard = () => {
             const year = document.getElementById('dash-year').value;
-            const sem = 'sem' + document.getElementById('dash-semester').value;
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
             
-            let totalAvg = 0;
             studentsData.forEach(st => {
-                const avg = window.calculateStudentAvg(st, year, sem);
-                totalAvg += avg;
                 tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="hover:bg-blue-50/50 cursor-pointer transition-colors" onclick="editStudent('${st.docId}')">
-                        <td class="px-4 md:px-8 py-3 md:py-5">
-                            <p class="font-bold text-gray-900 truncate max-w-[150px] md:max-w-[300px]">${st.nama}</p>
-                            <p class="text-[9px] md:text-[10px] text-gray-400 font-mono mt-0.5">NIS: ${st.docId}</p>
-                        </td>
-                        <td class="px-4 md:px-8 py-3 md:py-5 text-center">
-                            <span class="bg-gray-100 text-gray-800 px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-black">${avg.toFixed(1)}</span>
-                        </td>
-                        <td class="px-4 md:px-8 py-3 md:py-5 text-right"><button class="text-blue-600 font-bold text-[10px] md:text-xs bg-blue-50 px-3 py-1.5 rounded-full">Edit</button></td>
+                    <tr class="hover:bg-blue-50 transition-colors">
+                        <td class="px-6 py-4 font-bold text-gray-900">${st.nama}</td>
+                        <td class="px-6 py-4 text-sm font-mono text-gray-500">${st.docId}</td>
+                        <td class="px-6 py-4 text-right"><button onclick="editStudent('${st.docId}')" class="text-white text-xs font-bold bg-blue-600 px-4 py-2 rounded-full hover:bg-blue-700">Input Nilai</button></td>
                     </tr>
                 `);
             });
-            document.getElementById('stat-total-siswa').innerText = studentsData.length;
-            document.getElementById('stat-avg-kelas').innerText = (totalAvg / (studentsData.length || 1)).toFixed(1);
         };
 
+        // --- GURU: PENILAIAN HARIAN (EDITOR) ---
         window.editStudent = (docId) => {
             currentStudentId = docId;
             const st = studentsData.find(s => s.docId === docId);
             const year = document.getElementById('dash-year').value;
-            const sem = 'sem' + document.getElementById('dash-semester').value;
             
             document.getElementById('editor-title').innerText = st.nama;
-            document.getElementById('editor-context-label').innerText = `Kelas ${year} - Semester ${sem.slice(-1)}`;
+            document.getElementById('editor-context-label').innerText = `Konteks: Kelas ${year}`;
             
-            const data = st.academic[year][sem];
-            document.getElementById('input-mandiri').value = data.mandiri || 'Berkembang';
-            document.getElementById('input-kerjasama').value = data.kerjasama || 'Berkembang';
-            document.getElementById('input-pesan').value = data.pesan || '';
-
-            renderEditorGrid(data.subjects);
-            document.getElementById('btn-editor').classList.remove('text-gray-400');
-            document.getElementById('btn-viewer').classList.remove('text-gray-400');
+            // Initialization structure if missing
+            if(!st.academic) st.academic = {};
+            if(!st.academic[year]) st.academic[year] = { subjects: createEmptySubjects() };
+            
+            renderEditorGrid(st.academic[year].subjects);
+            
+            document.getElementById('btn-editor').classList.remove('hidden');
             window.switchTab('editor');
         };
 
@@ -653,118 +572,101 @@
             const grid = document.getElementById('subjects-grid');
             grid.innerHTML = '';
             subs.forEach((sub, idx) => {
-                const score = window.getSubjectFinalScore(sub).toFixed(0);
                 grid.insertAdjacentHTML('beforeend', `
-                    <div class="google-card p-4 md:p-5 border-gray-200">
-                        <div class="flex justify-between items-center mb-3">
-                            <h4 class="font-bold text-gray-800 text-xs sm:text-sm truncate mr-2">${sub.name}</h4>
-                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-md text-[10px] font-black" id="score-badge-${idx}">${score}</span>
+                    <div class="google-card p-5 border-gray-200">
+                        <h4 class="font-bold text-gray-800 text-sm mb-4">${sub.name}</h4>
+                        <div class="mb-4">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Skor Tugas/Harian Saat Ini (0-100)</label>
+                            <input type="number" value="${sub.daily || 0}" onchange="updateDailyScore(${idx}, this.value)" class="w-full p-3 text-lg font-black text-blue-700 bg-blue-50 border-none rounded-xl">
                         </div>
-                        <div class="grid grid-cols-4 gap-1.5 mb-3">
-                            <div><label class="text-[8px] text-gray-400 font-bold uppercase block text-center mb-1">HAR</label><input type="number" value="${sub.scores.daily}" onchange="updateScore(${idx}, 'daily', this.value)" class="w-full p-1.5 text-xs text-center font-bold"></div>
-                            <div><label class="text-[8px] text-gray-400 font-bold uppercase block text-center mb-1">MING</label><input type="number" value="${sub.scores.weekly}" onchange="updateScore(${idx}, 'weekly', this.value)" class="w-full p-1.5 text-xs text-center font-bold"></div>
-                            <div><label class="text-[8px] text-gray-400 font-bold uppercase block text-center mb-1">UTS</label><input type="number" value="${sub.scores.uts}" onchange="updateScore(${idx}, 'uts', this.value)" class="w-full p-1.5 text-xs text-center font-bold"></div>
-                            <div><label class="text-[8px] text-gray-400 font-bold uppercase block text-center mb-1">PAS</label><input type="number" value="${sub.scores.pas}" onchange="updateScore(${idx}, 'pas', this.value)" class="w-full p-1.5 text-xs text-center font-bold"></div>
-                        </div>
-                        <textarea id="note-${idx}" onchange="updateNote(${idx}, this.value)" class="w-full p-2 text-[10px] sm:text-xs h-16 border-gray-200 bg-gray-50 focus:bg-white" placeholder="Kosongkan lalu klik Auto-Fill di atas...">${sub.note || ''}</textarea>
+                        <label class="text-[10px] text-gray-500 font-bold uppercase mb-1 block">Catatan Evaluasi Singkat</label>
+                        <textarea id="note-${idx}" onchange="updateDailyNote(${idx}, this.value)" class="w-full p-3 text-xs h-16 bg-gray-50 focus:bg-white border-gray-200" placeholder="Ketik catatan evaluasi tugas...">${sub.note || ''}</textarea>
                     </div>
                 `);
             });
         }
 
-        window.updateScore = async (idx, type, val) => {
-            const year = document.getElementById('dash-year').value; const sem = 'sem' + document.getElementById('dash-semester').value;
+        window.updateDailyScore = async (idx, val) => {
+            const year = document.getElementById('dash-year').value;
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].academic[year][sem].subjects[idx].scores[type] = parseInt(val) || 0;
-            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
-            document.getElementById(`score-badge-${idx}`).innerText = window.getSubjectFinalScore(studentsData[stIdx].academic[year][sem].subjects[idx]).toFixed(0);
-        };
-        window.updateNote = async (idx, val) => {
-            const year = document.getElementById('dash-year').value; const sem = 'sem' + document.getElementById('dash-semester').value;
-            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].academic[year][sem].subjects[idx].note = val;
-            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
-        };
-        window.updateCharacter = async (field, val) => {
-            const year = document.getElementById('dash-year').value; const sem = 'sem' + document.getElementById('dash-semester').value;
-            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].academic[year][sem][field] = val;
+            studentsData[stIdx].academic[year].subjects[idx].daily = parseInt(val) || 0;
             await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
 
-        // --- AGENDA & RAPORT VIEWERS ---
-        window.loadAgenda = async () => {
-            const d = document.getElementById('agenda-date').value; const c = document.getElementById('agenda-class').value;
-            if(!d || !c) return;
-            onSnapshot(doc(db, 'agendas', `agenda_${c}_${d}`), (docSnap) => {
-                const tbody = document.getElementById('agenda-table-body'); const empty = document.getElementById('agenda-empty-state');
-                tbody.innerHTML = '';
-                if (docSnap.exists() && docSnap.data().items?.length > 0) {
-                    empty.classList.add('hidden');
-                    docSnap.data().items.forEach((it, i) => tbody.insertAdjacentHTML('beforeend', `<tr><td class="px-4 py-3 font-bold text-blue-700">${it.subject}</td><td class="px-4 py-3">${it.task}</td><td class="px-4 py-3 text-right"><button onclick="delAgenda('${docSnap.id}', ${i})" class="text-red-500 font-bold text-[10px] px-2 py-1 bg-red-50 rounded">X</button></td></tr>`));
-                } else empty.classList.remove('hidden');
-            });
+        window.updateDailyNote = async (idx, val) => {
+            const year = document.getElementById('dash-year').value;
+            const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
+            studentsData[stIdx].academic[year].subjects[idx].note = val;
+            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
 
-        window.saveAgendaItem = async () => {
-            const d = document.getElementById('agenda-date').value; const c = document.getElementById('agenda-class').value;
-            const s = document.getElementById('agenda-input-subject').value; const t = document.getElementById('agenda-input-task').value;
-            if(!t.trim()) return;
-            const ref = doc(db, 'agendas', `agenda_${c}_${d}`);
-            const snap = await getDoc(ref); let items = snap.exists() ? (snap.data().items||[]) : [];
-            items.push({ subject: s, task: t });
-            await setDoc(ref, { items }, { merge: true });
-            document.getElementById('agenda-input-task').value = ''; 
-        };
-        window.delAgenda = async (id, idx) => {
-            const ref = doc(db, 'agendas', id); const snap = await getDoc(ref);
-            if (snap.exists()) { let items = snap.data().items; items.splice(idx, 1); await setDoc(ref, { items }); }
-        };
+        // --- ORTU: PANTAU DASHBOARD ---
+        window.loadParentDashboard = async () => {
+            const date = document.getElementById('parent-agenda-date').value;
+            const cls = document.getElementById('parent-agenda-class').value;
+            const st = studentsData.find(s => s.docId === currentStudentId);
+            
+            document.getElementById('parent-view-nama').innerText = st?.nama || "Siswa";
 
-        window.loadParentAgenda = async () => {
-            const d = document.getElementById('parent-agenda-date').value; const c = document.getElementById('parent-agenda-class').value;
-            const snap = await getDoc(doc(db, 'agendas', `agenda_${c}_${d}`));
-            const list = document.getElementById('parent-agenda-list'); const empty = document.getElementById('parent-agenda-empty');
+            // Load Agenda
+            const snap = await getDoc(doc(db, 'agendas', `agenda_${cls}_${date}`));
+            const list = document.getElementById('parent-agenda-list');
+            const empty = document.getElementById('parent-agenda-empty');
             list.innerHTML = '';
+            
             if (snap.exists() && snap.data().items?.length > 0) {
                 empty.classList.add('hidden');
-                snap.data().items.forEach(it => list.insertAdjacentHTML('beforeend', `<div class="p-3 md:p-4 hover:bg-gray-50"><h4 class="font-bold text-blue-700 text-xs md:text-sm">${it.subject}</h4><p class="text-xs md:text-sm text-gray-700 mt-1">${it.task}</p></div>`));
-            } else empty.classList.remove('hidden');
-
-            const st = studentsData.find(s => s.docId === currentStudentId);
-            const tbody = document.getElementById('parent-daily-grades'); tbody.innerHTML = '';
-            if (st?.academic?.[c]?.['sem1']) {
-                st.academic[c]['sem1'].subjects.forEach(sub => {
-                    const scr = sub.scores.daily || 0;
-                    tbody.insertAdjacentHTML('beforeend', `<tr><td class="px-4 py-2">${sub.name}</td><td class="px-4 py-2 text-right"><span class="px-2 py-1 rounded text-[10px] font-bold ${scr>=80?'bg-green-100 text-green-700':(scr>=70?'bg-blue-100 text-blue-700':'bg-orange-100 text-orange-700')}">${scr}</span></td></tr>`);
+                snap.data().items.forEach(it => {
+                    list.insertAdjacentHTML('beforeend', `
+                        <div class="p-4 hover:bg-blue-50 transition-colors">
+                            <h4 class="font-bold text-blue-800">${it.subject}</h4>
+                            <p class="text-sm text-gray-700 mt-1">${it.task}</p>
+                        </div>
+                    `);
                 });
-            } else tbody.innerHTML = '<tr><td colspan="2" class="px-4 py-3 text-center text-xs text-gray-400">Data belum ada</td></tr>';
-        };
+            } else { empty.classList.remove('hidden'); }
 
-        window.updateViewer = () => {
-            const st = studentsData.find(s => s.docId === currentStudentId); if (!st) return;
-            const y = document.getElementById('dash-year')?.value || 7; const s = 'sem' + (document.getElementById('dash-semester')?.value || 1);
-            const data = st.academic[y][s];
-            
-            document.getElementById('view-nama').innerText = st.nama; document.getElementById('view-student-id').innerText = st.docId;
-            document.getElementById('view-kelas-label').innerText = `Kelas ${y}`; document.getElementById('view-period').innerText = `Sem ${s.slice(-1)}`;
-            document.getElementById('view-rata-rata').innerText = window.calculateStudentAvg(st, y, s).toFixed(1);
-            document.getElementById('view-mandiri').innerText = data.mandiri || '-'; document.getElementById('view-kerjasama').innerText = data.kerjasama || '-';
-            document.getElementById('view-pesan').innerText = data.pesan ? `"${data.pesan}"` : "-";
-
-            const tb = document.getElementById('view-table-body'); tb.innerHTML = '';
-            data.subjects.forEach(sub => tb.insertAdjacentHTML('beforeend', `<tr><td class="px-3 sm:px-4 py-3 font-bold">${sub.name}</td><td class="px-3 sm:px-4 py-3 text-center font-black">${window.getSubjectFinalScore(sub).toFixed(0)}</td><td class="px-3 sm:px-4 py-3 text-gray-600">${sub.note||'-'}</td></tr>`));
+            // Load Daily Grades
+            const tbody = document.getElementById('parent-daily-grades');
+            tbody.innerHTML = '';
+            if (st?.academic?.[cls]) {
+                st.academic[cls].subjects.forEach(sub => {
+                    const scr = sub.daily || 0;
+                    const badge = scr >= 80 ? 'bg-green-100 text-green-700' : (scr >= 70 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700');
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <tr>
+                            <td class="px-5 py-4 font-bold text-gray-800">${sub.name}</td>
+                            <td class="px-5 py-4 text-center"><span class="px-3 py-1 rounded text-sm font-black ${badge}">${scr}</span></td>
+                            <td class="px-5 py-4 text-gray-600 text-xs italic">${sub.note || '-'}</td>
+                        </tr>
+                    `);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" class="px-5 py-6 text-center text-sm text-gray-400">Belum ada data nilai masuk di kelas ini.</td></tr>';
+            }
         };
 
         // --- UTILS & AI ---
-        function createEmptySubjects() { return subjectsList.map(name => ({ name, scores: { daily: 0, weekly: 0, uts: 0, pas: 0 }, note: '' })); }
-        
-        window.addNewStudent = async (nInput = null, idInput = null) => {
-            const newId = idInput || prompt("Masukkan NIS Siswa (Cth: 2026001):"); if (!newId) return;
-            const name = nInput || prompt("Masukkan Nama Lengkap:"); if (!name) return;
-            const d = { nama: name, academic: { 7: { sem1: { subjects: createEmptySubjects() }, sem2: { subjects: createEmptySubjects() } }, 8: { sem1: { subjects: createEmptySubjects() }, sem2: { subjects: createEmptySubjects() } }, 9: { sem1: { subjects: createEmptySubjects() }, sem2: { subjects: createEmptySubjects() } } } };
-            await setDoc(doc(db, 'students', newId), d);
-            if(!nInput) alert(`Siswa ditambahkan! NIS: ${newId}`);
+        function createEmptySubjects() {
+            return subjectsList.map(name => ({ name, daily: 0, note: '' }));
+        }
+
+        window.addNewStudent = async (idInput = null, nameInput = null) => {
+            const newId = idInput || prompt("Masukkan NIS / ID Siswa (Wajib Unik):");
+            if (!newId) return;
+            const name = nameInput || prompt("Masukkan Nama Lengkap Siswa:");
+            if (!name) return;
+            
+            const data = { 
+                nama: name, 
+                academic: {
+                    7: { subjects: createEmptySubjects() },
+                    8: { subjects: createEmptySubjects() },
+                    9: { subjects: createEmptySubjects() }
+                }
+            };
+            await setDoc(doc(db, 'students', newId), data);
+            if(!nameInput) alert(`Berhasil! Sampaikan ID [${newId}] ini kepada orang tua untuk akses portal.`);
         };
 
         window.handleFileUpload = async (e) => {
@@ -772,46 +674,56 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
             const reader = new FileReader();
             reader.onload = async (ev) => {
-                const rows = ev.target.result.split('\n'); let c = 0;
+                const rows = ev.target.result.split('\n');
+                let count = 0;
                 for (let i = 0; i < rows.length; i++) {
                     const cols = rows[i].split(',');
-                    if (cols.length >= 2 && cols[0].trim() && cols[1].trim()) { await window.addNewStudent(cols[1].trim(), cols[0].trim()); c++; }
+                    if (cols.length >= 2 && cols[0].trim() && cols[1].trim()) {
+                        await window.addNewStudent(cols[0].trim(), cols[1].trim());
+                        count++;
+                    }
                 }
-                document.getElementById('loading-overlay').classList.add('hidden'); document.getElementById('csv-input').value = ""; alert(`Sukses impor ${c} siswa!`);
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('csv-input').value = "";
+                alert(`Impor Sukses: ${count} data siswa berhasil ditambahkan.`);
             };
             reader.readAsText(file);
         };
 
-        window.checkAiStatus = () => {
-            const k = localStorage.getItem('gemini_api_key'); const el = document.getElementById('stat-ai-status');
-            el.innerText = k ? "Aktif (Tersambung)" : "API Kosong"; el.className = k ? "text-sm md:text-lg font-bold text-green-600 mt-1" : "text-sm md:text-lg font-bold text-orange-500 mt-1";
-        };
+        // --- GEMINI AI ---
         window.setApiKey = () => {
-            const k = prompt("API Key Gemini:", localStorage.getItem('gemini_api_key')||'');
-            if(k!==null){ localStorage.setItem('gemini_api_key', k.trim()); window.checkAiStatus(); }
+            const key = prompt("API Key Gemini:", localStorage.getItem('gemini_api_key')||'');
+            if(key !== null) localStorage.setItem('gemini_api_key', key.trim());
         };
 
         window.generateAllNotes = async () => {
-            const key = localStorage.getItem('gemini_api_key'); if(!key){ alert("Isi API Key dulu (Ikon Gerigi)"); return; }
+            const key = localStorage.getItem('gemini_api_key');
+            if(!key) { alert("Masukkan API Key Gemini terlebih dahulu."); window.setApiKey(); return; }
+            
             document.getElementById('loading-overlay').classList.remove('hidden');
             try {
-                const y = document.getElementById('dash-year').value; const s = 'sem' + document.getElementById('dash-semester').value;
-                const stIdx = studentsData.findIndex(st => st.docId === currentStudentId); const subs = studentsData[stIdx].academic[y][s].subjects;
+                const year = document.getElementById('dash-year').value;
+                const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
+                const subs = studentsData[stIdx].academic[year].subjects;
+
                 for (let i = 0; i < subs.length; i++) {
-                    const sc = window.getSubjectFinalScore(subs[i]);
-                    const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: `Tulis 1 kalimat narasi raport singkat, suportif & sopan bahasa indonesia untuk nilai ${sc.toFixed(0)}/100 pelajaran ${subs[i].name} siswa bernama ${studentsData[stIdx].nama}. Tanpa tanda kutip.` }] }] })
-                    });
-                    const res = await req.json();
-                    if(res.candidates) {
-                        const note = res.candidates[0].content.parts[0].text.replace(/\n/g, '').replace(/"/g, '').trim();
-                        subs[i].note = note; document.getElementById(`note-${i}`).value = note;
+                    if (subs[i].daily > 0) { // Hanya proses yang ada nilainya
+                        const prompt = `Bertindak sebagai guru. Murid mendapat nilai harian tugas ${subs[i].daily}/100 untuk mapel ${subs[i].name}. Buat 1 kalimat catatan harian yang evaluatif. Tanpa tanda kutip.`;
+                        const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                        });
+                        const res = await req.json();
+                        if(res.candidates) {
+                            const note = res.candidates[0].content.parts[0].text.replace(/\n/g, '').replace(/"/g, '').trim();
+                            subs[i].note = note;
+                            document.getElementById(`note-${i}`).value = note;
+                        }
                     }
                 }
                 await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
-                alert("Narasi AI selesai!");
-            } catch (err) { alert("Gagal. Cek API Key atau Koneksi."); }
+                alert("Evaluasi Harian AI berhasil ditambahkan!");
+            } catch (err) { alert("Gagal menghubungi AI. Cek koneksi atau kuota API Anda."); }
             document.getElementById('loading-overlay').classList.add('hidden');
         };
     </script>
