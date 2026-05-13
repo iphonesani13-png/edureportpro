@@ -314,18 +314,7 @@
         let unsubscribeStudents = null; 
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
-        window.setLoginRole = (role) => {
-            currentRole = role;
-            document.getElementById('role-btn-guru').className = role === 'guru' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
-            document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-orange-600 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-orange-400 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
-            document.getElementById('parent-extra-fields').classList.toggle('hidden', role !== 'orangtua');
-        };
-
-        window.handleGoogleLogin = async () => {
-            const childIdInput = document.getElementById('child-id').value.trim();
-            const errorMsg = document.getElementById('login-error-msg');
-            errorMsg.classList.add('hidden');
-        // --- AUTH & LOGIN LOGIC (ANTI-CACHE / FORCE OVERRIDE) ---
+        // --- AUTH & LOGIN LOGIC ---
         window.setLoginRole = (role) => {
             currentRole = role;
             document.getElementById('role-btn-guru').className = role === 'guru' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
@@ -471,7 +460,59 @@
             }
         };
 
-        // --- STREAMING_CHUNK:Realtime Data Sync & UI Updates ---
+        function initRealtimeSync(profile) {
+            if(unsubscribeStudents) unsubscribeStudents(); 
+
+            if (profile.role === 'guru') {
+                const studentsCol = collection(db, 'students');
+                unsubscribeStudents = onSnapshot(studentsCol, (snapshot) => {
+                    studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
+                    if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
+                    if(!document.getElementById('editor-section').classList.contains('hidden') && currentStudentId) window.openStudentEditor(currentStudentId);
+                });
+            } else {
+                if (!profile.childId) {
+                    tampilkanErrorOrtu("ID Anak Kosong", "Sistem mendeteksi Anda belum memasukkan ID anak saat login.");
+                    return;
+                }
+
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                document.getElementById('loading-text').innerText = "Menarik Data Sekolah...";
+
+                const studentRef = doc(db, 'students', profile.childId);
+                unsubscribeStudents = onSnapshot(studentRef, (docSnap) => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    if (docSnap.exists()) {
+                        const myChild = { docId: docSnap.id, ...docSnap.data() };
+                        loadParentDashboard(myChild);
+                    } else {
+                        tampilkanErrorOrtu(
+                            "Data Tidak Ditemukan", 
+                            `Sistem tidak dapat menemukan data untuk ID/NIS: <b>${profile.childId}</b>.<br><br><span class="text-red-600 font-bold">PENTING:</span> Pastikan Anda mengetik ID berupa ANGKA NIS yang persis sama dengan yang ada di daftar Guru.`
+                        );
+                    }
+                }, (error) => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    console.error("Firebase Security Block:", error);
+                    tampilkanErrorOrtu(
+                        "Akses Ditolak Server", 
+                        "Sistem Keamanan Firebase menolak permintaan Anda. Hal ini biasa terjadi jika ID yang dimasukkan salah ketik atau belum didaftarkan."
+                    );
+                });
+            }
+        }
+
+        function tampilkanErrorOrtu(judul, pesan) {
+            document.getElementById('ortu-content-box').classList.add('hidden');
+            const errorBox = document.getElementById('ortu-error-box');
+            errorBox.classList.remove('hidden');
+            document.getElementById('ortu-error-title').innerText = judul;
+            document.getElementById('ortu-error-desc').innerHTML = pesan;
+        }
+
+        async function autoFixStudentData(st) {
+            let needsUpdate = false;
+            if (st.academic) { delete st.academic; needsUpdate = true; } 
             if (st.poin === undefined) { st.poin = 100; needsUpdate = true; }
             if (!st.point_history) { st.point_history = []; needsUpdate = true; }
             if (!st.kelas) { st.kelas = "7"; needsUpdate = true; }
