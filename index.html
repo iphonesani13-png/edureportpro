@@ -42,18 +42,25 @@
             </div>
 
             <form id="auth-form" class="space-y-4 text-left">
-                <div id="parent-extra-fields" class="hidden">
-                    <label class="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-2">ID Akses Siswa / NIS</label>
-                    <input type="text" id="child-id" placeholder="Contoh: 2026001 (Bukan Nama)" class="w-full p-4 bg-white text-gray-900 font-mono tracking-widest text-lg text-center shadow-inner">
-                    <p class="text-[10px] text-orange-500 font-bold text-center mt-2">Ketik NIS yang terdaftar di sistem</p>
-                </div>
-                
                 <button type="button" onclick="handleGoogleLogin()" class="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition-all flex items-center justify-center gap-3 shadow-lg shadow-gray-200 mt-6">
                     <svg class="w-5 h-5 bg-white p-0.5 rounded-full" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
                     Masuk dengan Google
                 </button>
                 <p id="login-error-msg" class="text-red-500 text-[11px] font-bold text-center hidden mt-3 p-3 bg-red-50 rounded-lg"></p>
             </form>
+        </div>
+    </div>
+
+    <!-- Layar Input NIS (Muncul setelah Login Google untuk Orang Tua) -->
+    <div id="ortu-setup-screen" class="min-h-screen flex items-center justify-center p-4 bg-gray-50 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-50 via-gray-50 to-white hidden">
+        <div class="w-full max-w-md p-8 glass-card text-center">
+            <div class="text-6xl mb-4">👨‍👩‍👧</div>
+            <h2 class="text-2xl font-extrabold text-gray-900 mb-2">Tautkan Data Anak</h2>
+            <p class="text-gray-500 text-sm mb-6 font-medium">Masukkan ID Akses atau NIS anak Anda untuk melihat raport dan mutasi karakter.</p>
+            <input type="text" id="ortu-input-nis" placeholder="Ketik NIS (Cth: 2026001)" class="w-full p-4 bg-white text-gray-900 font-mono tracking-widest text-lg text-center shadow-inner mb-2 border-2 border-blue-100 rounded-xl">
+            <p id="ortu-setup-error" class="text-red-500 text-xs font-bold mb-4 hidden bg-red-50 p-2 rounded-lg"></p>
+            <button onclick="verifyAndLinkStudent()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 mt-2">Cek & Tautkan Data</button>
+            <button onclick="logout()" class="text-xs text-gray-400 mt-6 font-bold hover:text-gray-600">Batal & Keluar</button>
         </div>
     </div>
 
@@ -221,7 +228,8 @@
                     <div class="text-6xl mb-4">🔍</div>
                     <h2 id="ortu-error-title" class="text-2xl font-extrabold text-gray-900 mb-3">Data Tidak Ditemukan</h2>
                     <p id="ortu-error-desc" class="text-sm text-gray-600 mb-8 leading-relaxed">Pastikan Anda memasukkan ID atau NIS yang benar.</p>
-                    <button onclick="logout()" class="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition-all shadow-md">Kembali ke Login & Coba Lagi</button>
+                    <button onclick="resetParentChildId()" class="w-full bg-gray-900 text-white font-bold py-4 rounded-xl hover:bg-black transition-all shadow-md mb-3">Input Ulang NIS</button>
+                    <button onclick="logout()" class="w-full bg-white border border-gray-200 text-gray-700 font-bold py-4 rounded-xl hover:bg-gray-50 transition-all shadow-sm">Kembali ke Login</button>
                 </div>
 
                 <!-- KONTEN ASLI ORANG TUA -->
@@ -317,22 +325,23 @@
             const childIdInput = document.getElementById('child-id').value.trim();
             const errorMsg = document.getElementById('login-error-msg');
             errorMsg.classList.add('hidden');
+        // --- AUTH & LOGIN LOGIC (ANTI-CACHE / FORCE OVERRIDE) ---
+        window.setLoginRole = (role) => {
+            currentRole = role;
+            document.getElementById('role-btn-guru').className = role === 'guru' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
+            document.getElementById('role-btn-ortu').className = role === 'orangtua' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-orange-600 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-orange-400 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
+        };
 
-            if (currentRole === 'orangtua' && !childIdInput) {
-                errorMsg.innerText = "Sistem menolak: Anda wajib mengetik ID / NIS Anak!";
-                errorMsg.classList.remove('hidden');
-                return;
-            }
+        window.handleGoogleLogin = async () => {
+            const errorMsg = document.getElementById('login-error-msg');
+            errorMsg.classList.add('hidden');
 
             document.getElementById('loading-overlay').classList.remove('hidden');
             document.getElementById('loading-text').innerText = "Mengautentikasi...";
 
             try {
+                // KUNCI PERBAIKAN: Set niat login saat ini dengan sangat kuat untuk menimpa cache
                 localStorage.setItem('login_intent_role', currentRole);
-                if (currentRole === 'orangtua') {
-                    localStorage.setItem('login_intent_child_id', childIdInput);
-                }
-
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 document.getElementById('loading-overlay').classList.add('hidden');
@@ -349,20 +358,20 @@
 
                     const userDocRef = doc(db, 'users', user.uid);
                     
+                    // Cek apakah user baru saja memencet tombol login secara sadar
                     let intentRole = localStorage.getItem('login_intent_role');
-                    let intentChildId = localStorage.getItem('login_intent_child_id');
 
                     let profile = { role: 'guru', childId: null };
 
                     if (intentRole) {
+                        // User BARU SAJA klik tombol login. PAKSA TIMPA database dengan peran yang baru dipilih!
                         profile.role = intentRole;
-                        profile.childId = intentChildId || null;
-                        
-                        await setDoc(userDocRef, { role: profile.role, email: user.email, childId: profile.childId }, { merge: true });
+                        await setDoc(userDocRef, { role: profile.role, email: user.email }, { merge: true });
 
+                        // Bersihkan jejak niat login agar tidak mengganggu kedepannya
                         localStorage.removeItem('login_intent_role');
-                        localStorage.removeItem('login_intent_child_id');
                     } else {
+                        // User hanya me-refresh halaman (tidak lewat layar login)
                         const userSnap = await getDoc(userDocRef);
                         if (userSnap.exists()) {
                             profile = userSnap.data();
@@ -370,7 +379,6 @@
                     }
 
                     setupUIForRole(profile.role, profile.childId);
-                    initRealtimeSync(profile);
 
                 } catch (err) {
                     alert("Terjadi kesalahan saat memuat profil Anda.");
@@ -388,6 +396,7 @@
 
         function showLogin() {
             document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('ortu-setup-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('main-app').classList.add('hidden');
         }
@@ -395,75 +404,74 @@
         function setupUIForRole(role, childId) {
             document.getElementById('loading-overlay').classList.add('hidden');
             document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('ortu-setup-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.add('hidden');
             
             document.getElementById('user-role-badge').innerText = role === 'guru' ? 'GURU / ADMIN' : 'ORANG TUA';
 
             if (role === 'guru') {
+                document.getElementById('main-app').classList.remove('hidden');
                 document.getElementById('nav-guru').classList.remove('hidden');
                 document.getElementById('nav-ortu').classList.add('hidden');
                 switchTab('dashboard');
+                initRealtimeSync({ role: role });
             } else {
-                document.getElementById('nav-guru').classList.add('hidden');
-                document.getElementById('nav-ortu').classList.remove('hidden');
-                currentStudentId = childId;
-                switchTab('viewer');
-            }
-        }
-
-        function initRealtimeSync(profile) {
-            if(unsubscribeStudents) unsubscribeStudents(); 
-
-            if (profile.role === 'guru') {
-                const studentsCol = collection(db, 'students');
-                unsubscribeStudents = onSnapshot(studentsCol, (snapshot) => {
-                    studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
-                    if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
-                    if(!document.getElementById('editor-section').classList.contains('hidden') && currentStudentId) window.openStudentEditor(currentStudentId);
-                });
-            } else {
-                if (!profile.childId) {
-                    tampilkanErrorOrtu("ID Anak Kosong", "Sistem mendeteksi Anda belum memasukkan ID anak saat login.");
-                    return;
+                if (childId) {
+                    document.getElementById('main-app').classList.remove('hidden');
+                    document.getElementById('nav-guru').classList.add('hidden');
+                    document.getElementById('nav-ortu').classList.remove('hidden');
+                    currentStudentId = childId;
+                    switchTab('viewer');
+                    initRealtimeSync({ role: role, childId: childId });
+                } else {
+                    document.getElementById('ortu-setup-screen').classList.remove('hidden');
                 }
-
-                document.getElementById('loading-overlay').classList.remove('hidden');
-                document.getElementById('loading-text').innerText = "Menarik Data Sekolah...";
-
-                const studentRef = doc(db, 'students', profile.childId);
-                unsubscribeStudents = onSnapshot(studentRef, (docSnap) => {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    if (docSnap.exists()) {
-                        const myChild = { docId: docSnap.id, ...docSnap.data() };
-                        loadParentDashboard(myChild);
-                    } else {
-                        tampilkanErrorOrtu(
-                            "Data Tidak Ditemukan", 
-                            `Sistem tidak dapat menemukan data untuk ID/NIS: <b>${profile.childId}</b>.<br><br><span class="text-red-600 font-bold">PENTING:</span> Pastikan Anda mengetik ID berupa ANGKA NIS yang persis sama dengan yang ada di daftar Guru. Jangan mengetik nama anak.`
-                        );
-                    }
-                }, (error) => {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                    console.error("Firebase Security Block:", error);
-                    tampilkanErrorOrtu(
-                        "Akses Ditolak Server", 
-                        "Sistem Keamanan Firebase menolak permintaan Anda. Hal ini biasa terjadi jika ID yang dimasukkan salah ketik atau belum didaftarkan."
-                    );
-                });
             }
         }
 
-        function tampilkanErrorOrtu(judul, pesan) {
-            document.getElementById('ortu-content-box').classList.add('hidden');
-            const errorBox = document.getElementById('ortu-error-box');
-            errorBox.classList.remove('hidden');
-            document.getElementById('ortu-error-title').innerText = judul;
-            document.getElementById('ortu-error-desc').innerHTML = pesan;
-        }
+        window.verifyAndLinkStudent = async () => {
+            const nis = document.getElementById('ortu-input-nis').value.trim();
+            const errorMsg = document.getElementById('ortu-setup-error');
+            errorMsg.classList.add('hidden');
 
-        async function autoFixStudentData(st) {
-            let needsUpdate = false;
-            if (st.academic) { delete st.academic; needsUpdate = true; } 
+            if (!nis) {
+                errorMsg.innerText = "Sistem menolak: Anda wajib mengetik NIS Anak!";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Mencari Data Siswa...";
+
+            try {
+                const studentRef = doc(db, 'students', nis);
+                const snap = await getDoc(studentRef);
+                
+                document.getElementById('loading-overlay').classList.add('hidden');
+
+                if (snap.exists()) {
+                    await setDoc(doc(db, 'users', auth.currentUser.uid), { childId: nis }, { merge: true });
+                    setupUIForRole('orangtua', nis);
+                } else {
+                    errorMsg.innerText = `Data untuk NIS "${nis}" tidak ditemukan.`;
+                    errorMsg.classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                errorMsg.innerText = "Terjadi kesalahan saat memeriksa data.";
+                errorMsg.classList.remove('hidden');
+            }
+        };
+
+        window.resetParentChildId = async () => {
+            if (auth.currentUser) {
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                await setDoc(doc(db, 'users', auth.currentUser.uid), { childId: null }, { merge: true });
+                setupUIForRole('orangtua', null);
+            }
+        };
+
+        // --- STREAMING_CHUNK:Realtime Data Sync & UI Updates ---
             if (st.poin === undefined) { st.poin = 100; needsUpdate = true; }
             if (!st.point_history) { st.point_history = []; needsUpdate = true; }
             if (!st.kelas) { st.kelas = "7"; needsUpdate = true; }
