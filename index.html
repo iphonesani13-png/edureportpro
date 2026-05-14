@@ -150,6 +150,12 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div class="lg:col-span-5 space-y-6">
+                        <!-- FITUR BARU: Tanggal Aksi -->
+                        <div class="glass-card p-4 flex justify-between items-center shadow-sm">
+                            <span class="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><span class="text-lg">📅</span> Tanggal Kejadian</span>
+                            <input type="date" id="input-tanggal-aksi" class="p-2.5 text-sm font-bold text-gray-800 bg-gray-50 border-0 focus:ring-0 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                        </div>
+
                         <!-- Panel 1-Tap Tracker -->
                         <div class="glass-card p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 border-blue-100/50">
                             <h3 class="font-black text-blue-900 mb-6 text-sm flex items-center gap-2 uppercase tracking-widest"><span class="text-xl">⚡</span> Quick Tracker Aktivitas</h3>
@@ -587,6 +593,13 @@
             // sehingga layar pindah ke Editor dengan lancar.
             await autoFixStudentData(st); 
 
+            // Set tanggal default ke hari ini setiap kali profil dibuka
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            document.getElementById('input-tanggal-aksi').value = `${year}-${month}-${day}`;
+
             currentStudentId = docId;
             document.getElementById('editor-title').innerText = st.nama;
             document.getElementById('editor-nis').innerText = `ID / NIS: ${st.docId}`;
@@ -626,8 +639,17 @@
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             let st = studentsData[stIdx];
             
+            // Ambil tanggal dari input kalender
+            const dateInput = document.getElementById('input-tanggal-aksi').value;
+            let displayDate = new Date().toLocaleDateString('id-ID'); // default hari ini
+            
+            if (dateInput) {
+                const [y, m, d] = dateInput.split('-');
+                displayDate = `${parseInt(d)}/${parseInt(m)}/${y}`; // Format DD/MM/YYYY
+            }
+            
             const newEvent = {
-                id: Date.now(), date: new Date().toLocaleDateString('id-ID'), time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
+                id: Date.now(), date: displayDate, time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
                 category: category, desc: desc, pointChange: pointVal, icon: icon
             };
 
