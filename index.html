@@ -105,7 +105,8 @@
                     <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                         <select id="filter-kelas" onchange="renderDashboard()" class="px-5 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold shadow-sm appearance-none cursor-pointer text-gray-700">
                             <option value="ALL">Semua Kelas</option>
-                            <option value="7">Kelas 7</option>
+                            <option value="7A">Kelas 7A</option>
+                            <option value="7B">Kelas 7B</option>
                             <option value="8">Kelas 8</option>
                             <option value="9">Kelas 9</option>
                         </select>
@@ -339,10 +340,23 @@
         </main>
     </div>
 
+    <!-- FITUR BARU: Modal Konfirmasi Hapus -->
+    <div id="delete-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">🗑️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Hapus Data Siswa?</h3>
+            <p class="text-sm text-gray-600 mb-8 text-center leading-relaxed">Anda yakin ingin menghapus data <strong id="delete-student-name" class="text-gray-900"></strong>? Data nilai dan riwayat yang dihapus tidak dapat dikembalikan.</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapus()" class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiHapus()" class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
@@ -608,6 +622,13 @@
                 filteredStudents = studentsData.filter(st => (st.kelas || '7') === filter);
             }
 
+            // FITUR BARU: Mengurutkan nama sesuai abjad A-Z
+            filteredStudents.sort((a, b) => {
+                const nameA = (a.nama || "").toUpperCase();
+                const nameB = (b.nama || "").toUpperCase();
+                return nameA.localeCompare(nameB);
+            });
+
             if(filteredStudents.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
                 return;
@@ -617,7 +638,7 @@
                 const poin = st.poin !== undefined ? st.poin : 100;
                 let badgeClass = poin >= 90 ? 'bg-green-100 text-green-800' : (poin >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
                 
-                // UX FIX: Menambahkan class pointer-events-none pada button agar tidak menghalangi event onclick di tag <tr>
+                // UX FIX: Menambahkan struktur tombol baru untuk "Hapus" yang aman berdampingan
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
                         <td class="px-6 py-5">
@@ -625,10 +646,45 @@
                         </td>
                         <td class="px-6 py-5 font-bold text-gray-700">${st.nama}</td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${poin}</span></td>
-                        <td class="px-6 py-5 text-right"><button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button></td>
+                        <td class="px-6 py-5">
+                            <div class="flex justify-end gap-2">
+                                <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
+                                <button onclick="hapusSiswa('${st.docId}', '${st.nama}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
+                            </div>
+                        </td>
                     </tr>
                 `);
             });
+        };
+
+        // FITUR BARU: Logika Penghapusan Siswa (Delete)
+        let studentToDeleteId = null;
+
+        window.hapusSiswa = (docId, nama, event) => {
+            // Mencegah baris "Buka Profil" ikut terklik saat memencet tombol Hapus
+            event.stopPropagation(); 
+            studentToDeleteId = docId;
+            document.getElementById('delete-student-name').innerText = nama;
+            document.getElementById('delete-modal').classList.remove('hidden');
+        };
+
+        window.batalHapus = () => {
+            studentToDeleteId = null;
+            document.getElementById('delete-modal').classList.add('hidden');
+        };
+
+        window.konfirmasiHapus = async () => {
+            if (!studentToDeleteId) return;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Menghapus Data Permanen...";
+            try {
+                await deleteDoc(doc(db, 'students', studentToDeleteId));
+                batalHapus();
+            } catch (err) {
+                console.error("Gagal menghapus:", err);
+                batalHapus();
+            }
+            document.getElementById('loading-overlay').classList.add('hidden');
         };
 
         window.openStudentEditor = async (docId) => {
