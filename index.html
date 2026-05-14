@@ -123,7 +123,8 @@
                         <table class="w-full text-left whitespace-nowrap">
                             <thead class="bg-gray-50/50 border-b border-gray-100">
                                 <tr class="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest">
-                                    <th class="px-6 py-5">Identitas Siswa (ID/NIS)</th>
+                                    <th class="px-6 py-5">Identitas (ID/NIS)</th>
+                                    <th class="px-6 py-5">Nama Siswa</th>
                                     <th class="px-6 py-5 text-center">Kelas</th>
                                     <th class="px-6 py-5 text-center">Poin Kesiswaan</th>
                                     <th class="px-6 py-5 text-right">Aksi</th>
@@ -630,7 +631,7 @@
             });
 
             if(filteredStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
                 return;
             }
 
@@ -638,13 +639,14 @@
                 const poin = st.poin !== undefined ? st.poin : 100;
                 let badgeClass = poin >= 90 ? 'bg-green-100 text-green-800' : (poin >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
                 
-                // UX FIX: Menambahkan struktur tombol baru untuk "Hapus" yang aman berdampingan
+                // UX FIX: Menambahkan kolom Kelas dan menyesuaikan posisinya
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
                         <td class="px-6 py-5">
                             <p class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">${st.docId}</p>
                         </td>
                         <td class="px-6 py-5 font-bold text-gray-700">${st.nama}</td>
+                        <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.kelas || '-'}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${poin}</span></td>
                         <td class="px-6 py-5">
                             <div class="flex justify-end gap-2">
@@ -878,7 +880,8 @@
             document.getElementById('loading-text').innerText = "Mengimpor & Membaca CSV...";
 
             const text = await file.text();
-            const rows = text.split('\n');
+            // Membersihkan karakter \r (carriage return) yang sering membuat spasi tersembunyi dari file Excel
+            const rows = text.replace(/\r/g, '').split('\n');
             let count = 0;
 
             for (let i = 0; i < rows.length; i++) {
@@ -886,7 +889,8 @@
                 if (cols.length >= 2 && cols[0].trim().length > 0) {
                     const id = cols[0].trim();
                     const name = cols[1].trim();
-                    const kelas = (cols[2] ? cols[2].trim() : "7"); 
+                    // Mengambil nilai kelas dari kolom ke-3 (jika kosong, baru pakai default "7")
+                    const kelas = (cols[2] && cols[2].trim() !== "" ? cols[2].trim() : "7"); 
                     
                     const data = { 
                         nama: name, 
