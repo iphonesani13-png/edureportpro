@@ -255,6 +255,51 @@
                         <div class="absolute -right-10 -bottom-20 opacity-10 text-[200px] pointer-events-none">✨</div>
                     </div>
 
+                    <!-- FITUR BARU: Statistik Perkembangan Anak -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-8">
+                        <!-- Stat Akademik -->
+                        <div class="glass-card p-6 border-l-4 border-l-blue-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">📚 Rata-rata Akademik</h4>
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Semua Mata Pelajaran</p>
+                                </div>
+                                <span class="text-2xl font-black text-blue-600" id="stat-akademik-val">0%</span>
+                            </div>
+                            <div class="w-full bg-blue-50 rounded-full h-2.5">
+                                <div class="bg-blue-500 h-2.5 rounded-full transition-all duration-1000 ease-out" id="stat-akademik-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stat Hafalan / Wafa -->
+                        <div class="glass-card p-6 border-l-4 border-l-emerald-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">📖 Progress Hafalan</h4>
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Berdasarkan Nilai Wafa</p>
+                                </div>
+                                <span class="text-2xl font-black text-emerald-600" id="stat-hafalan-val">0%</span>
+                            </div>
+                            <div class="w-full bg-emerald-50 rounded-full h-2.5">
+                                <div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-1000 ease-out" id="stat-hafalan-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stat Karakter -->
+                        <div class="glass-card p-6 border-l-4 border-l-purple-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">🌟 Tren Karakter Positif</h4>
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">Rasio Aksi Positif</p>
+                                </div>
+                                <span class="text-2xl font-black text-purple-600" id="stat-karakter-val">0%</span>
+                            </div>
+                            <div class="w-full bg-purple-50 rounded-full h-2.5">
+                                <div class="bg-purple-500 h-2.5 rounded-full transition-all duration-1000 ease-out" id="stat-karakter-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div class="lg:col-span-7 space-y-6">
                             <div class="glass-card p-6 md:p-8">
@@ -684,6 +729,44 @@
                 document.getElementById('view-ortu-id').innerText = st.docId || "-";
                 document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 100;
 
+                // --- KALKULASI STATISTIK PERKEMBANGAN ANAK ---
+                // 1. Rata-rata Akademik & 2. Hafalan (Wafa)
+                let totalScore = 0;
+                let scoredSubjectsCount = 0;
+                let wafaScore = 0;
+
+                if (st.subjects && Array.isArray(st.subjects)) {
+                    st.subjects.forEach(sub => {
+                        if (sub.score > 0) {
+                            totalScore += sub.score;
+                            scoredSubjectsCount++;
+                        }
+                        if (sub.name.toLowerCase().includes('wafa') || sub.name.toLowerCase().includes('tahfidz')) {
+                            wafaScore = sub.score || 0;
+                        }
+                    });
+                }
+                const avgAkademik = scoredSubjectsCount > 0 ? Math.round(totalScore / scoredSubjectsCount) : 0;
+
+                // 3. Tren Karakter Positif
+                const history = st.point_history || [];
+                let positiveCount = 0;
+                history.forEach(item => {
+                    if (item.pointChange > 0) positiveCount++;
+                });
+                // Jika belum ada riwayat, set 100% (dianggap baik). Jika ada, hitung rasionya.
+                const characterTrend = history.length > 0 ? Math.round((positiveCount / history.length) * 100) : 100;
+
+                // --- UPDATE TAMPILAN GRAFIK ---
+                document.getElementById('stat-akademik-val').innerText = `${avgAkademik}%`;
+                document.getElementById('stat-akademik-bar').style.width = `${avgAkademik}%`;
+
+                document.getElementById('stat-hafalan-val').innerText = `${wafaScore}%`;
+                document.getElementById('stat-hafalan-bar').style.width = `${wafaScore}%`;
+
+                document.getElementById('stat-karakter-val').innerText = `${characterTrend}%`;
+                document.getElementById('stat-karakter-bar').style.width = `${characterTrend}%`;
+
                 const tbody = document.getElementById('ortu-subjects-body');
                 tbody.innerHTML = '';
                 
@@ -703,7 +786,6 @@
 
                 const tl = document.getElementById('parent-timeline');
                 tl.innerHTML = '';
-                const history = st.point_history || [];
                 
                 if(history.length === 0) {
                     tl.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada aktivitas tercatat hari ini.</p></div>';
