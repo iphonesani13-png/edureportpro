@@ -81,6 +81,7 @@
                 <div id="nav-guru" class="flex gap-2 overflow-x-auto hide-scrollbar">
                     <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill active">Daftar Kelas</button>
                     <button id="btn-leaderboard" onclick="switchTab('leaderboard')" class="nav-pill">Tracking Siswa</button>
+                    <button id="btn-tugas" onclick="switchTab('tugas')" class="nav-pill">Tugas Siswa</button>
                     <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill hidden">Profil Siswa</button>
                 </div>
                 
@@ -154,25 +155,53 @@
                 </div>
             </section>
 
-            <!-- Leaderboard Section -->
-            <section id="leaderboard-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
+            <!-- FITUR BARU: Section Tugas Siswa (Guru) -->
+            <section id="tugas-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
                 <div class="mb-8">
-                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
-                    <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
+                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Manajemen Tugas & PR</h2>
+                    <p class="text-gray-500 mt-1 text-sm font-medium">Berikan tugas kepada kelas, dan pantau informasinya agar otomatis muncul di Dashboard Orang Tua.</p>
                 </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="glass-card p-6 border-t-4 border-t-green-500">
-                        <h3 class="font-black text-green-700 text-lg mb-6 flex items-center gap-2">⭐ Top 10 Siswa Unggulan</h3>
-                        <div class="space-y-3" id="list-unggulan">
-                            <!-- Di-render oleh JS -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-5 space-y-6">
+                        <div class="glass-card p-6 border-t-4 border-t-blue-500">
+                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-4">Buat Tugas Baru</h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mata Pelajaran</label>
+                                    <select id="tugas-mapel" class="w-full p-3 mt-1 bg-gray-50 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-blue-500">
+                                        <!-- Akan diisi otomatis oleh JS -->
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kelas Target</label>
+                                    <select id="tugas-kelas" class="w-full p-3 mt-1 bg-gray-50 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-blue-500">
+                                        <option value="ALL">Semua Kelas</option>
+                                        <option value="7A">Kelas 7A</option>
+                                        <option value="7B">Kelas 7B</option>
+                                        <option value="8">Kelas 8</option>
+                                        <option value="8A">Kelas 8A</option>
+                                        <option value="8B">Kelas 8B</option>
+                                        <option value="9">Kelas 9</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Judul Tugas / Materi</label>
+                                    <input type="text" id="tugas-judul" placeholder="Cth: LKS Hal 20" class="w-full p-3 mt-1 bg-gray-50 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tenggat Waktu (Deadline)</label>
+                                    <input type="date" id="tugas-tenggat" class="w-full p-3 mt-1 bg-gray-50 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                <button onclick="tambahTugas()" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 mt-2">Sebarkan Tugas</button>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="glass-card p-6 border-t-4 border-t-red-500">
-                        <h3 class="font-black text-red-700 text-lg mb-6 flex items-center gap-2">⚠️ Top 15 Butuh Bimbingan</h3>
-                        <div class="space-y-3" id="list-bimbingan">
-                            <!-- Di-render oleh JS -->
+                    <div class="lg:col-span-7">
+                        <div class="glass-card p-6 h-full">
+                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6">Daftar Tugas Aktif</h3>
+                            <div id="guru-tugas-list" class="space-y-4">
+                                <!-- Render JS -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -365,6 +394,16 @@
                                     </table>
                                 </div>
                             </div>
+                            
+                            <!-- FITUR BARU ORTU: TUGAS KELAS -->
+                            <div class="glass-card p-6 md:p-8">
+                                <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 border-b border-gray-100 pb-4 flex items-center gap-3">
+                                    <span class="text-xl">📢</span> Info Tugas & PR Kelas
+                                </h3>
+                                <div id="ortu-tugas-list" class="space-y-3">
+                                    <!-- Render JS -->
+                                </div>
+                            </div>
                         </div>
 
                         <div class="lg:col-span-5">
@@ -459,8 +498,10 @@
         let currentUser = null;
         let currentRole = 'guru'; 
         let studentsData = [];
+        let assignmentsData = []; 
         let currentStudentId = null;
         let unsubscribeStudents = null; 
+        let unsubscribeAssignments = null; 
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
         const formatNama = (str) => {
@@ -575,6 +616,7 @@
 
         window.logout = () => {
             if(unsubscribeStudents) unsubscribeStudents();
+            if(unsubscribeAssignments) unsubscribeAssignments();
             signOut(auth);
         };
 
@@ -661,6 +703,7 @@
 
         function initRealtimeSync(profile) {
             if(unsubscribeStudents) unsubscribeStudents(); 
+            if(unsubscribeAssignments) unsubscribeAssignments();
 
             if (profile.role === 'guru') {
                 const studentsCol = collection(db, 'students');
@@ -670,6 +713,12 @@
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
                     if(!document.getElementById('leaderboard-section').classList.contains('hidden')) renderLeaderboard();
                     if(!document.getElementById('editor-section').classList.contains('hidden') && currentStudentId) window.openStudentEditor(currentStudentId);
+                });
+
+                const assignCol = collection(db, 'assignments');
+                unsubscribeAssignments = onSnapshot(assignCol, (snapshot) => {
+                    assignmentsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if(!document.getElementById('tugas-section').classList.contains('hidden')) renderTugasGuru();
                 });
             } else {
                 if (!profile.childId) {
@@ -684,11 +733,10 @@
                     document.getElementById('loading-overlay').classList.add('hidden');
                     if (docSnap.exists()) {
                         const myChild = { docId: docSnap.id, ...docSnap.data() };
-                        window.currentParentData = myChild; // Simpan untuk filter dropdown orangtua
+                        window.currentParentData = myChild; 
                         
-                        // Set dropdown ortu sesuai tahun sistem
                         const ortuTahun = document.getElementById('ortu-filter-tahun');
-                        if (ortuTahun) ortuTahun.value = getActiveTahun();
+                        if (ortuTahun && !ortuTahun.value) ortuTahun.value = getActiveTahun();
 
                         loadParentDashboard(myChild);
                     } else {
@@ -700,6 +748,14 @@
                 }, (error) => {
                     document.getElementById('loading-overlay').classList.add('hidden');
                     tampilkanErrorOrtu("Akses Ditolak Server", "Sistem Keamanan Firebase menolak permintaan Anda.");
+                });
+
+                const assignCol = collection(db, 'assignments');
+                unsubscribeAssignments = onSnapshot(assignCol, (snapshot) => {
+                    assignmentsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if(window.currentParentData && !document.getElementById('viewer-section').classList.contains('hidden')) {
+                        loadParentDashboard(window.currentParentData);
+                    }
                 });
             }
         }
@@ -737,7 +793,7 @@
         }
 
         window.switchTab = (mode) => {
-            const sections = ['dashboard', 'leaderboard', 'editor', 'viewer'];
+            const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer'];
             sections.forEach(s => document.getElementById(`${s}-section`).classList.add('hidden'));
             document.getElementById(`${mode}-section`).classList.remove('hidden');
             
@@ -747,6 +803,13 @@
 
             if (mode === 'leaderboard') renderLeaderboard();
             if (mode === 'dashboard') renderDashboard();
+            if (mode === 'tugas') {
+                renderTugasGuru();
+                const mapelSelect = document.getElementById('tugas-mapel');
+                if (mapelSelect && mapelSelect.options.length === 0) {
+                    subjectsList.forEach(m => mapelSelect.insertAdjacentHTML('beforeend', `<option value="${m}">${m}</option>`));
+                }
+            }
         };
 
         window.renderDashboard = () => {
@@ -841,82 +904,75 @@
             document.getElementById('loading-overlay').classList.add('hidden');
         };
 
-        // --- FITUR HAPUS SEMUA (MASSAL) ---
-        window.hapusSemuaSiswa = () => {
-            document.getElementById('delete-all-modal').classList.remove('hidden');
-        };
+        // --- FITUR TUGAS SISWA (GURU) ---
+        window.tambahTugas = async () => {
+            const currentTahun = document.getElementById('filter-tahun').value;
+            const mapel = document.getElementById('tugas-mapel').value;
+            const kelas = document.getElementById('tugas-kelas').value;
+            const judul = document.getElementById('tugas-judul').value.trim();
+            const tenggat = document.getElementById('tugas-tenggat').value;
 
-        window.batalHapusSemua = () => {
-            document.getElementById('delete-all-modal').classList.add('hidden');
-        };
+            if(!judul || !tenggat) return alert("Judul tugas dan tenggat waktu wajib diisi!");
 
-        window.konfirmasiHapusSemua = async () => {
             document.getElementById('loading-overlay').classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "Menghapus SELURUH Data Siswa...";
-            
+            document.getElementById('loading-text').innerText = "Menyebarkan Tugas...";
+
             try {
-                const deletePromises = studentsData.map(st => deleteDoc(doc(db, 'students', st.docId)));
-                await Promise.all(deletePromises);
-                
-                batalHapusSemua();
-                alert("Berhasil! Seluruh data siswa telah dikosongkan.");
-            } catch (err) {
-                console.error("Gagal menghapus semua:", err);
-                alert("Terjadi kesalahan saat menghapus data massal.");
-                batalHapusSemua();
+                const newId = 'TGS' + Date.now();
+                await setDoc(doc(db, 'assignments', newId), {
+                    id: newId,
+                    mapel: mapel,
+                    kelas: kelas,
+                    judul: judul,
+                    tenggat: tenggat,
+                    tahun_ajaran: currentTahun,
+                    tanggal_dibuat: new Date().toISOString()
+                });
+                document.getElementById('tugas-judul').value = '';
+                document.getElementById('tugas-tenggat').value = '';
+            } catch (e) {
+                console.error(e);
+                alert("Gagal menambah tugas. Pastikan Aturan Firebase Anda mengizinkan penulisan ke koleksi 'assignments'.");
             }
             document.getElementById('loading-overlay').classList.add('hidden');
         };
 
-        // --- FITUR EDIT SISWA ---
-        let studentToEditId = null;
-
-        window.bukaEditSiswa = (docId, nama, event) => {
-            event.stopPropagation();
-            const currentTahun = document.getElementById('filter-tahun').value;
-            const st = studentsData.find(s => s.docId === docId);
-            
-            // Hitung kelas terkininya di tahun tersebut
-            const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
-
-            studentToEditId = docId;
-            document.getElementById('edit-nis-input').value = docId;
-            document.getElementById('edit-nama-input').value = formatNama(nama);
-            document.getElementById('edit-kelas-input').value = (calculatedKelas !== 'Lulus' && calculatedKelas !== 'Belum Masuk') ? calculatedKelas : '';
-            document.getElementById('edit-modal').classList.remove('hidden');
-        };
-
-        window.batalEdit = () => {
-            studentToEditId = null;
-            document.getElementById('edit-modal').classList.add('hidden');
-        };
-
-        window.konfirmasiEdit = async () => {
-            if (!studentToEditId) return;
-            const currentTahun = document.getElementById('filter-tahun').value;
-            const newNama = formatNama(document.getElementById('edit-nama-input').value.trim());
-            const newKelas = document.getElementById('edit-kelas-input').value.trim();
-            
-            if (!newNama || !newKelas) return alert("Nama dan Kelas tidak boleh kosong!");
-
-            document.getElementById('loading-overlay').classList.remove('hidden');
-            document.getElementById('loading-text').innerText = "Menyimpan Perubahan...";
-            
-            try {
-                // Update Base Kelas pada tahun ini
-                await setDoc(doc(db, 'students', studentToEditId), { 
-                    nama: newNama, 
-                    base_kelas: newKelas, 
-                    base_tahun: currentTahun,
-                    kelas: newKelas // legacy fallback
-                }, { merge: true });
-                batalEdit();
-            } catch (err) {
-                console.error("Gagal mengedit:", err);
-                alert("Gagal menyimpan perubahan.");
-                batalEdit();
+        window.hapusTugas = async (id) => {
+            if(confirm("Anda yakin ingin menghapus tugas ini? Info ini akan ditarik juga dari dasbor Orang Tua.")) {
+                await deleteDoc(doc(db, 'assignments', id));
             }
-            document.getElementById('loading-overlay').classList.add('hidden');
+        };
+
+        window.renderTugasGuru = () => {
+            const currentTahun = document.getElementById('filter-tahun').value;
+            const list = document.getElementById('guru-tugas-list');
+            list.innerHTML = '';
+
+            const filtered = assignmentsData
+                .filter(t => t.tahun_ajaran === currentTahun)
+                .sort((a,b) => new Date(b.tanggal_dibuat) - new Date(a.tanggal_dibuat));
+
+            if(filtered.length === 0) {
+                list.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada tugas yang diberikan di tahun ajaran ini.</p></div>';
+                return;
+            }
+
+            filtered.forEach(t => {
+                const d = new Date(t.tenggat).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="p-4 border border-gray-100 rounded-2xl flex justify-between items-center hover:shadow-md transition-shadow bg-white group">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest">${t.kelas === 'ALL' ? 'Semua Kelas' : 'Kelas '+t.kelas}</span>
+                                <span class="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest">${t.mapel}</span>
+                            </div>
+                            <h4 class="font-bold text-gray-900">${t.judul}</h4>
+                            <p class="text-xs text-red-500 font-bold mt-1">Tenggat: ${d}</p>
+                        </div>
+                        <button onclick="hapusTugas('${t.id}')" class="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100">🗑️</button>
+                    </div>
+                `);
+            });
         };
 
         window.renderLeaderboard = () => {
@@ -1133,6 +1189,37 @@
                     });
                 } else {
                     tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
+                }
+
+                // Render Info Tugas
+                const ortuTugasList = document.getElementById('ortu-tugas-list');
+                if (ortuTugasList) {
+                    ortuTugasList.innerHTML = '';
+                    const myTasks = assignmentsData
+                        .filter(t => t.tahun_ajaran === ortuTahun && (t.kelas === 'ALL' || t.kelas === calculatedKelas))
+                        .sort((a,b) => new Date(a.tenggat) - new Date(b.tenggat));
+
+                    if(myTasks.length === 0) {
+                        ortuTugasList.innerHTML = '<div class="text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Alhamdulillah, tidak ada tugas / PR yang aktif.</p></div>';
+                    } else {
+                        myTasks.forEach(t => {
+                            const d = new Date(t.tenggat).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
+                            // Highlight merah kalau sudah lewat hari ini
+                            const isOverdue = new Date(t.tenggat) < new Date(new Date().setHours(0,0,0,0));
+                            const colorClass = isOverdue ? 'text-red-500' : 'text-blue-600';
+                            
+                            ortuTugasList.insertAdjacentHTML('beforeend', `
+                                <div class="p-4 border border-gray-100 rounded-2xl bg-white shadow-sm flex items-start gap-4">
+                                    <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-xl shrink-0">📝</div>
+                                    <div>
+                                        <span class="bg-blue-100 text-blue-700 text-[9px] px-2 py-0.5 rounded-md font-black uppercase tracking-widest">${t.mapel}</span>
+                                        <h4 class="font-bold text-gray-900 mt-1">${t.judul}</h4>
+                                        <p class="text-xs ${colorClass} font-bold mt-1">Tenggat: ${d} ${isOverdue ? '(Melewati Tenggat)' : ''}</p>
+                                    </div>
+                                </div>
+                            `);
+                        });
+                    }
                 }
 
                 const tl = document.getElementById('parent-timeline');
