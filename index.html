@@ -98,7 +98,10 @@
             <section id="dashboard-section" class="hidden animate-in fade-in duration-500">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                     <div>
-                        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Manajemen Kelas</h2>
+                        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">
+                            Manajemen Kelas 
+                            <span id="total-siswa-badge" class="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full border border-blue-200">0 Siswa</span>
+                        </h2>
                         <p class="text-gray-500 mt-1 text-sm font-medium">Pantau nilai harian dan karakter siswa</p>
                     </div>
                     
@@ -125,6 +128,7 @@
                         <table class="w-full text-left whitespace-nowrap">
                             <thead class="bg-gray-50/50 border-b border-gray-100">
                                 <tr class="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-widest">
+                                    <th class="px-6 py-5 text-center w-16">No</th>
                                     <th class="px-6 py-5">Identitas (ID/NIS)</th>
                                     <th class="px-6 py-5">Nama Siswa</th>
                                     <th class="px-6 py-5 text-center">Kelas</th>
@@ -400,6 +404,12 @@
         let unsubscribeStudents = null; 
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
+        // Helper untuk memformat nama jadi Title Case (Huruf Besar di Awal Kata)
+        const formatNama = (str) => {
+            if (!str) return "";
+            return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
         window.setLoginRole = (role) => {
             currentRole = role;
             document.getElementById('role-btn-guru').className = role === 'guru' ? 'py-3 px-2 bg-white rounded-xl shadow-sm text-blue-700 font-bold transition-all flex flex-col items-center gap-1 text-xs border border-gray-200 ring-2 ring-blue-500 ring-offset-2' : 'py-3 px-2 rounded-xl text-gray-500 font-bold transition-all flex flex-col items-center gap-1 text-xs hover:bg-gray-100 border border-transparent';
@@ -630,21 +640,27 @@
                 return nameA.localeCompare(nameB);
             });
 
+            // Update lencana total siswa
+            const badge = document.getElementById('total-siswa-badge');
+            if(badge) badge.innerText = `${filteredStudents.length} Siswa`;
+
             if(filteredStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
                 return;
             }
 
-            filteredStudents.forEach(st => {
+            filteredStudents.forEach((st, index) => {
                 const poin = st.poin !== undefined ? st.poin : 100;
                 let badgeClass = poin >= 90 ? 'bg-green-100 text-green-800' : (poin >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
+                const namaRapi = formatNama(st.nama);
                 
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
+                        <td class="px-6 py-5 text-center font-black text-gray-400">${index + 1}</td>
                         <td class="px-6 py-5">
                             <p class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">${st.docId}</p>
                         </td>
-                        <td class="px-6 py-5 font-bold text-gray-700">${st.nama}</td>
+                        <td class="px-6 py-5 font-bold text-gray-700">${namaRapi}</td>
                         <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.kelas || '-'}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${poin}</span></td>
                         <td class="px-6 py-5">
@@ -707,7 +723,8 @@
 
         window.konfirmasiEdit = async () => {
             if (!studentToEditId) return;
-            const newNama = document.getElementById('edit-nama-input').value.trim();
+            // Gunakan formatNama untuk merapikan teks saat disimpan
+            const newNama = formatNama(document.getElementById('edit-nama-input').value.trim());
             const newKelas = document.getElementById('edit-kelas-input').value.trim();
             
             if (!newNama || !newKelas) return alert("Nama dan Kelas tidak boleh kosong!");
@@ -916,7 +933,8 @@
                 const cols = rows[i].split(',');
                 if (cols.length >= 2 && cols[0].trim().length > 0) {
                     const id = cols[0].trim();
-                    const name = cols[1].trim();
+                    // Rapikan nama dari CSV saat proses import
+                    const name = formatNama(cols[1].trim());
                     const kelas = (cols[2] && cols[2].trim() !== "" ? cols[2].trim() : "7"); 
                     
                     const studentRef = doc(db, 'students', id);
