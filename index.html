@@ -155,7 +155,7 @@
                 </div>
             </section>
 
-            <!-- Leaderboard Section (YANG SEMPAT HILANG, KINI KEMBALI) -->
+            <!-- Leaderboard Section -->
             <section id="leaderboard-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
                 <div class="mb-8">
                     <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
@@ -540,6 +540,18 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
         const db = getFirestore(app);
+
+        // --- DAFTAR EMAIL GURU YANG DIIZINKAN (WHITELIST) ---
+        // Ganti dan tambahkan email asli guru-guru di dalam tanda kutip ini.
+        const AUTHORIZED_TEACHER_EMAILS = [
+            "rizkialbatamy@gmail.com",
+            "guru1@gmail.com",
+            "kepsek@gmail.com"
+        ];
+        
+        // Opsional: Jika sekolah menggunakan email dengan domain khusus (misal: nama@smpitlaatahzan.sch.id)
+        // Ubah nilainya menjadi domain tersebut. Jika tidak pakai, biarkan kosong "".
+        const AUTHORIZED_DOMAIN = ""; 
         
         let currentUser = null;
         let currentRole = 'guru'; 
@@ -653,7 +665,25 @@
                     let intentRole = localStorage.getItem('login_intent_role');
                     let profile = { role: 'guru', childId: null };
 
+                    // Logika Pengecekan Izin Guru
+                    let isTeacherAuthorized = false;
+                    if (AUTHORIZED_DOMAIN && user.email.endsWith(AUTHORIZED_DOMAIN)) {
+                        isTeacherAuthorized = true;
+                    } else if (AUTHORIZED_TEACHER_EMAILS.includes(user.email)) {
+                        isTeacherAuthorized = true;
+                    }
+
                     if (intentRole) {
+                        // Jika sengaja mau masuk jadi guru tapi email gak terdaftar
+                        if (intentRole === 'guru' && !isTeacherAuthorized) {
+                            await signOut(auth);
+                            localStorage.removeItem('login_intent_role');
+                            document.getElementById('loading-overlay').classList.add('hidden');
+                            showCustomAlert(`Akses Ditolak!\nEmail ${user.email} tidak terdaftar sebagai Guru/Admin.`, true);
+                            showLogin();
+                            return;
+                        }
+
                         profile.role = intentRole;
                         await setDoc(userDocRef, { role: profile.role, email: user.email || '' }, { merge: true });
                         localStorage.removeItem('login_intent_role');
@@ -661,6 +691,15 @@
                         const userSnap = await getDoc(userDocRef);
                         if (userSnap.exists()) {
                             profile = userSnap.data();
+                            
+                            // Validasi jika user refresh halaman
+                            if (profile.role === 'guru' && !isTeacherAuthorized) {
+                                await signOut(auth);
+                                document.getElementById('loading-overlay').classList.add('hidden');
+                                showCustomAlert(`Akses Ditolak!\nEmail ${user.email} tidak terdaftar sebagai Guru/Admin.`, true);
+                                showLogin();
+                                return;
+                            }
                         }
                     }
                     setupUIForRole(profile.role, profile.childId);
@@ -669,7 +708,6 @@
                     console.error("System Error:", err);
                     document.getElementById('loading-overlay').classList.add('hidden');
                     
-                    // Filter cerdas: Kalau pesannya ada kata "classList", berarti error karena ada bagian HTML yang hilang
                     if(err.message.includes('classList') || err.message.includes('getElementById')) {
                         showCustomAlert("Terjadi kendala pada tampilan (UI) sistem. Detail: " + err.message, true);
                     } else {
