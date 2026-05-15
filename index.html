@@ -155,7 +155,31 @@
                 </div>
             </section>
 
-            <!-- FITUR BARU: Section Tugas Siswa (Guru) -->
+            <!-- Leaderboard Section (YANG SEMPAT HILANG, KINI KEMBALI) -->
+            <section id="leaderboard-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
+                    <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-card p-6 border-t-4 border-t-green-500">
+                        <h3 class="font-black text-green-700 text-lg mb-6 flex items-center gap-2">⭐ Top 10 Siswa Unggulan</h3>
+                        <div class="space-y-3" id="list-unggulan">
+                            <!-- Di-render oleh JS -->
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card p-6 border-t-4 border-t-red-500">
+                        <h3 class="font-black text-red-700 text-lg mb-6 flex items-center gap-2">⚠️ Top 15 Butuh Bimbingan</h3>
+                        <div class="space-y-3" id="list-bimbingan">
+                            <!-- Di-render oleh JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tugas Siswa Section -->
             <section id="tugas-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
                 <div class="mb-8">
                     <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Manajemen Tugas & PR</h2>
@@ -642,9 +666,15 @@
                     setupUIForRole(profile.role, profile.childId);
 
                 } catch (err) {
-                    console.error("Firebase Profile Error:", err);
+                    console.error("System Error:", err);
                     document.getElementById('loading-overlay').classList.add('hidden');
-                    showCustomAlert("Akses Firebase Ditolak! Pastikan Aturan (Rules) Database Anda mengizinkan membaca dan menulis data /users. Detail: " + err.message, true);
+                    
+                    // Filter cerdas: Kalau pesannya ada kata "classList", berarti error karena ada bagian HTML yang hilang
+                    if(err.message.includes('classList') || err.message.includes('getElementById')) {
+                        showCustomAlert("Terjadi kendala pada tampilan (UI) sistem. Detail: " + err.message, true);
+                    } else {
+                        showCustomAlert("Akses Firebase Ditolak! Pastikan Aturan (Rules) Database Anda mengizinkan membaca dan menulis data /users. Detail: " + err.message, true);
+                    }
                 }
             } else {
                 showLogin();
