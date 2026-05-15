@@ -80,6 +80,8 @@
 
                 <div id="nav-guru" class="flex gap-2 overflow-x-auto hide-scrollbar">
                     <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-pill active">Daftar Kelas</button>
+                    <!-- FITUR BARU: Tab Tracking Siswa -->
+                    <button id="btn-leaderboard" onclick="switchTab('leaderboard')" class="nav-pill">Tracking Siswa</button>
                     <button id="btn-editor" onclick="switchTab('editor')" class="nav-pill hidden">Profil Siswa</button>
                 </div>
                 
@@ -138,6 +140,32 @@
                             </thead>
                             <tbody id="student-table-body" class="divide-y divide-gray-50 text-sm"></tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FITUR BARU: Section Tracking Siswa / Leaderboard -->
+            <section id="leaderboard-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
+                <div class="mb-8">
+                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
+                    <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Top 10 Positif -->
+                    <div class="glass-card p-6 border-t-4 border-t-green-500">
+                        <h3 class="font-black text-green-700 text-lg mb-6 flex items-center gap-2">⭐ Top 10 Siswa Unggulan</h3>
+                        <div class="space-y-3" id="list-unggulan">
+                            <!-- Di-render oleh JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Top 15 Negatif -->
+                    <div class="glass-card p-6 border-t-4 border-t-red-500">
+                        <h3 class="font-black text-red-700 text-lg mb-6 flex items-center gap-2">⚠️ Top 15 Butuh Bimbingan</h3>
+                        <div class="space-y-3" id="list-bimbingan">
+                            <!-- Di-render oleh JS -->
+                        </div>
                     </div>
                 </div>
             </section>
@@ -202,7 +230,7 @@
                                 <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest">Buku Poin Siswa</h3>
                                 <div class="bg-gray-900 text-white px-4 py-1.5 rounded-xl flex items-center gap-2">
                                     <span class="text-[10px] font-bold text-gray-400">TOTAL</span>
-                                    <span id="guru-view-poin" class="font-black text-lg">100</span>
+                                    <span id="guru-view-poin" class="font-black text-lg">0</span>
                                 </div>
                             </div>
                             <div class="space-y-4">
@@ -557,7 +585,10 @@
                 const studentsCol = collection(db, 'students');
                 unsubscribeStudents = onSnapshot(studentsCol, (snapshot) => {
                     studentsData = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
+                    
+                    // Render ulang yang aktif
                     if(!document.getElementById('dashboard-section').classList.contains('hidden')) renderDashboard();
+                    if(!document.getElementById('leaderboard-section').classList.contains('hidden')) renderLeaderboard();
                     if(!document.getElementById('editor-section').classList.contains('hidden') && currentStudentId) window.openStudentEditor(currentStudentId);
                 });
             } else {
@@ -598,7 +629,10 @@
         async function autoFixStudentData(st) {
             let needsUpdate = false;
             if (st.academic) { delete st.academic; needsUpdate = true; } 
-            if (st.poin === undefined) { st.poin = 100; needsUpdate = true; }
+            
+            // POINT BASELINE DIUBAH KE 0
+            if (st.poin === undefined) { st.poin = 0; needsUpdate = true; }
+            
             if (!st.point_history) { st.point_history = []; needsUpdate = true; }
             if (!st.kelas) { st.kelas = "7"; needsUpdate = true; }
             
@@ -615,13 +649,16 @@
         }
 
         window.switchTab = (mode) => {
-            const sections = ['dashboard', 'editor', 'viewer'];
+            const sections = ['dashboard', 'leaderboard', 'editor', 'viewer'];
             sections.forEach(s => document.getElementById(`${s}-section`).classList.add('hidden'));
             document.getElementById(`${mode}-section`).classList.remove('hidden');
             
             document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
             const activeBtn = document.getElementById(`btn-${mode}`);
             if(activeBtn) { activeBtn.classList.remove('hidden'); activeBtn.classList.add('active'); }
+
+            if (mode === 'leaderboard') renderLeaderboard();
+            if (mode === 'dashboard') renderDashboard();
         };
 
         window.renderDashboard = () => {
@@ -640,7 +677,6 @@
                 return nameA.localeCompare(nameB);
             });
 
-            // Update lencana total siswa
             const badge = document.getElementById('total-siswa-badge');
             if(badge) badge.innerText = `${filteredStudents.length} Siswa`;
 
@@ -650,8 +686,11 @@
             }
 
             filteredStudents.forEach((st, index) => {
-                const poin = st.poin !== undefined ? st.poin : 100;
-                let badgeClass = poin >= 90 ? 'bg-green-100 text-green-800' : (poin >= 70 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800');
+                const poin = st.poin !== undefined ? st.poin : 0;
+                // LOGIKA WARNA POIN TERBARU (Base 0)
+                let badgeClass = poin > 0 ? 'bg-green-100 text-green-800' : (poin < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500');
+                let displayPoin = poin > 0 ? `+${poin}` : poin;
+                
                 const namaRapi = formatNama(st.nama);
                 
                 tbody.insertAdjacentHTML('beforeend', `
@@ -662,7 +701,7 @@
                         </td>
                         <td class="px-6 py-5 font-bold text-gray-700">${namaRapi}</td>
                         <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.kelas || '-'}</span></td>
-                        <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${poin}</span></td>
+                        <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                         <td class="px-6 py-5">
                             <div class="flex justify-end gap-2">
                                 <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
@@ -673,6 +712,60 @@
                     </tr>
                 `);
             });
+        };
+
+        // --- FITUR LEADERBOARD / TRACKING SISWA ---
+        window.renderLeaderboard = () => {
+            const listUnggulan = document.getElementById('list-unggulan');
+            const listBimbingan = document.getElementById('list-bimbingan');
+            listUnggulan.innerHTML = '';
+            listBimbingan.innerHTML = '';
+
+            // Copy array untuk diurutkan
+            const sortedDesc = [...studentsData].sort((a, b) => (b.poin || 0) - (a.poin || 0));
+            const sortedAsc = [...studentsData].sort((a, b) => (a.poin || 0) - (b.poin || 0));
+
+            // Top 10 Positif (Hanya yang poinnya di atas 0)
+            const topPositif = sortedDesc.filter(st => (st.poin || 0) > 0).slice(0, 10);
+            if (topPositif.length === 0) {
+                listUnggulan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Belum ada siswa dengan poin positif.</p></div>';
+            } else {
+                topPositif.forEach((st, idx) => {
+                    listUnggulan.insertAdjacentHTML('beforeend', `
+                        <div class="flex justify-between items-center p-3 hover:bg-green-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-green-100 group" onclick="openStudentEditor('${st.docId}')">
+                            <div class="flex items-center gap-4">
+                                <div class="w-8 h-8 rounded-full bg-green-100 text-green-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">${formatNama(st.nama)}</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.kelas || '-'}</p>
+                                </div>
+                            </div>
+                            <span class="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-black text-sm">+${st.poin}</span>
+                        </div>
+                    `);
+                });
+            }
+
+            // Top 15 Negatif (Hanya yang poinnya di bawah 0)
+            const topNegatif = sortedAsc.filter(st => (st.poin || 0) < 0).slice(0, 15);
+            if (topNegatif.length === 0) {
+                listBimbingan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Alhamdulillah, tidak ada siswa yang berada di poin negatif.</p></div>';
+            } else {
+                topNegatif.forEach((st, idx) => {
+                    listBimbingan.insertAdjacentHTML('beforeend', `
+                        <div class="flex justify-between items-center p-3 hover:bg-red-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-red-100 group" onclick="openStudentEditor('${st.docId}')">
+                            <div class="flex items-center gap-4">
+                                <div class="w-8 h-8 rounded-full bg-red-100 text-red-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-sm">${formatNama(st.nama)}</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.kelas || '-'}</p>
+                                </div>
+                            </div>
+                            <span class="bg-red-100 text-red-700 px-4 py-1.5 rounded-full font-black text-sm">${st.poin}</span>
+                        </div>
+                    `);
+                });
+            }
         };
 
         // --- FITUR HAPUS SISWA ---
@@ -755,10 +848,10 @@
             document.getElementById('input-tanggal-aksi').value = `${year}-${month}-${day}`;
 
             currentStudentId = docId;
-            document.getElementById('editor-title').innerText = st.nama;
+            document.getElementById('editor-title').innerText = formatNama(st.nama);
             document.getElementById('editor-nis').innerText = `ID / NIS: ${st.docId}`;
             document.getElementById('editor-badge-kelas').innerText = `KELAS ${st.kelas || '7'}`;
-            document.getElementById('guru-view-poin').innerText = st.poin;
+            document.getElementById('guru-view-poin').innerText = st.poin !== undefined ? st.poin : 0;
 
             const grid = document.getElementById('subjects-grid');
             grid.innerHTML = '';
@@ -808,7 +901,7 @@
 
             st.point_history.unshift(newEvent);
             if(st.point_history.length > 50) st.point_history.pop();
-            st.poin = (st.poin || 100) + pointVal;
+            st.poin = (st.poin || 0) + pointVal;
 
             await setDoc(doc(db, 'students', currentStudentId), st);
         };
@@ -832,10 +925,10 @@
                 document.getElementById('ortu-error-box').classList.add('hidden');
                 document.getElementById('ortu-content-box').classList.remove('hidden');
 
-                document.getElementById('view-ortu-nama').innerText = st.nama || "Tanpa Nama";
+                document.getElementById('view-ortu-nama').innerText = formatNama(st.nama) || "Tanpa Nama";
                 document.getElementById('view-ortu-kelas').innerText = st.kelas || '7';
                 document.getElementById('view-ortu-id').innerText = st.docId || "-";
-                document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 100;
+                document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 0;
 
                 let totalScore = 0;
                 let scoredSubjectsCount = 0;
@@ -933,24 +1026,21 @@
                 const cols = rows[i].split(',');
                 if (cols.length >= 2 && cols[0].trim().length > 0) {
                     const id = cols[0].trim();
-                    // Rapikan nama dari CSV saat proses import
                     const name = formatNama(cols[1].trim());
                     const kelas = (cols[2] && cols[2].trim() !== "" ? cols[2].trim() : "7"); 
                     
                     const studentRef = doc(db, 'students', id);
                     const snap = await getDoc(studentRef);
 
-                    // SMART UPDATE LOGIC
                     if (snap.exists()) {
-                        // Jika anak sudah ada, cukup update NAMA dan KELAS. Poin & History aman.
                         await setDoc(studentRef, { nama: name, kelas: kelas }, { merge: true });
                         updateCount++;
                     } else {
-                        // Jika anak benar-benar baru masuk ke sekolah
+                        // MURID BARU: POIN AWAL 0
                         const data = { 
                             nama: name, 
                             kelas: kelas,
-                            poin: 100, 
+                            poin: 0, 
                             point_history: [],
                             subjects: subjectsList.map(name => ({ name: name, score: 0, note: '' }))
                         };
