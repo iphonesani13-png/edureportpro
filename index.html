@@ -395,7 +395,6 @@
                                 </div>
                             </div>
                             
-                            <!-- FITUR BARU ORTU: TUGAS KELAS -->
                             <div class="glass-card p-6 md:p-8">
                                 <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 border-b border-gray-100 pb-4 flex items-center gap-3">
                                     <span class="text-xl">📢</span> Info Tugas & PR Kelas
@@ -422,6 +421,16 @@
         </main>
     </div>
 
+    <!-- POP-UP CUSTOM UNTUK SEMUA NOTIFIKASI ERROR/BERHASIL -->
+    <div id="global-alert-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[300] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100 text-center relative">
+            <div id="global-alert-icon" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">ℹ️</div>
+            <h3 id="global-alert-title" class="text-xl font-black text-gray-900 mb-2">Pemberitahuan</h3>
+            <p id="global-alert-message" class="text-sm text-gray-600 mb-8 leading-relaxed"></p>
+            <button onclick="closeGlobalAlert()" class="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors shadow-lg shadow-gray-200">Oke, Mengerti</button>
+        </div>
+    </div>
+
     <!-- Modal Konfirmasi Hapus Satuan -->
     <div id="delete-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
         <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
@@ -444,6 +453,19 @@
             <div class="flex gap-3">
                 <button onclick="batalHapusSemua()" class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
                 <button onclick="konfirmasiHapusSemua()" class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya, Kosongkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Tugas -->
+    <div id="delete-task-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">🗑️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Hapus Tugas?</h3>
+            <p class="text-sm text-gray-600 mb-8 text-center leading-relaxed">Anda yakin ingin menghapus tugas ini? Info ini akan langsung hilang dari dasbor Orang Tua.</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapusTugas()" class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiHapusTugas()" class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya, Hapus</button>
             </div>
         </div>
     </div>
@@ -504,12 +526,26 @@
         let unsubscribeAssignments = null; 
         const subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
+        // --- SISTEM NOTIFIKASI CUSTOM (PENGGANTI ALERT) ---
+        window.showCustomAlert = (message, isError = false) => {
+            document.getElementById('global-alert-message').innerText = message;
+            document.getElementById('global-alert-title').innerText = isError ? "Perhatian" : "Berhasil";
+            document.getElementById('global-alert-icon').innerText = isError ? "⚠️" : "✅";
+            document.getElementById('global-alert-icon').className = isError 
+                ? "w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto" 
+                : "w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto";
+            document.getElementById('global-alert-modal').classList.remove('hidden');
+        };
+
+        window.closeGlobalAlert = () => {
+            document.getElementById('global-alert-modal').classList.add('hidden');
+        };
+
         const formatNama = (str) => {
             if (!str) return "";
             return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         };
 
-        // --- FITUR BARU: MESIN WAKTU KELAS (DINAMIS) ---
         const calculateCurrentKelas = (baseKelas, baseTahun, viewTahun) => {
             if (!baseKelas || !baseTahun || !viewTahun) return baseKelas || '-';
             const baseYearInt = parseInt(baseTahun.split('/')[0]);
@@ -520,7 +556,6 @@
             const diff = viewYearInt - baseYearInt;
             if (diff === 0) return baseKelas;
             
-            // Ekstrak angka kelas dan huruf di belakangnya (contoh: "7A" -> "7" dan "A")
             const match = baseKelas.match(/^(\d+)(.*)$/);
             if (!match) return baseKelas; 
             
@@ -536,7 +571,6 @@
         const getActiveTahun = () => {
             const saved = localStorage.getItem('tahun_ajaran');
             if (saved) return saved;
-            // Default jika belum pernah diset: pakai tahun saat ini
             const now = new Date();
             const y = now.getFullYear();
             const startYear = now.getMonth() < 6 ? y - 1 : y; 
@@ -550,10 +584,12 @@
                 
                 tahunSelect.addEventListener('change', (e) => {
                     localStorage.setItem('tahun_ajaran', e.target.value);
-                    // RENDER ULANG LAYAR SAAT TAHUN DIUBAH!
                     renderDashboard();
                     if (!document.getElementById('leaderboard-section').classList.contains('hidden')) {
                         renderLeaderboard();
+                    }
+                    if (!document.getElementById('tugas-section').classList.contains('hidden')) {
+                        renderTugasGuru();
                     }
                 });
             }
@@ -595,7 +631,7 @@
 
                     if (intentRole) {
                         profile.role = intentRole;
-                        await setDoc(userDocRef, { role: profile.role, email: user.email }, { merge: true });
+                        await setDoc(userDocRef, { role: profile.role, email: user.email || '' }, { merge: true });
                         localStorage.removeItem('login_intent_role');
                     } else {
                         const userSnap = await getDoc(userDocRef);
@@ -606,8 +642,9 @@
                     setupUIForRole(profile.role, profile.childId);
 
                 } catch (err) {
-                    alert("Terjadi kesalahan saat memuat profil Anda.");
-                    logout();
+                    console.error("Firebase Profile Error:", err);
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    showCustomAlert("Akses Firebase Ditolak! Pastikan Aturan (Rules) Database Anda mengizinkan membaca dan menulis data /users. Detail: " + err.message, true);
                 }
             } else {
                 showLogin();
@@ -768,14 +805,12 @@
             document.getElementById('ortu-error-desc').innerHTML = pesan;
         }
 
-        // --- PENYELARASAN DATA LAMA AGAR SUPPORT MESIN WAKTU ---
         async function autoFixStudentData(st) {
             let needsUpdate = false;
             if (st.academic) { delete st.academic; needsUpdate = true; } 
             if (st.poin === undefined) { st.poin = 0; needsUpdate = true; }
             if (!st.point_history) { st.point_history = []; needsUpdate = true; }
             
-            // Konversi data kelas lama ke sistem "Tahun Dasar"
             if (!st.base_tahun) { st.base_tahun = '2025/2026'; needsUpdate = true; }
             if (!st.base_kelas) { st.base_kelas = st.kelas || '7'; needsUpdate = true; }
             if (!st.kelas) { st.kelas = st.base_kelas; needsUpdate = true; }
@@ -818,7 +853,6 @@
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
             
-            // Kalkulasi kelas masa kini untuk semua murid
             let activeStudents = studentsData.map(st => {
                 return {
                     ...st,
@@ -826,7 +860,6 @@
                 };
             });
 
-            // Sembunyikan murid yang sudah lulus atau yang "belum masuk sekolah" (angkatan bawah) di tahun tersebut
             let filteredStudents = activeStudents.filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');
 
             if (filter !== 'ALL') {
@@ -900,6 +933,33 @@
             } catch (err) {
                 console.error("Gagal menghapus:", err);
                 batalHapus();
+                showCustomAlert("Gagal menghapus siswa.", true);
+            }
+            document.getElementById('loading-overlay').classList.add('hidden');
+        };
+
+        // --- FITUR HAPUS SEMUA (MASSAL) ---
+        window.hapusSemuaSiswa = () => {
+            document.getElementById('delete-all-modal').classList.remove('hidden');
+        };
+
+        window.batalHapusSemua = () => {
+            document.getElementById('delete-all-modal').classList.add('hidden');
+        };
+
+        window.konfirmasiHapusSemua = async () => {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Menghapus SELURUH Data Siswa...";
+            
+            try {
+                const deletePromises = studentsData.map(st => deleteDoc(doc(db, 'students', st.docId)));
+                await Promise.all(deletePromises);
+                batalHapusSemua();
+                showCustomAlert("Berhasil! Seluruh data siswa telah dikosongkan.", false);
+            } catch (err) {
+                console.error("Gagal menghapus semua:", err);
+                batalHapusSemua();
+                showCustomAlert("Terjadi kesalahan saat menghapus data massal.", true);
             }
             document.getElementById('loading-overlay').classList.add('hidden');
         };
@@ -912,7 +972,10 @@
             const judul = document.getElementById('tugas-judul').value.trim();
             const tenggat = document.getElementById('tugas-tenggat').value;
 
-            if(!judul || !tenggat) return alert("Judul tugas dan tenggat waktu wajib diisi!");
+            if(!judul || !tenggat) {
+                showCustomAlert("Judul tugas dan tenggat waktu wajib diisi!", true);
+                return;
+            }
 
             document.getElementById('loading-overlay').classList.remove('hidden');
             document.getElementById('loading-text').innerText = "Menyebarkan Tugas...";
@@ -932,15 +995,36 @@
                 document.getElementById('tugas-tenggat').value = '';
             } catch (e) {
                 console.error(e);
-                alert("Gagal menambah tugas. Pastikan Aturan Firebase Anda mengizinkan penulisan ke koleksi 'assignments'.");
+                showCustomAlert("Gagal menambah tugas. Pastikan Aturan Firebase mengizinkan penulisan ke koleksi 'assignments'.", true);
             }
             document.getElementById('loading-overlay').classList.add('hidden');
         };
 
-        window.hapusTugas = async (id) => {
-            if(confirm("Anda yakin ingin menghapus tugas ini? Info ini akan ditarik juga dari dasbor Orang Tua.")) {
-                await deleteDoc(doc(db, 'assignments', id));
+        let taskToDeleteId = null;
+
+        window.hapusTugas = (id) => {
+            taskToDeleteId = id;
+            document.getElementById('delete-task-modal').classList.remove('hidden');
+        };
+
+        window.batalHapusTugas = () => {
+            taskToDeleteId = null;
+            document.getElementById('delete-task-modal').classList.add('hidden');
+        };
+
+        window.konfirmasiHapusTugas = async () => {
+            if (!taskToDeleteId) return;
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Menghapus Tugas...";
+            try {
+                await deleteDoc(doc(db, 'assignments', taskToDeleteId));
+                batalHapusTugas();
+            } catch (err) {
+                console.error("Gagal menghapus tugas:", err);
+                batalHapusTugas();
+                showCustomAlert("Gagal menghapus tugas.", true);
             }
+            document.getElementById('loading-overlay').classList.add('hidden');
         };
 
         window.renderTugasGuru = () => {
@@ -975,6 +1059,57 @@
             });
         };
 
+        // --- FITUR EDIT SISWA ---
+        let studentToEditId = null;
+
+        window.bukaEditSiswa = (docId, nama, event) => {
+            event.stopPropagation();
+            const currentTahun = document.getElementById('filter-tahun').value;
+            const st = studentsData.find(s => s.docId === docId);
+            const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+
+            studentToEditId = docId;
+            document.getElementById('edit-nis-input').value = docId;
+            document.getElementById('edit-nama-input').value = formatNama(nama);
+            document.getElementById('edit-kelas-input').value = (calculatedKelas !== 'Lulus' && calculatedKelas !== 'Belum Masuk') ? calculatedKelas : '';
+            document.getElementById('edit-modal').classList.remove('hidden');
+        };
+
+        window.batalEdit = () => {
+            studentToEditId = null;
+            document.getElementById('edit-modal').classList.add('hidden');
+        };
+
+        window.konfirmasiEdit = async () => {
+            if (!studentToEditId) return;
+            const currentTahun = document.getElementById('filter-tahun').value;
+            const newNama = formatNama(document.getElementById('edit-nama-input').value.trim());
+            const newKelas = document.getElementById('edit-kelas-input').value.trim();
+            
+            if (!newNama || !newKelas) {
+                showCustomAlert("Nama dan Kelas tidak boleh kosong!", true);
+                return;
+            }
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            document.getElementById('loading-text').innerText = "Menyimpan Perubahan...";
+            
+            try {
+                await setDoc(doc(db, 'students', studentToEditId), { 
+                    nama: newNama, 
+                    base_kelas: newKelas, 
+                    base_tahun: currentTahun,
+                    kelas: newKelas 
+                }, { merge: true });
+                batalEdit();
+            } catch (err) {
+                console.error("Gagal mengedit:", err);
+                batalEdit();
+                showCustomAlert("Gagal menyimpan perubahan.", true);
+            }
+            document.getElementById('loading-overlay').classList.add('hidden');
+        };
+
         window.renderLeaderboard = () => {
             const currentTahun = document.getElementById('filter-tahun').value;
             const listUnggulan = document.getElementById('list-unggulan');
@@ -982,7 +1117,6 @@
             listUnggulan.innerHTML = '';
             listBimbingan.innerHTML = '';
 
-            // Hanya proses siswa yang aktif (tidak lulus/belum masuk)
             let activeStudents = studentsData.map(st => {
                 return {
                     ...st,
@@ -1111,7 +1245,10 @@
             const angka = parseInt(document.getElementById('poin-angka').value);
             const catatan = document.getElementById('poin-catatan').value;
 
-            if(!angka || !catatan) return alert("Jumlah angka poin dan catatan keterangan wajib diisi!");
+            if(!angka || !catatan) {
+                showCustomAlert("Jumlah angka poin dan catatan keterangan wajib diisi!", true);
+                return;
+            }
 
             const pointVal = jenis === 'plus' ? Math.abs(angka) : -Math.abs(angka);
             await quickTrackEvent('Buku Poin / Evaluasi', catatan, pointVal, jenis === 'plus' ? '⭐' : '⚠️');
@@ -1131,12 +1268,10 @@
                 document.getElementById('ortu-error-box').classList.add('hidden');
                 document.getElementById('ortu-content-box').classList.remove('hidden');
 
-                // Ambil tahun dari dropdown ortu
                 const ortuTahun = document.getElementById('ortu-filter-tahun').value;
                 const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', ortuTahun);
 
                 document.getElementById('view-ortu-nama').innerText = formatNama(st.nama) || "Tanpa Nama";
-                // Tampilkan kelas di tahun tersebut
                 document.getElementById('view-ortu-kelas').innerText = calculatedKelas;
                 document.getElementById('view-ortu-id').innerText = st.docId || "-";
                 document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 0;
@@ -1191,7 +1326,7 @@
                     tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
                 }
 
-                // Render Info Tugas
+                // Render Info Tugas Ortu
                 const ortuTugasList = document.getElementById('ortu-tugas-list');
                 if (ortuTugasList) {
                     ortuTugasList.innerHTML = '';
@@ -1204,7 +1339,6 @@
                     } else {
                         myTasks.forEach(t => {
                             const d = new Date(t.tenggat).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'});
-                            // Highlight merah kalau sudah lewat hari ini
                             const isOverdue = new Date(t.tenggat) < new Date(new Date().setHours(0,0,0,0));
                             const colorClass = isOverdue ? 'text-red-500' : 'text-blue-600';
                             
@@ -1276,11 +1410,9 @@
                     const snap = await getDoc(studentRef);
 
                     if (snap.exists()) {
-                        // Murid Lama, timpa base kelasnya sesuai CSV
                         await setDoc(studentRef, { nama: name, base_kelas: kelas, base_tahun: currentTahun, kelas: kelas }, { merge: true });
                         updateCount++;
                     } else {
-                        // MURID BARU: Simpan dengan acuan tahun yang sedang dipilih guru
                         const data = { 
                             nama: name, 
                             base_kelas: kelas,
@@ -1297,7 +1429,7 @@
             }
             document.getElementById('loading-overlay').classList.add('hidden');
             document.getElementById('csv-input').value = "";
-            alert(`Selesai! ${newCount} siswa baru didaftarkan, ${updateCount} siswa lama berhasil diperbarui untuk tahun ${currentTahun}.`);
+            showCustomAlert(`Selesai! ${newCount} siswa baru didaftarkan, ${updateCount} siswa lama berhasil diperbarui untuk tahun ${currentTahun}.`, false);
         };
     </script>
 </body>
