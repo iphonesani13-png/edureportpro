@@ -107,11 +107,11 @@
                     </div>
                     
                     <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                        <!-- FITUR BARU: TAHUN AJARAN -->
                         <select id="filter-tahun" class="px-5 py-3 bg-gray-100 border border-gray-200 rounded-full text-sm font-bold shadow-inner appearance-none cursor-pointer text-gray-700">
                             <option value="2025/2026">Tahun 2025/2026</option>
                             <option value="2026/2027">Tahun 2026/2027</option>
                             <option value="2027/2028">Tahun 2027/2028</option>
+                            <option value="2028/2029">Tahun 2028/2029</option>
                         </select>
 
                         <select id="filter-kelas" onchange="renderDashboard()" class="px-5 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold shadow-sm appearance-none cursor-pointer text-gray-700">
@@ -129,7 +129,6 @@
                         </button>
                         <input type="file" id="csv-input" accept=".csv" class="hidden" onchange="handleFileUpload(event)">
                         
-                        <!-- FITUR BARU: HAPUS SEMUA -->
                         <button onclick="hapusSemuaSiswa()" class="px-6 py-3 bg-red-50 border border-red-100 rounded-full text-sm font-bold text-red-600 hover:bg-red-100 flex items-center justify-center gap-2 shadow-sm transition-colors">
                             <span class="text-lg">🗑️</span> Hapus Semua
                         </button>
@@ -284,7 +283,15 @@
                     <div class="glass-card p-8 md:p-10 bg-gradient-to-br from-blue-600 to-indigo-800 text-white relative overflow-hidden mb-8 border-0 shadow-2xl shadow-blue-900/20">
                         <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                             <div>
-                                <p class="text-blue-200 text-xs font-black uppercase tracking-widest mb-2">Profil Anak</p>
+                                <p class="text-blue-200 text-xs font-black uppercase tracking-widest mb-2 flex items-center gap-2">
+                                    Profil Anak • 
+                                    <select id="ortu-filter-tahun" onchange="window.updateOrtuView()" class="bg-white/20 text-white border-0 text-[10px] rounded-lg px-2 py-0.5 outline-none cursor-pointer">
+                                        <option value="2025/2026">2025/2026</option>
+                                        <option value="2026/2027">2026/2027</option>
+                                        <option value="2027/2028">2027/2028</option>
+                                        <option value="2028/2029">2028/2029</option>
+                                    </select>
+                                </p>
                                 <h1 id="view-ortu-nama" class="text-3xl md:text-4xl font-extrabold mb-1 tracking-tight">Memuat...</h1>
                                 <p class="text-blue-100 font-medium">Kelas <span id="view-ortu-kelas" class="font-bold"></span> • ID: <span id="view-ortu-id" class="font-mono"></span></p>
                             </div>
@@ -389,7 +396,7 @@
         </div>
     </div>
 
-    <!-- FITUR BARU: Modal Konfirmasi Hapus SEMUA Siswa -->
+    <!-- Modal Konfirmasi Hapus SEMUA Siswa -->
     <div id="delete-all-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
         <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-red-100">
             <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">⚠️</div>
@@ -461,19 +468,56 @@
             return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         };
 
-        // --- MENGINGAT TAHUN AJARAN YANG DIPILIH ---
+        // --- FITUR BARU: MESIN WAKTU KELAS (DINAMIS) ---
+        const calculateCurrentKelas = (baseKelas, baseTahun, viewTahun) => {
+            if (!baseKelas || !baseTahun || !viewTahun) return baseKelas || '-';
+            const baseYearInt = parseInt(baseTahun.split('/')[0]);
+            const viewYearInt = parseInt(viewTahun.split('/')[0]);
+            
+            if (isNaN(baseYearInt) || isNaN(viewYearInt)) return baseKelas;
+
+            const diff = viewYearInt - baseYearInt;
+            if (diff === 0) return baseKelas;
+            
+            // Ekstrak angka kelas dan huruf di belakangnya (contoh: "7A" -> "7" dan "A")
+            const match = baseKelas.match(/^(\d+)(.*)$/);
+            if (!match) return baseKelas; 
+            
+            let newGrade = parseInt(match[1]) + diff;
+            let suffix = match[2];
+            
+            if (newGrade > 9) return "Lulus";
+            if (newGrade < 7) return "Belum Masuk";
+            
+            return newGrade + suffix;
+        };
+
+        const getActiveTahun = () => {
+            const saved = localStorage.getItem('tahun_ajaran');
+            if (saved) return saved;
+            // Default jika belum pernah diset: pakai tahun saat ini
+            const now = new Date();
+            const y = now.getFullYear();
+            const startYear = now.getMonth() < 6 ? y - 1 : y; 
+            return `${startYear}/${startYear+1}`;
+        };
+
         const setupTahunAjaran = () => {
             const tahunSelect = document.getElementById('filter-tahun');
             if(tahunSelect) {
-                const savedTahun = localStorage.getItem('tahun_ajaran');
-                if(savedTahun) tahunSelect.value = savedTahun;
+                tahunSelect.value = getActiveTahun();
                 
                 tahunSelect.addEventListener('change', (e) => {
                     localStorage.setItem('tahun_ajaran', e.target.value);
+                    // RENDER ULANG LAYAR SAAT TAHUN DIUBAH!
+                    renderDashboard();
+                    if (!document.getElementById('leaderboard-section').classList.contains('hidden')) {
+                        renderLeaderboard();
+                    }
                 });
             }
         }
-        setupTahunAjaran(); // Panggil saat web diload
+        setupTahunAjaran(); 
 
         window.setLoginRole = (role) => {
             currentRole = role;
@@ -640,6 +684,12 @@
                     document.getElementById('loading-overlay').classList.add('hidden');
                     if (docSnap.exists()) {
                         const myChild = { docId: docSnap.id, ...docSnap.data() };
+                        window.currentParentData = myChild; // Simpan untuk filter dropdown orangtua
+                        
+                        // Set dropdown ortu sesuai tahun sistem
+                        const ortuTahun = document.getElementById('ortu-filter-tahun');
+                        if (ortuTahun) ortuTahun.value = getActiveTahun();
+
                         loadParentDashboard(myChild);
                     } else {
                         tampilkanErrorOrtu(
@@ -662,12 +712,17 @@
             document.getElementById('ortu-error-desc').innerHTML = pesan;
         }
 
+        // --- PENYELARASAN DATA LAMA AGAR SUPPORT MESIN WAKTU ---
         async function autoFixStudentData(st) {
             let needsUpdate = false;
             if (st.academic) { delete st.academic; needsUpdate = true; } 
             if (st.poin === undefined) { st.poin = 0; needsUpdate = true; }
             if (!st.point_history) { st.point_history = []; needsUpdate = true; }
-            if (!st.kelas) { st.kelas = "7"; needsUpdate = true; }
+            
+            // Konversi data kelas lama ke sistem "Tahun Dasar"
+            if (!st.base_tahun) { st.base_tahun = '2025/2026'; needsUpdate = true; }
+            if (!st.base_kelas) { st.base_kelas = st.kelas || '7'; needsUpdate = true; }
+            if (!st.kelas) { st.kelas = st.base_kelas; needsUpdate = true; }
             
             if (!st.subjects || !Array.isArray(st.subjects)) {
                 st.subjects = subjectsList.map(name => ({ name: name, score: 0, note: '' }));
@@ -695,13 +750,24 @@
         };
 
         window.renderDashboard = () => {
+            const currentTahun = document.getElementById('filter-tahun').value;
             const filter = document.getElementById('filter-kelas').value;
             const tbody = document.getElementById('student-table-body');
             tbody.innerHTML = '';
             
-            let filteredStudents = studentsData;
+            // Kalkulasi kelas masa kini untuk semua murid
+            let activeStudents = studentsData.map(st => {
+                return {
+                    ...st,
+                    calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun)
+                };
+            });
+
+            // Sembunyikan murid yang sudah lulus atau yang "belum masuk sekolah" (angkatan bawah) di tahun tersebut
+            let filteredStudents = activeStudents.filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');
+
             if (filter !== 'ALL') {
-                filteredStudents = studentsData.filter(st => (st.kelas || '7') === filter);
+                filteredStudents = filteredStudents.filter(st => st.calculatedKelas === filter);
             }
 
             filteredStudents.sort((a, b) => {
@@ -714,7 +780,7 @@
             if(badge) badge.innerText = `${filteredStudents.length} Siswa`;
 
             if(filteredStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa ditemukan di kelas ini.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Belum ada siswa di kelas ini pada tahun ajaran ${currentTahun}.</td></tr>`;
                 return;
             }
 
@@ -732,12 +798,12 @@
                             <p class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">${st.docId}</p>
                         </td>
                         <td class="px-6 py-5 font-bold text-gray-700">${namaRapi}</td>
-                        <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.kelas || '-'}</span></td>
+                        <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.calculatedKelas}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                         <td class="px-6 py-5">
                             <div class="flex justify-end gap-2">
                                 <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
-                                <button onclick="bukaEditSiswa('${st.docId}', '${st.nama}', '${st.kelas || ''}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
+                                <button onclick="bukaEditSiswa('${st.docId}', '${st.nama}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
                                 <button onclick="hapusSiswa('${st.docId}', '${st.nama}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
                             </div>
                         </td>
@@ -789,10 +855,7 @@
             document.getElementById('loading-text').innerText = "Menghapus SELURUH Data Siswa...";
             
             try {
-                // Melakukan proses hapus semua data yang ada di array studentsData
                 const deletePromises = studentsData.map(st => deleteDoc(doc(db, 'students', st.docId)));
-                
-                // Tunggu sampai semuanya selesai dihapus
                 await Promise.all(deletePromises);
                 
                 batalHapusSemua();
@@ -808,12 +871,18 @@
         // --- FITUR EDIT SISWA ---
         let studentToEditId = null;
 
-        window.bukaEditSiswa = (docId, nama, kelas, event) => {
+        window.bukaEditSiswa = (docId, nama, event) => {
             event.stopPropagation();
+            const currentTahun = document.getElementById('filter-tahun').value;
+            const st = studentsData.find(s => s.docId === docId);
+            
+            // Hitung kelas terkininya di tahun tersebut
+            const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+
             studentToEditId = docId;
             document.getElementById('edit-nis-input').value = docId;
             document.getElementById('edit-nama-input').value = formatNama(nama);
-            document.getElementById('edit-kelas-input').value = kelas !== 'undefined' && kelas !== 'null' ? kelas : '';
+            document.getElementById('edit-kelas-input').value = (calculatedKelas !== 'Lulus' && calculatedKelas !== 'Belum Masuk') ? calculatedKelas : '';
             document.getElementById('edit-modal').classList.remove('hidden');
         };
 
@@ -824,6 +893,7 @@
 
         window.konfirmasiEdit = async () => {
             if (!studentToEditId) return;
+            const currentTahun = document.getElementById('filter-tahun').value;
             const newNama = formatNama(document.getElementById('edit-nama-input').value.trim());
             const newKelas = document.getElementById('edit-kelas-input').value.trim();
             
@@ -833,7 +903,13 @@
             document.getElementById('loading-text').innerText = "Menyimpan Perubahan...";
             
             try {
-                await setDoc(doc(db, 'students', studentToEditId), { nama: newNama, kelas: newKelas }, { merge: true });
+                // Update Base Kelas pada tahun ini
+                await setDoc(doc(db, 'students', studentToEditId), { 
+                    nama: newNama, 
+                    base_kelas: newKelas, 
+                    base_tahun: currentTahun,
+                    kelas: newKelas // legacy fallback
+                }, { merge: true });
                 batalEdit();
             } catch (err) {
                 console.error("Gagal mengedit:", err);
@@ -844,17 +920,26 @@
         };
 
         window.renderLeaderboard = () => {
+            const currentTahun = document.getElementById('filter-tahun').value;
             const listUnggulan = document.getElementById('list-unggulan');
             const listBimbingan = document.getElementById('list-bimbingan');
             listUnggulan.innerHTML = '';
             listBimbingan.innerHTML = '';
 
-            const sortedDesc = [...studentsData].sort((a, b) => (b.poin || 0) - (a.poin || 0));
-            const sortedAsc = [...studentsData].sort((a, b) => (a.poin || 0) - (b.poin || 0));
+            // Hanya proses siswa yang aktif (tidak lulus/belum masuk)
+            let activeStudents = studentsData.map(st => {
+                return {
+                    ...st,
+                    calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun)
+                };
+            }).filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');
+
+            const sortedDesc = [...activeStudents].sort((a, b) => (b.poin || 0) - (a.poin || 0));
+            const sortedAsc = [...activeStudents].sort((a, b) => (a.poin || 0) - (b.poin || 0));
 
             const topPositif = sortedDesc.filter(st => (st.poin || 0) > 0).slice(0, 10);
             if (topPositif.length === 0) {
-                listUnggulan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Belum ada siswa dengan poin positif.</p></div>';
+                listUnggulan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Belum ada siswa dengan poin positif di tahun ini.</p></div>';
             } else {
                 topPositif.forEach((st, idx) => {
                     listUnggulan.insertAdjacentHTML('beforeend', `
@@ -863,7 +948,7 @@
                                 <div class="w-8 h-8 rounded-full bg-green-100 text-green-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
                                 <div>
                                     <p class="font-bold text-gray-800 text-sm">${formatNama(st.nama)}</p>
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.kelas || '-'}</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.calculatedKelas}</p>
                                 </div>
                             </div>
                             <span class="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-black text-sm">+${st.poin}</span>
@@ -883,7 +968,7 @@
                                 <div class="w-8 h-8 rounded-full bg-red-100 text-red-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
                                 <div>
                                     <p class="font-bold text-gray-800 text-sm">${formatNama(st.nama)}</p>
-                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.kelas || '-'}</p>
+                                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.calculatedKelas}</p>
                                 </div>
                             </div>
                             <span class="bg-red-100 text-red-700 px-4 py-1.5 rounded-full font-black text-sm">${st.poin}</span>
@@ -894,8 +979,11 @@
         };
 
         window.openStudentEditor = async (docId) => {
+            const currentTahun = document.getElementById('filter-tahun').value;
             const st = studentsData.find(s => s.docId === docId);
             await autoFixStudentData(st); 
+
+            const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
 
             const now = new Date();
             const year = now.getFullYear();
@@ -906,7 +994,7 @@
             currentStudentId = docId;
             document.getElementById('editor-title').innerText = formatNama(st.nama);
             document.getElementById('editor-nis').innerText = `ID / NIS: ${st.docId}`;
-            document.getElementById('editor-badge-kelas').innerText = `KELAS ${st.kelas || '7'}`;
+            document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
             document.getElementById('guru-view-poin').innerText = st.poin !== undefined ? st.poin : 0;
 
             const grid = document.getElementById('subjects-grid');
@@ -976,13 +1064,24 @@
             document.getElementById('poin-catatan').value = '';
         };
 
+        window.updateOrtuView = () => {
+            if(window.currentParentData) {
+                loadParentDashboard(window.currentParentData);
+            }
+        };
+
         function loadParentDashboard(st) {
             try {
                 document.getElementById('ortu-error-box').classList.add('hidden');
                 document.getElementById('ortu-content-box').classList.remove('hidden');
 
+                // Ambil tahun dari dropdown ortu
+                const ortuTahun = document.getElementById('ortu-filter-tahun').value;
+                const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', ortuTahun);
+
                 document.getElementById('view-ortu-nama').innerText = formatNama(st.nama) || "Tanpa Nama";
-                document.getElementById('view-ortu-kelas').innerText = st.kelas || '7';
+                // Tampilkan kelas di tahun tersebut
+                document.getElementById('view-ortu-kelas').innerText = calculatedKelas;
                 document.getElementById('view-ortu-id').innerText = st.docId || "-";
                 document.getElementById('ortu-poin').innerText = st.poin !== undefined ? st.poin : 0;
 
@@ -1073,6 +1172,7 @@
             document.getElementById('loading-overlay').classList.remove('hidden');
             document.getElementById('loading-text').innerText = "Mengimpor & Membaca CSV...";
 
+            const currentTahun = document.getElementById('filter-tahun').value;
             const text = await file.text();
             const rows = text.replace(/\r/g, '').split('\n');
             let newCount = 0;
@@ -1089,11 +1189,15 @@
                     const snap = await getDoc(studentRef);
 
                     if (snap.exists()) {
-                        await setDoc(studentRef, { nama: name, kelas: kelas }, { merge: true });
+                        // Murid Lama, timpa base kelasnya sesuai CSV
+                        await setDoc(studentRef, { nama: name, base_kelas: kelas, base_tahun: currentTahun, kelas: kelas }, { merge: true });
                         updateCount++;
                     } else {
+                        // MURID BARU: Simpan dengan acuan tahun yang sedang dipilih guru
                         const data = { 
                             nama: name, 
+                            base_kelas: kelas,
+                            base_tahun: currentTahun,
                             kelas: kelas,
                             poin: 0, 
                             point_history: [],
@@ -1106,7 +1210,7 @@
             }
             document.getElementById('loading-overlay').classList.add('hidden');
             document.getElementById('csv-input').value = "";
-            alert(`Selesai! ${newCount} siswa baru didaftarkan, ${updateCount} siswa lama berhasil dinaikkan kelas/diperbarui.`);
+            alert(`Selesai! ${newCount} siswa baru didaftarkan, ${updateCount} siswa lama berhasil diperbarui untuk tahun ${currentTahun}.`);
         };
     </script>
 </body>
