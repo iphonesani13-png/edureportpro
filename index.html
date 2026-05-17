@@ -15,6 +15,11 @@
         input:focus, select:focus, textarea:focus { border-color: #1a73e8 !important; outline: none; box-shadow: 0 0 0 4px rgba(26,115,232,0.1); }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -306,13 +311,22 @@
                                 <button onclick="tambahTransaksiPoin()" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl text-sm hover:bg-blue-700 transition-all shadow-md shadow-blue-200">Simpan Transaksi Poin</button>
                             </div>
                         </div>
+                        
+                        <!-- FITUR BARU: Timeline untuk Guru -->
+                        <div class="glass-card p-6">
+                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 flex items-center gap-3">
+                                <span class="text-xl">⏱️</span> Riwayat Aktivitas & Nilai
+                            </h3>
+                            <ul id="guru-timeline" class="space-y-4 relative before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:ml-[1.1rem] before:h-full before:w-0.5 before:bg-gradient-to-b before:from-gray-200 before:via-gray-100 before:to-transparent max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                <!-- Render JS -->
+                            </ul>
+                        </div>
                     </div>
 
-                    <!-- FITUR BARU: Tabel Input Multi-Nilai Guru -->
                     <div class="lg:col-span-7">
                         <div class="glass-card p-6 h-full">
                             <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-3 mb-6"><span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Nilai Akademik Terpadu</h3>
-                            <p class="text-xs text-gray-500 mb-6 font-medium">Setiap perubahan nilai/catatan akan otomatis merekam tanggal dari kalender 'Tanggal Kejadian' di samping.</p>
+                            <p class="text-xs text-gray-500 mb-6 font-medium">Setiap perubahan nilai/catatan akan otomatis merekam tanggal dari kalender 'Tanggal Kejadian' di samping dan menyimpan log-nya.</p>
                             
                             <div class="grid grid-cols-1 gap-4" id="subjects-grid">
                                 <!-- Tabel Mapel Multi-Nilai -->
@@ -399,7 +413,6 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div class="lg:col-span-7 space-y-6">
-                            <!-- FITUR BARU ORTU: Tabel Multi-Nilai -->
                             <div class="glass-card p-6 md:p-8">
                                 <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 border-b border-gray-100 pb-4 flex items-center gap-3">
                                     <span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Rapor Akademik Terpadu
@@ -585,6 +598,44 @@
         let unsubscribeAssignments = null; 
         let subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
+        // --- FUNGSI GLOBAL RENDER TIMELINE ---
+        window.renderTimeline = (history, elementId) => {
+            const tl = document.getElementById(elementId);
+            if(!tl) return;
+            tl.innerHTML = '';
+            
+            if(!history || history.length === 0) {
+                tl.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada aktivitas tercatat.</p></div>';
+                return;
+            }
+
+            history.forEach(item => {
+                let color, badgeText;
+                if (item.category === 'Akademik') {
+                    color = 'text-blue-600 bg-blue-50 border-blue-100';
+                    badgeText = 'Info Nilai';
+                } else {
+                    color = item.pointChange > 0 ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100';
+                    const sign = item.pointChange > 0 ? '+' : '';
+                    badgeText = `${sign}${item.pointChange || 0} Poin`;
+                }
+
+                tl.insertAdjacentHTML('beforeend', `
+                    <li class="relative pl-10 md:pl-12 py-2">
+                        <div class="absolute left-0 top-3 w-8 h-8 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center z-10 shadow-sm text-sm">${item.icon || '📌'}</div>
+                        <div class="bg-white border border-gray-100 p-4 md:p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-black text-gray-900 text-sm">${item.category || 'Aktivitas'}</h4>
+                                <span class="inline-block px-2.5 py-1 rounded-lg text-[10px] font-black border ${color}">${badgeText}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 font-medium mb-3">${item.desc || '-'}</p>
+                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md">${item.date || ''} • Pukul ${item.time || ''}</span>
+                        </div>
+                    </li>
+                `);
+            });
+        };
+
         // --- SISTEM MAPEL DINAMIS ---
         const syncSubjectsFromStudents = () => {
             let hasNew = false;
@@ -642,7 +693,6 @@
                     const hasMapel = st.subjects && st.subjects.some(sub => sub.name === mapelBaru);
                     if (!hasMapel) {
                         const updatedSubjects = st.subjects ? [...st.subjects] : [];
-                        // Format Mapel Baru untuk mendukung fitur multi-nilai
                         updatedSubjects.push({ name: mapelBaru, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, note: '', last_updated_date: '' });
                         return setDoc(doc(db, 'students', st.docId), { subjects: updatedSubjects }, { merge: true });
                     }
@@ -707,11 +757,7 @@
             
             if (newGrade > 9) return "Lulus";
             if (newGrade < 7) return "Belum Masuk";
-            
-            // LOGIKA BARU: Jika kelas sudah 8 atau 9, buang embel-embel A/B
-            if (newGrade > 7) {
-                suffix = "";
-            }
+            if (newGrade > 7) suffix = "";
             
             return newGrade + suffix;
         };
@@ -1042,14 +1088,12 @@
             if (!st.kelas) { st.kelas = st.base_kelas; needsUpdate = true; }
             
             if (!st.subjects || !Array.isArray(st.subjects)) {
-                // Konversi total format nilai baru
                 st.subjects = subjectsList.map(name => ({ name: name, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, note: '', last_updated_date: '' }));
                 needsUpdate = true;
             } else {
-                // Migrasi data nilai lama ke format baru yang di-request
                 st.subjects.forEach(sub => {
                     if (sub.score !== undefined) {
-                        sub.score_harian = sub.score; // Nilai lama dianggap nilai harian
+                        sub.score_harian = sub.score; 
                         delete sub.score;
                         needsUpdate = true;
                     }
@@ -1072,17 +1116,14 @@
         window.switchTab = (mode) => {
             const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer'];
             
-            // Sembunyikan semua section dengan aman
             sections.forEach(s => {
                 const el = document.getElementById(`${s}-section`);
                 if (el) el.classList.add('hidden');
             });
             
-            // Tampilkan section yang dituju
             const targetEl = document.getElementById(`${mode}-section`);
             if (targetEl) targetEl.classList.remove('hidden');
             
-            // Ubah gaya navigasi
             document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
             const activeBtn = document.getElementById(`btn-${mode}`);
             if(activeBtn) { 
@@ -1090,7 +1131,6 @@
                 activeBtn.classList.add('active'); 
             }
 
-            // Panggil fungsi render yang sesuai
             if (mode === 'leaderboard') renderLeaderboard();
             if (mode === 'dashboard') renderDashboard();
             if (mode === 'tugas') {
@@ -1165,9 +1205,6 @@
             });
         };
 
-        // --- FITUR HAPUS SATUAN ---
-        let studentToDeleteId = null;
-
         window.hapusSiswa = (docId, nama, event) => {
             event.stopPropagation(); 
             studentToDeleteId = docId;
@@ -1200,7 +1237,6 @@
             if(overlay) overlay.classList.add('hidden');
         };
 
-        // --- FITUR HAPUS SEMUA (MASSAL) ---
         window.hapusSemuaSiswa = () => {
             const modal = document.getElementById('delete-all-modal');
             if(modal) modal.classList.remove('hidden');
@@ -1230,7 +1266,6 @@
             if(overlay) overlay.classList.add('hidden');
         };
 
-        // --- FITUR TUGAS SISWA (GURU) ---
         window.tambahTugas = async () => {
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
             const mapel = document.getElementById('tugas-mapel')?.value || '';
@@ -1269,8 +1304,6 @@
             }
             if(overlay) overlay.classList.add('hidden');
         };
-
-        let taskToDeleteId = null;
 
         window.hapusTugas = (id) => {
             taskToDeleteId = id;
@@ -1334,9 +1367,6 @@
                 `);
             });
         };
-
-        // --- FITUR EDIT SISWA ---
-        let studentToEditId = null;
 
         window.bukaEditSiswa = (docId, nama, event) => {
             event.stopPropagation();
@@ -1456,7 +1486,17 @@
             }
         };
 
-        // --- SISTEM UPDATE MULTI-NILAI GURU ---
+        const getDisplayDateFromInput = () => {
+            const dateInput = document.getElementById('input-tanggal-aksi');
+            const dateVal = dateInput ? dateInput.value : '';
+            let displayDate = new Date().toLocaleDateString('id-ID'); 
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                displayDate = `${parseInt(d)}/${parseInt(m)}/${y}`; 
+            }
+            return displayDate;
+        };
+
         window.openStudentEditor = async (docId) => {
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
             const st = studentsData.find(s => s.docId === docId);
@@ -1492,7 +1532,7 @@
                         <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:border-blue-200 transition-colors">
                             <div class="flex justify-between items-center mb-3">
                                 <h4 class="font-bold text-gray-800 text-sm">${sub.name}</h4>
-                                <span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">${sub.last_updated_date || 'Belum Dinilai'}</span>
+                                <span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">${sub.last_updated_date ? 'Update: ' + sub.last_updated_date : 'Belum Dinilai'}</span>
                             </div>
                             <div class="grid grid-cols-4 gap-2 mb-3">
                                 <div>
@@ -1518,35 +1558,75 @@
                 });
             }
 
-            switchTab('editor');
-        };
+            // Render Guru Timeline
+            renderTimeline(st.point_history, 'guru-timeline');
 
-        // Fungsi khusus mengambil tanggal dari inputan guru untuk distempel ke mapel
-        const getDisplayDateFromInput = () => {
-            const dateInput = document.getElementById('input-tanggal-aksi');
-            const dateVal = dateInput ? dateInput.value : '';
-            let displayDate = new Date().toLocaleDateString('id-ID'); 
-            if (dateVal) {
-                const [y, m, d] = dateVal.split('-');
-                displayDate = `${parseInt(d)}/${parseInt(m)}/${y}`; 
-            }
-            return displayDate;
+            switchTab('editor');
         };
 
         window.updateSubjectScore = async (idx, type, val) => {
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].subjects[idx][`score_${type}`] = parseInt(val) || 0;
-            studentsData[stIdx].subjects[idx].last_updated_date = getDisplayDateFromInput();
+            let st = studentsData[stIdx];
+            const subjectName = st.subjects[idx].name;
+            const scoreVal = parseInt(val) || 0;
             
-            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
+            const oldVal = st.subjects[idx][`score_${type}`] || 0;
+            if (oldVal === scoreVal) return; 
+
+            st.subjects[idx][`score_${type}`] = scoreVal;
+            st.subjects[idx].last_updated_date = getDisplayDateFromInput();
+            
+            // LOGIKA TAMBAH HISTORY OTOMATIS
+            let typeLabel = type.toUpperCase();
+            if(type === 'harian') typeLabel = 'Harian';
+            if(type === 'uh') typeLabel = 'Mingguan (UH)';
+            
+            const displayDate = getDisplayDateFromInput();
+            const newEvent = {
+                id: Date.now(), 
+                date: displayDate, 
+                time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
+                category: 'Akademik', 
+                desc: `Nilai ${typeLabel} ${subjectName} diperbarui: ${scoreVal}`, 
+                pointChange: 0, 
+                icon: '📚'
+            };
+
+            if(!st.point_history) st.point_history = [];
+            st.point_history.unshift(newEvent);
+            if(st.point_history.length > 50) st.point_history.pop();
+
+            await setDoc(doc(db, 'students', currentStudentId), st);
         };
 
         window.updateSubjectNote = async (idx, val) => {
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].subjects[idx].note = val;
-            studentsData[stIdx].subjects[idx].last_updated_date = getDisplayDateFromInput();
+            let st = studentsData[stIdx];
+            const subjectName = st.subjects[idx].name;
             
-            await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
+            const oldVal = st.subjects[idx].note || '';
+            if (oldVal === val) return; 
+
+            st.subjects[idx].note = val;
+            st.subjects[idx].last_updated_date = getDisplayDateFromInput();
+            
+            // LOGIKA TAMBAH HISTORY OTOMATIS
+            const displayDate = getDisplayDateFromInput();
+            const newEvent = {
+                id: Date.now(), 
+                date: displayDate, 
+                time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
+                category: 'Akademik', 
+                desc: `Catatan ${subjectName} diperbarui: "${val || 'Dikosongkan'}"`, 
+                pointChange: 0, 
+                icon: '📝'
+            };
+
+            if(!st.point_history) st.point_history = [];
+            st.point_history.unshift(newEvent);
+            if(st.point_history.length > 50) st.point_history.pop();
+
+            await setDoc(doc(db, 'students', currentStudentId), st);
         };
 
         window.quickTrackEvent = async (category, desc, pointVal, icon) => {
@@ -1621,7 +1701,6 @@
 
                 if (st.subjects && Array.isArray(st.subjects)) {
                     st.subjects.forEach(sub => {
-                        // Rata-rata Akademik diambil dari semua nilai yang masuk
                         const scores = [sub.score_harian||0, sub.score_uh||0, sub.score_pts||0, sub.score_pas||0];
                         scores.forEach(s => {
                             if (s > 0) {
@@ -1638,10 +1717,12 @@
 
                 const history = st.point_history || [];
                 let positiveCount = 0;
-                history.forEach(item => {
+                // Hanya hitung tren karakter, jangan campur dengan info nilai (Akademik)
+                const validCharacterHistory = history.filter(item => item.category !== 'Akademik');
+                validCharacterHistory.forEach(item => {
                     if (item.pointChange > 0) positiveCount++;
                 });
-                const characterTrend = history.length > 0 ? Math.round((positiveCount / history.length) * 100) : 100;
+                const characterTrend = validCharacterHistory.length > 0 ? Math.round((positiveCount / validCharacterHistory.length) * 100) : 100;
 
                 const valAkad = document.getElementById('stat-akademik-val');
                 const barAkad = document.getElementById('stat-akademik-bar');
@@ -1682,7 +1763,6 @@
                     }
                 }
 
-                // Render Info Tugas Ortu
                 const ortuTugasList = document.getElementById('ortu-tugas-list');
                 if (ortuTugasList) {
                     ortuTugasList.innerHTML = '';
@@ -1712,32 +1792,9 @@
                     }
                 }
 
-                const tl = document.getElementById('parent-timeline');
-                if(tl) {
-                    tl.innerHTML = '';
-                    if(history.length === 0) {
-                        tl.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada aktivitas tercatat hari ini.</p></div>';
-                        return;
-                    }
-
-                    history.forEach(item => {
-                        const color = item.pointChange > 0 ? 'text-green-600 bg-green-50 border-green-100' : 'text-red-600 bg-red-50 border-red-100';
-                        const sign = item.pointChange > 0 ? '+' : '';
-                        tl.insertAdjacentHTML('beforeend', `
-                            <li class="relative pl-10 md:pl-12 py-2">
-                                <div class="absolute left-0 top-3 w-8 h-8 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center z-10 shadow-sm text-sm">${item.icon || '📌'}</div>
-                                <div class="bg-white border border-gray-100 p-4 md:p-5 rounded-2xl shadow-sm hover:shadow-md transition-all">
-                                    <div class="flex justify-between items-start mb-2">
-                                        <h4 class="font-black text-gray-900 text-sm">${item.category || 'Aktivitas'}</h4>
-                                        <span class="inline-block px-2.5 py-1 rounded-lg text-[10px] font-black border ${color}">${sign}${item.pointChange || 0} Poin</span>
-                                    </div>
-                                    <p class="text-sm text-gray-600 font-medium mb-3">${item.desc || '-'}</p>
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md">${item.date || ''} • Pukul ${item.time || ''}</span>
-                                </div>
-                            </li>
-                        `);
-                    });
-                }
+                // Gunakan fungsi renderTimeline yang rapi untuk Dashboard Ortu
+                renderTimeline(history, 'parent-timeline');
+                
             } catch (err) {
                 console.error("Kesalahan Rendering Visual:", err);
                 tampilkanErrorOrtu("Gangguan Visual", "Maaf, sistem mendeteksi ketidakcocokan data. Silakan hubungi admin sekolah.");
