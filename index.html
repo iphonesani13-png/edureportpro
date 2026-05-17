@@ -120,8 +120,6 @@
                             <option value="7A">Kelas 7A</option>
                             <option value="7B">Kelas 7B</option>
                             <option value="8">Kelas 8</option>
-                            <option value="8A">Kelas 8A</option>
-                            <option value="8B">Kelas 8B</option>
                             <option value="9">Kelas 9</option>
                         </select>
 
@@ -206,8 +204,6 @@
                                         <option value="7A">Kelas 7A</option>
                                         <option value="7B">Kelas 7B</option>
                                         <option value="8">Kelas 8</option>
-                                        <option value="8A">Kelas 8A</option>
-                                        <option value="8B">Kelas 8B</option>
                                         <option value="9">Kelas 9</option>
                                     </select>
                                 </div>
@@ -706,6 +702,11 @@
             
             if (newGrade > 9) return "Lulus";
             if (newGrade < 7) return "Belum Masuk";
+            
+            // LOGIKA BARU: Jika kelas sudah 8 atau 9, buang embel-embel A/B
+            if (newGrade > 7) {
+                suffix = "";
+            }
             
             return newGrade + suffix;
         };
