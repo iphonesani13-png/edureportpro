@@ -248,7 +248,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div class="lg:col-span-5 space-y-6">
                         <div class="glass-card p-4 flex justify-between items-center shadow-sm">
-                            <span class="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><span class="text-lg">📅</span> Tanggal Kejadian</span>
+                            <span class="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2"><span class="text-lg">📅</span> Tanggal Kejadian / Penilaian</span>
                             <input type="date" id="input-tanggal-aksi" class="p-2.5 text-sm font-bold text-gray-800 bg-gray-50 border-0 focus:ring-0 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
                         </div>
 
@@ -308,13 +308,14 @@
                         </div>
                     </div>
 
+                    <!-- FITUR BARU: Tabel Input Multi-Nilai Guru -->
                     <div class="lg:col-span-7">
                         <div class="glass-card p-6 h-full">
-                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-3 mb-6"><span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Nilai Harian Mata Pelajaran</h3>
-                            <p class="text-xs text-gray-500 mb-6 font-medium">Masukkan nilai tugas/harian terakhir. Kolom catatan bersifat opsional untuk memberikan masukan materi.</p>
+                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-3 mb-6"><span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Nilai Akademik Terpadu</h3>
+                            <p class="text-xs text-gray-500 mb-6 font-medium">Setiap perubahan nilai/catatan akan otomatis merekam tanggal dari kalender 'Tanggal Kejadian' di samping.</p>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="subjects-grid">
-                                <!-- Tabel Mapel -->
+                            <div class="grid grid-cols-1 gap-4" id="subjects-grid">
+                                <!-- Tabel Mapel Multi-Nilai -->
                             </div>
                         </div>
                     </div>
@@ -398,16 +399,20 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div class="lg:col-span-7 space-y-6">
+                            <!-- FITUR BARU ORTU: Tabel Multi-Nilai -->
                             <div class="glass-card p-6 md:p-8">
                                 <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 border-b border-gray-100 pb-4 flex items-center gap-3">
-                                    <span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Nilai Akademik Terbaru
+                                    <span class="w-2 h-4 bg-blue-600 rounded-full inline-block"></span> Rapor Akademik Terpadu
                                 </h3>
                                 <div class="overflow-x-auto">
                                     <table class="w-full text-left whitespace-nowrap">
                                         <thead class="text-[10px] text-gray-400 font-black uppercase tracking-widest bg-gray-50/50">
                                             <tr>
                                                 <th class="px-4 py-3 rounded-l-xl">Mata Pelajaran</th>
-                                                <th class="px-4 py-3 text-center">Skor</th>
+                                                <th class="px-3 py-3 text-center">Harian</th>
+                                                <th class="px-3 py-3 text-center">Mingguan</th>
+                                                <th class="px-3 py-3 text-center">PTS</th>
+                                                <th class="px-3 py-3 text-center">PAS</th>
                                                 <th class="px-4 py-3 rounded-r-xl">Catatan / Materi</th>
                                             </tr>
                                         </thead>
@@ -562,7 +567,6 @@
         const db = getFirestore(app);
 
         // --- DAFTAR EMAIL GURU YANG DIIZINKAN (WHITELIST) ---
-        // Email kamu ("iphonesani13@gmail.com") sudah ditambahkan!
         const AUTHORIZED_TEACHER_EMAILS = [
             "admin@gmail.com",
             "guru1@gmail.com",
@@ -638,7 +642,8 @@
                     const hasMapel = st.subjects && st.subjects.some(sub => sub.name === mapelBaru);
                     if (!hasMapel) {
                         const updatedSubjects = st.subjects ? [...st.subjects] : [];
-                        updatedSubjects.push({ name: mapelBaru, score: 0, note: '' });
+                        // Format Mapel Baru untuk mendukung fitur multi-nilai
+                        updatedSubjects.push({ name: mapelBaru, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, note: '', last_updated_date: '' });
                         return setDoc(doc(db, 'students', st.docId), { subjects: updatedSubjects }, { merge: true });
                     }
                     return Promise.resolve();
@@ -824,7 +829,12 @@
                     console.error("System Error:", err);
                     const overlay = document.getElementById('loading-overlay');
                     if(overlay) overlay.classList.add('hidden');
-                    showCustomAlert("Akses Firebase Ditolak! Pastikan Aturan (Rules) Database Anda mengizinkan membaca dan menulis data /users. Detail: " + err.message, true);
+                    
+                    if(err.message.includes('classList') || err.message.includes('getElementById')) {
+                        showCustomAlert("Terjadi kendala pada tampilan (UI) sistem. Detail: " + err.message, true);
+                    } else {
+                        showCustomAlert("Akses Firebase Ditolak! Pastikan Aturan (Rules) Database Anda mengizinkan membaca dan menulis data /users. Detail: " + err.message, true);
+                    }
                 }
             } else {
                 showLogin();
@@ -1032,8 +1042,23 @@
             if (!st.kelas) { st.kelas = st.base_kelas; needsUpdate = true; }
             
             if (!st.subjects || !Array.isArray(st.subjects)) {
-                st.subjects = subjectsList.map(name => ({ name: name, score: 0, note: '' }));
+                // Konversi total format nilai baru
+                st.subjects = subjectsList.map(name => ({ name: name, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, note: '', last_updated_date: '' }));
                 needsUpdate = true;
+            } else {
+                // Migrasi data nilai lama ke format baru yang di-request
+                st.subjects.forEach(sub => {
+                    if (sub.score !== undefined) {
+                        sub.score_harian = sub.score; // Nilai lama dianggap nilai harian
+                        delete sub.score;
+                        needsUpdate = true;
+                    }
+                    if (sub.score_harian === undefined) { sub.score_harian = 0; needsUpdate = true; }
+                    if (sub.score_uh === undefined) { sub.score_uh = 0; needsUpdate = true; }
+                    if (sub.score_pts === undefined) { sub.score_pts = 0; needsUpdate = true; }
+                    if (sub.score_pas === undefined) { sub.score_pas = 0; needsUpdate = true; }
+                    if (sub.last_updated_date === undefined) { sub.last_updated_date = ''; needsUpdate = true; }
+                });
             }
 
             if (needsUpdate) {
@@ -1431,6 +1456,7 @@
             }
         };
 
+        // --- SISTEM UPDATE MULTI-NILAI GURU ---
         window.openStudentEditor = async (docId) => {
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
             const st = studentsData.find(s => s.docId === docId);
@@ -1463,12 +1489,30 @@
                 grid.innerHTML = '';
                 st.subjects.forEach((sub, idx) => {
                     grid.insertAdjacentHTML('beforeend', `
-                        <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:border-blue-200 transition-colors">
-                            <div class="flex justify-between items-center mb-4">
+                        <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm hover:border-blue-200 transition-colors">
+                            <div class="flex justify-between items-center mb-3">
                                 <h4 class="font-bold text-gray-800 text-sm">${sub.name}</h4>
-                                <input type="number" value="${sub.score}" onchange="updateSubjectScore(${idx}, this.value)" class="w-16 p-1.5 text-center font-black text-blue-700 bg-blue-50 border-none rounded-xl text-sm" placeholder="0">
+                                <span class="text-[9px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">${sub.last_updated_date || 'Belum Dinilai'}</span>
                             </div>
-                            <input type="text" value="${sub.note || ''}" onchange="updateSubjectNote(${idx}, this.value)" placeholder="Catatan singkat..." class="w-full p-2.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-xl border-none focus:bg-white focus:ring-1 focus:ring-blue-500">
+                            <div class="grid grid-cols-4 gap-2 mb-3">
+                                <div>
+                                    <p class="text-[9px] font-bold text-gray-500 uppercase text-center mb-1">Harian</p>
+                                    <input type="number" value="${sub.score_harian || 0}" onchange="updateSubjectScore(${idx}, 'harian', this.value)" class="w-full p-1.5 text-center font-black text-blue-700 bg-blue-50 border-none rounded-lg text-xs" placeholder="0">
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-bold text-gray-500 uppercase text-center mb-1">Mingguan</p>
+                                    <input type="number" value="${sub.score_uh || 0}" onchange="updateSubjectScore(${idx}, 'uh', this.value)" class="w-full p-1.5 text-center font-black text-blue-700 bg-blue-50 border-none rounded-lg text-xs" placeholder="0">
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-bold text-gray-500 uppercase text-center mb-1">PTS</p>
+                                    <input type="number" value="${sub.score_pts || 0}" onchange="updateSubjectScore(${idx}, 'pts', this.value)" class="w-full p-1.5 text-center font-black text-blue-700 bg-blue-50 border-none rounded-lg text-xs" placeholder="0">
+                                </div>
+                                <div>
+                                    <p class="text-[9px] font-bold text-gray-500 uppercase text-center mb-1">PAS</p>
+                                    <input type="number" value="${sub.score_pas || 0}" onchange="updateSubjectScore(${idx}, 'pas', this.value)" class="w-full p-1.5 text-center font-black text-blue-700 bg-blue-50 border-none rounded-lg text-xs" placeholder="0">
+                                </div>
+                            </div>
+                            <input type="text" value="${sub.note || ''}" onchange="updateSubjectNote(${idx}, this.value)" placeholder="Catatan/Materi yang dinilai..." class="w-full p-2.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-xl border-none focus:bg-white focus:ring-1 focus:ring-blue-500">
                         </div>
                     `);
                 });
@@ -1477,15 +1521,31 @@
             switchTab('editor');
         };
 
-        window.updateSubjectScore = async (idx, val) => {
+        // Fungsi khusus mengambil tanggal dari inputan guru untuk distempel ke mapel
+        const getDisplayDateFromInput = () => {
+            const dateInput = document.getElementById('input-tanggal-aksi');
+            const dateVal = dateInput ? dateInput.value : '';
+            let displayDate = new Date().toLocaleDateString('id-ID'); 
+            if (dateVal) {
+                const [y, m, d] = dateVal.split('-');
+                displayDate = `${parseInt(d)}/${parseInt(m)}/${y}`; 
+            }
+            return displayDate;
+        };
+
+        window.updateSubjectScore = async (idx, type, val) => {
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
-            studentsData[stIdx].subjects[idx].score = parseInt(val) || 0;
+            studentsData[stIdx].subjects[idx][`score_${type}`] = parseInt(val) || 0;
+            studentsData[stIdx].subjects[idx].last_updated_date = getDisplayDateFromInput();
+            
             await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
 
         window.updateSubjectNote = async (idx, val) => {
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             studentsData[stIdx].subjects[idx].note = val;
+            studentsData[stIdx].subjects[idx].last_updated_date = getDisplayDateFromInput();
+            
             await setDoc(doc(db, 'students', currentStudentId), studentsData[stIdx]);
         };
 
@@ -1493,14 +1553,7 @@
             const stIdx = studentsData.findIndex(s => s.docId === currentStudentId);
             let st = studentsData[stIdx];
             
-            const dateInput = document.getElementById('input-tanggal-aksi');
-            const dateVal = dateInput ? dateInput.value : '';
-            let displayDate = new Date().toLocaleDateString('id-ID'); 
-            
-            if (dateVal) {
-                const [y, m, d] = dateVal.split('-');
-                displayDate = `${parseInt(d)}/${parseInt(m)}/${y}`; 
-            }
+            const displayDate = getDisplayDateFromInput();
             
             const newEvent = {
                 id: Date.now(), date: displayDate, time: new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
@@ -1568,12 +1621,16 @@
 
                 if (st.subjects && Array.isArray(st.subjects)) {
                     st.subjects.forEach(sub => {
-                        if (sub.score > 0) {
-                            totalScore += sub.score;
-                            scoredSubjectsCount++;
-                        }
+                        // Rata-rata Akademik diambil dari semua nilai yang masuk
+                        const scores = [sub.score_harian||0, sub.score_uh||0, sub.score_pts||0, sub.score_pas||0];
+                        scores.forEach(s => {
+                            if (s > 0) {
+                                totalScore += s;
+                                scoredSubjectsCount++;
+                            }
+                        });
                         if (sub.name.toLowerCase().includes('wafa') || sub.name.toLowerCase().includes('tahfidz')) {
-                            wafaScore = sub.score || 0;
+                            wafaScore = sub.score_harian || sub.score_uh || sub.score_pts || sub.score_pas || 0;
                         }
                     });
                 }
@@ -1608,14 +1665,20 @@
                         st.subjects.forEach(sub => {
                             tbody.insertAdjacentHTML('beforeend', `
                                 <tr class="hover:bg-blue-50/30 transition-colors">
-                                    <td class="px-4 py-4 font-extrabold text-gray-800">${sub.name || '-'}</td>
-                                    <td class="px-4 py-4 text-center font-black text-lg text-blue-600 bg-blue-50/50">${sub.score || 0}</td>
-                                    <td class="px-4 py-4 text-gray-600 font-medium">${sub.note || '<span class="text-gray-300 italic">Tidak ada catatan</span>'}</td>
+                                    <td class="px-4 py-4">
+                                        <p class="font-extrabold text-gray-800">${sub.name || '-'}</p>
+                                        <p class="text-[9px] font-bold text-gray-400 mt-1">${sub.last_updated_date ? 'Diperbarui: ' + sub.last_updated_date : 'Belum dinilai'}</p>
+                                    </td>
+                                    <td class="px-3 py-4 text-center font-black text-sm text-blue-600 bg-blue-50/20">${sub.score_harian || 0}</td>
+                                    <td class="px-3 py-4 text-center font-black text-sm text-blue-600 bg-blue-50/40">${sub.score_uh || 0}</td>
+                                    <td class="px-3 py-4 text-center font-black text-sm text-blue-600 bg-blue-50/60">${sub.score_pts || 0}</td>
+                                    <td class="px-3 py-4 text-center font-black text-sm text-blue-600 bg-blue-50/80">${sub.score_pas || 0}</td>
+                                    <td class="px-4 py-4 text-gray-600 font-medium text-xs">${sub.note || '<span class="text-gray-300 italic">Tidak ada catatan</span>'}</td>
                                 </tr>
                             `);
                         });
                     } else {
-                        tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
                     }
                 }
 
@@ -1718,7 +1781,7 @@
                             kelas: kelas,
                             poin: 0, 
                             point_history: [],
-                            subjects: subjectsList.map(name => ({ name: name, score: 0, note: '' }))
+                            subjects: subjectsList.map(name => ({ name: name, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, note: '', last_updated_date: '' }))
                         };
                         await setDoc(studentRef, data);
                         newCount++;
