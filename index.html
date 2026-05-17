@@ -160,9 +160,29 @@
 
             <!-- Leaderboard Section -->
             <section id="leaderboard-section" class="hidden animate-in slide-in-from-bottom-4 duration-500">
-                <div class="mb-8">
-                    <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
-                    <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tracking Karakter Siswa</h2>
+                        <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
+                    </div>
+                    <div class="w-full md:w-auto">
+                        <!-- FITUR BARU: Filter Bulan -->
+                        <select id="leaderboard-bulan" onchange="renderLeaderboard()" class="px-5 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold shadow-sm appearance-none cursor-pointer text-gray-700 w-full">
+                            <option value="ALL">🌟 Akumulasi Total</option>
+                            <option value="1">Bulan Januari</option>
+                            <option value="2">Bulan Februari</option>
+                            <option value="3">Bulan Maret</option>
+                            <option value="4">Bulan April</option>
+                            <option value="5">Bulan Mei</option>
+                            <option value="6">Bulan Juni</option>
+                            <option value="7">Bulan Juli</option>
+                            <option value="8">Bulan Agustus</option>
+                            <option value="9">Bulan September</option>
+                            <option value="10">Bulan Oktober</option>
+                            <option value="11">Bulan November</option>
+                            <option value="12">Bulan Desember</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -757,7 +777,11 @@
             
             if (newGrade > 9) return "Lulus";
             if (newGrade < 7) return "Belum Masuk";
-            if (newGrade > 7) suffix = "";
+            
+            // LOGIKA BARU: Jika kelas sudah 8 atau 9, buang embel-embel A/B
+            if (newGrade > 7) {
+                suffix = "";
+            }
             
             return newGrade + suffix;
         };
@@ -1429,6 +1453,8 @@
 
         window.renderLeaderboard = () => {
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
+            const selectedBulan = document.getElementById('leaderboard-bulan')?.value || 'ALL';
+            
             const listUnggulan = document.getElementById('list-unggulan');
             const listBimbingan = document.getElementById('list-bimbingan');
             
@@ -1436,18 +1462,39 @@
             if(listBimbingan) listBimbingan.innerHTML = '';
 
             let activeStudents = studentsData.map(st => {
+                let periodPoin = 0;
+                
+                if (selectedBulan === 'ALL') {
+                    periodPoin = st.poin || 0;
+                } else {
+                    if (st.point_history && Array.isArray(st.point_history)) {
+                        st.point_history.forEach(item => {
+                            if (item.category !== 'Akademik' && item.date) {
+                                const parts = item.date.split('/');
+                                if (parts.length === 3) {
+                                    const historyMonth = parseInt(parts[1]);
+                                    if (historyMonth === parseInt(selectedBulan)) {
+                                        periodPoin += (item.pointChange || 0);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+
                 return {
                     ...st,
-                    calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun)
+                    calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun),
+                    periodPoin: periodPoin 
                 };
             }).filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');
 
-            const sortedDesc = [...activeStudents].sort((a, b) => (b.poin || 0) - (a.poin || 0));
-            const sortedAsc = [...activeStudents].sort((a, b) => (a.poin || 0) - (b.poin || 0));
+            const sortedDesc = [...activeStudents].sort((a, b) => (b.periodPoin || 0) - (a.periodPoin || 0));
+            const sortedAsc = [...activeStudents].sort((a, b) => (a.periodPoin || 0) - (b.periodPoin || 0));
 
-            const topPositif = sortedDesc.filter(st => (st.poin || 0) > 0).slice(0, 10);
+            const topPositif = sortedDesc.filter(st => (st.periodPoin || 0) > 0).slice(0, 10);
             if (topPositif.length === 0 && listUnggulan) {
-                listUnggulan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Belum ada siswa dengan poin positif di tahun ini.</p></div>';
+                listUnggulan.innerHTML = `<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Belum ada siswa dengan poin positif ${selectedBulan === 'ALL' ? 'di tahun ini' : 'di bulan ini'}.</p></div>`;
             } else if (listUnggulan) {
                 topPositif.forEach((st, idx) => {
                     listUnggulan.insertAdjacentHTML('beforeend', `
@@ -1459,15 +1506,15 @@
                                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.calculatedKelas}</p>
                                 </div>
                             </div>
-                            <span class="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-black text-sm">+${st.poin}</span>
+                            <span class="bg-green-100 text-green-700 px-4 py-1.5 rounded-full font-black text-sm">+${st.periodPoin}</span>
                         </div>
                     `);
                 });
             }
 
-            const topNegatif = sortedAsc.filter(st => (st.poin || 0) < 0).slice(0, 15);
+            const topNegatif = sortedAsc.filter(st => (st.periodPoin || 0) < 0).slice(0, 15);
             if (topNegatif.length === 0 && listBimbingan) {
-                listBimbingan.innerHTML = '<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Alhamdulillah, tidak ada siswa yang berada di poin negatif.</p></div>';
+                listBimbingan.innerHTML = `<div class="text-center py-8"><p class="text-sm text-gray-400 font-bold">Alhamdulillah, tidak ada siswa yang berada di poin negatif ${selectedBulan === 'ALL' ? 'di tahun ini' : 'di bulan ini'}.</p></div>`;
             } else if (listBimbingan) {
                 topNegatif.forEach((st, idx) => {
                     listBimbingan.insertAdjacentHTML('beforeend', `
@@ -1479,7 +1526,7 @@
                                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Kelas ${st.calculatedKelas}</p>
                                 </div>
                             </div>
-                            <span class="bg-red-100 text-red-700 px-4 py-1.5 rounded-full font-black text-sm">${st.poin}</span>
+                            <span class="bg-red-100 text-red-700 px-4 py-1.5 rounded-full font-black text-sm">${st.periodPoin}</span>
                         </div>
                     `);
                 });
@@ -1558,7 +1605,6 @@
                 });
             }
 
-            // Render Guru Timeline
             renderTimeline(st.point_history, 'guru-timeline');
 
             switchTab('editor');
@@ -1576,7 +1622,6 @@
             st.subjects[idx][`score_${type}`] = scoreVal;
             st.subjects[idx].last_updated_date = getDisplayDateFromInput();
             
-            // LOGIKA TAMBAH HISTORY OTOMATIS
             let typeLabel = type.toUpperCase();
             if(type === 'harian') typeLabel = 'Harian';
             if(type === 'uh') typeLabel = 'Mingguan (UH)';
@@ -1594,7 +1639,7 @@
 
             if(!st.point_history) st.point_history = [];
             st.point_history.unshift(newEvent);
-            if(st.point_history.length > 50) st.point_history.pop();
+            if(st.point_history.length > 300) st.point_history.pop();
 
             await setDoc(doc(db, 'students', currentStudentId), st);
         };
@@ -1610,7 +1655,6 @@
             st.subjects[idx].note = val;
             st.subjects[idx].last_updated_date = getDisplayDateFromInput();
             
-            // LOGIKA TAMBAH HISTORY OTOMATIS
             const displayDate = getDisplayDateFromInput();
             const newEvent = {
                 id: Date.now(), 
@@ -1624,7 +1668,7 @@
 
             if(!st.point_history) st.point_history = [];
             st.point_history.unshift(newEvent);
-            if(st.point_history.length > 50) st.point_history.pop();
+            if(st.point_history.length > 300) st.point_history.pop();
 
             await setDoc(doc(db, 'students', currentStudentId), st);
         };
@@ -1641,7 +1685,7 @@
             };
 
             st.point_history.unshift(newEvent);
-            if(st.point_history.length > 50) st.point_history.pop();
+            if(st.point_history.length > 300) st.point_history.pop();
             st.poin = (st.poin || 0) + pointVal;
 
             await setDoc(doc(db, 'students', currentStudentId), st);
@@ -1717,7 +1761,6 @@
 
                 const history = st.point_history || [];
                 let positiveCount = 0;
-                // Hanya hitung tren karakter, jangan campur dengan info nilai (Akademik)
                 const validCharacterHistory = history.filter(item => item.category !== 'Akademik');
                 validCharacterHistory.forEach(item => {
                     if (item.pointChange > 0) positiveCount++;
@@ -1792,7 +1835,6 @@
                     }
                 }
 
-                // Gunakan fungsi renderTimeline yang rapi untuk Dashboard Ortu
                 renderTimeline(history, 'parent-timeline');
                 
             } catch (err) {
