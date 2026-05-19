@@ -582,6 +582,14 @@
             return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
         };
 
+        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        }[char]));
+
         const calculateCurrentKelas = (baseKelas, baseTahun, viewTahun) => {
             if (!baseKelas || !baseTahun || !viewTahun) return baseKelas || '-';
             const baseYearInt = parseInt(baseTahun.split('/')[0]);
@@ -953,22 +961,26 @@
                 let badgeClass = poin > 0 ? 'bg-green-100 text-green-800' : (poin < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500');
                 let displayPoin = poin > 0 ? `+${poin}` : poin;
                 
+                const docId = String(st.docId || '');
+                const safeDocId = escapeHtml(docId);
                 const namaRapi = formatNama(st.nama);
+                const safeNama = escapeHtml(namaRapi);
+                const safeKelas = escapeHtml(st.calculatedKelas);
                 
                 tbody.insertAdjacentHTML('beforeend', `
-                    <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
+                    <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" data-student-id="${safeDocId}">
                         <td class="px-6 py-5 text-center font-black text-gray-400">${index + 1}</td>
                         <td class="px-6 py-5">
-                            <p class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">${st.docId}</p>
+                            <p class="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">${safeDocId}</p>
                         </td>
-                        <td class="px-6 py-5 font-bold text-gray-700">${namaRapi}</td>
-                        <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.calculatedKelas}</span></td>
+                        <td class="px-6 py-5 font-bold text-gray-700">${safeNama}</td>
+                        <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${safeKelas}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                         <td class="px-6 py-5">
                             <div class="flex justify-end gap-2">
                                 <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
-                                <button type="button" onclick="bukaEditSiswa('${st.docId}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
-                                <button type="button" onclick="hapusSiswa('${st.docId}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
+                                <button type="button" data-student-action="edit" data-student-id="${safeDocId}" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
+                                <button type="button" data-student-action="delete" data-student-id="${safeDocId}" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
                             </div>
                         </td>
                     </tr>
@@ -976,11 +988,32 @@
             });
         };
 
+        const studentTableBody = document.getElementById('student-table-body');
+        if (studentTableBody) {
+            studentTableBody.addEventListener('click', (event) => {
+                const actionButton = event.target.closest('[data-student-action]');
+                if (actionButton) {
+                    event.stopPropagation();
+                    const docId = actionButton.dataset.studentId;
+                    if (actionButton.dataset.studentAction === 'edit') {
+                        window.bukaEditSiswa(docId);
+                    } else if (actionButton.dataset.studentAction === 'delete') {
+                        window.hapusSiswa(docId);
+                    }
+                    return;
+                }
+
+                const row = event.target.closest('tr[data-student-id]');
+                if (row) {
+                    window.openStudentEditor(row.dataset.studentId);
+                }
+            });
+        }
+
         // --- FITUR HAPUS SATUAN ---
         let studentToDeleteId = null;
 
-        window.hapusSiswa = (docId, event) => {
-            if (event) event.stopPropagation();
+        window.hapusSiswa = (docId) => {
             const st = studentsData.find(s => s.docId === docId);
             const nama = st ? formatNama(st.nama) : docId;
             studentToDeleteId = docId;
@@ -1132,8 +1165,7 @@
         // --- FITUR EDIT SISWA ---
         let studentToEditId = null;
 
-        window.bukaEditSiswa = (docId, event) => {
-            if (event) event.stopPropagation();
+        window.bukaEditSiswa = (docId) => {
             const currentTahun = document.getElementById('filter-tahun').value;
             const st = studentsData.find(s => s.docId === docId);
             if (!st) {
@@ -1245,6 +1277,10 @@
         window.openStudentEditor = async (docId) => {
             const currentTahun = document.getElementById('filter-tahun').value;
             const st = studentsData.find(s => s.docId === docId);
+            if (!st) {
+                showCustomAlert("Data siswa tidak ditemukan. Coba muat ulang halaman.", true);
+                return;
+            }
             await autoFixStudentData(st); 
 
             const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
