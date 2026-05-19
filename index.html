@@ -246,6 +246,16 @@
                             <option value="9">Kelas 9</option>
                         </select>
 
+                        <div class="flex items-center gap-2 w-full md:w-auto">
+                            <input id="filter-siswa-query" type="text" oninput="renderDashboard()"
+                                placeholder="Cari NIS / Nama Siswa"
+                                class="w-full md:w-64 px-5 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold shadow-sm text-gray-700">
+                            <button type="button" onclick="clearDashboardSearch()"
+                                class="px-4 py-3 bg-gray-100 border border-gray-200 rounded-full text-xs font-black text-gray-600 hover:bg-gray-200 transition-colors whitespace-nowrap">
+                                Reset Cari
+                            </button>
+                        </div>
+
                         <button onclick="document.getElementById('csv-input').click()"
                             class="px-6 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold hover:bg-gray-50 flex items-center justify-center gap-2 shadow-sm text-gray-700 transition-colors">
                             <span class="text-lg">📄</span> Impor CSV
@@ -1509,6 +1519,8 @@
         window.renderDashboard = () => {
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
             const filter = document.getElementById('filter-kelas')?.value || 'ALL';
+            const queryRaw = document.getElementById('filter-siswa-query')?.value || '';
+            const query = queryRaw.trim().toLowerCase();
             const tbody = document.getElementById('student-table-body');
             if (!tbody) return;
 
@@ -1527,6 +1539,14 @@
                 filteredStudents = filteredStudents.filter(st => st.calculatedKelas === filter);
             }
 
+            if (query) {
+                filteredStudents = filteredStudents.filter(st => {
+                    const docId = String(st.docId || '').toLowerCase();
+                    const nama = formatNama(st.nama).toLowerCase();
+                    return docId.includes(query) || nama.includes(query);
+                });
+            }
+
             filteredStudents.sort((a, b) => {
                 const nameA = (a.nama || "").toUpperCase();
                 const nameB = (b.nama || "").toUpperCase();
@@ -1534,10 +1554,15 @@
             });
 
             const badge = document.getElementById('total-siswa-badge');
-            if (badge) badge.innerText = `${filteredStudents.length} Siswa`;
+            if (badge) {
+                badge.innerText = query ? `${filteredStudents.length} Hasil` : `${filteredStudents.length} Siswa`;
+            }
 
             if (filteredStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Belum ada siswa di kelas ini pada tahun ajaran ${currentTahun}.</td></tr>`;
+                const safeQuery = escapeHtml(queryRaw.trim());
+                tbody.innerHTML = query
+                    ? `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa yang cocok dengan pencarian "${safeQuery}" pada tahun ajaran ${currentTahun}.</td></tr>`
+                    : `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Belum ada siswa di kelas ini pada tahun ajaran ${currentTahun}.</td></tr>`;
                 return;
             }
 
@@ -1571,6 +1596,14 @@
                     </tr>
                 `);
             });
+        };
+
+        window.clearDashboardSearch = () => {
+            const input = document.getElementById('filter-siswa-query');
+            if (!input) return;
+            input.value = '';
+            input.focus();
+            renderDashboard();
         };
 
         const studentTableBody = document.getElementById('student-table-body');
