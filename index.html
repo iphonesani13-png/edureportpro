@@ -967,8 +967,8 @@
                         <td class="px-6 py-5">
                             <div class="flex justify-end gap-2">
                                 <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
-                                <button onclick="bukaEditSiswa('${st.docId}', '${st.nama}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
-                                <button onclick="hapusSiswa('${st.docId}', '${st.nama}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
+                                <button type="button" onclick="bukaEditSiswa('${st.docId}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
+                                <button type="button" onclick="hapusSiswa('${st.docId}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
                             </div>
                         </td>
                     </tr>
@@ -979,8 +979,10 @@
         // --- FITUR HAPUS SATUAN ---
         let studentToDeleteId = null;
 
-        window.hapusSiswa = (docId, nama, event) => {
-            event.stopPropagation(); 
+        window.hapusSiswa = (docId, event) => {
+            if (event) event.stopPropagation();
+            const st = studentsData.find(s => s.docId === docId);
+            const nama = st ? formatNama(st.nama) : docId;
             studentToDeleteId = docId;
             document.getElementById('delete-student-name').innerText = nama;
             document.getElementById('delete-modal').classList.remove('hidden');
@@ -1130,15 +1132,19 @@
         // --- FITUR EDIT SISWA ---
         let studentToEditId = null;
 
-        window.bukaEditSiswa = (docId, nama, event) => {
-            event.stopPropagation();
+        window.bukaEditSiswa = (docId, event) => {
+            if (event) event.stopPropagation();
             const currentTahun = document.getElementById('filter-tahun').value;
             const st = studentsData.find(s => s.docId === docId);
+            if (!st) {
+                showCustomAlert("Data siswa tidak ditemukan. Coba muat ulang halaman.", true);
+                return;
+            }
             const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
 
             studentToEditId = docId;
             document.getElementById('edit-nis-input').value = docId;
-            document.getElementById('edit-nama-input').value = formatNama(nama);
+            document.getElementById('edit-nama-input').value = formatNama(st.nama);
             document.getElementById('edit-kelas-input').value = (calculatedKelas !== 'Lulus' && calculatedKelas !== 'Belum Masuk') ? calculatedKelas : '';
             document.getElementById('edit-modal').classList.remove('hidden');
         };
