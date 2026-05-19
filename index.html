@@ -166,7 +166,6 @@
                         <p class="text-gray-500 mt-1 text-sm font-medium">Pantau 10 siswa dengan poin positif tertinggi dan 15 siswa yang paling membutuhkan bimbingan khusus.</p>
                     </div>
                     <div class="w-full md:w-auto">
-                        <!-- FITUR BARU: Filter Bulan -->
                         <select id="leaderboard-bulan" onchange="renderLeaderboard()" class="px-5 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold shadow-sm appearance-none cursor-pointer text-gray-700 w-full">
                             <option value="ALL">🌟 Akumulasi Total</option>
                             <option value="1">Bulan Januari</option>
@@ -332,11 +331,20 @@
                             </div>
                         </div>
                         
-                        <!-- FITUR BARU: Timeline untuk Guru -->
+                        <!-- FITUR BARU: Timeline untuk Guru dengan Filter Waktu -->
                         <div class="glass-card p-6">
-                            <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-6 flex items-center gap-3">
-                                <span class="text-xl">⏱️</span> Riwayat Aktivitas & Nilai
-                            </h3>
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+                                <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-3">
+                                    <span class="text-xl">⏱️</span> Riwayat Aktivitas
+                                </h3>
+                                <select id="guru-timeline-filter" onchange="applyTimelineFilter('guru')" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-lg px-3 py-2 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto">
+                                    <option value="ALL">Semua Waktu</option>
+                                    <option value="TODAY">Hari Ini</option>
+                                    <option value="7DAYS">7 Hari Terakhir</option>
+                                    <option value="14DAYS">14 Hari Terakhir</option>
+                                    <option value="30DAYS">30 Hari Terakhir</option>
+                                </select>
+                            </div>
                             <ul id="guru-timeline" class="space-y-4 relative before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:ml-[1.1rem] before:h-full before:w-0.5 before:bg-gradient-to-b before:from-gray-200 before:via-gray-100 before:to-transparent max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                 <!-- Render JS -->
                             </ul>
@@ -467,11 +475,21 @@
                         </div>
 
                         <div class="lg:col-span-5">
+                            <!-- FITUR BARU: Timeline Filter Waktu untuk Ortu -->
                             <div class="glass-card p-6 md:p-8 h-full">
-                                <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest mb-8 flex items-center gap-3">
-                                    <span class="text-xl">⏱️</span> Live Timeline Aktivitas
-                                </h3>
-                                <ul id="parent-timeline" class="space-y-6 relative before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:ml-[1.1rem] before:h-full before:w-0.5 before:bg-gradient-to-b before:from-gray-200 before:via-gray-100 before:to-transparent">
+                                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-3">
+                                    <h3 class="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-3">
+                                        <span class="text-xl">⏱️</span> Timeline Aktivitas
+                                    </h3>
+                                    <select id="ortu-timeline-filter" onchange="applyTimelineFilter('ortu')" class="bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-lg px-3 py-2 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-auto">
+                                        <option value="ALL">Semua Waktu</option>
+                                        <option value="TODAY">Hari Ini</option>
+                                        <option value="7DAYS">7 Hari Terakhir</option>
+                                        <option value="14DAYS">14 Hari Terakhir</option>
+                                        <option value="30DAYS">30 Hari Terakhir</option>
+                                    </select>
+                                </div>
+                                <ul id="parent-timeline" class="space-y-6 relative before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:ml-[1.1rem] before:h-full before:w-0.5 before:bg-gradient-to-b before:from-gray-200 before:via-gray-100 before:to-transparent max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                                     <!-- Render JS -->
                                 </ul>
                             </div>
@@ -618,14 +636,69 @@
         let unsubscribeAssignments = null; 
         let subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
-        // --- FUNGSI GLOBAL RENDER TIMELINE ---
+        // --- FUNGSI PARSING TANGGAL ---
+        const parseDate = (dateStr) => {
+            if (!dateStr) return new Date();
+            const parts = dateStr.split('/');
+            if(parts.length === 3) {
+                return new Date(parts[2], parts[1]-1, parts[0]);
+            }
+            return new Date();
+        };
+
+        // --- FUNGSI GLOBAL RENDER TIMELINE DENGAN FILTER ---
+        window.applyTimelineFilter = (role) => {
+            const filterId = role === 'guru' ? 'guru-timeline-filter' : 'ortu-timeline-filter';
+            const tlId = role === 'guru' ? 'guru-timeline' : 'parent-timeline';
+            const filterEl = document.getElementById(filterId);
+            if(!filterEl) return;
+            
+            const filterVal = filterEl.value;
+            
+            let st;
+            if (role === 'guru') {
+                st = studentsData.find(s => s.docId === currentStudentId);
+            } else {
+                st = window.currentParentData;
+            }
+            if (!st) return;
+
+            const history = st.point_history || [];
+            
+            if (filterVal === 'ALL') {
+                renderTimeline(history, tlId);
+                return;
+            }
+
+            const now = new Date();
+            now.setHours(0,0,0,0);
+
+            const filteredHistory = history.filter(item => {
+                if(!item.date) return true; 
+                const itemDate = parseDate(item.date);
+                itemDate.setHours(0,0,0,0);
+                
+                const diffTime = now.getTime() - itemDate.getTime();
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                if (filterVal === 'TODAY') return diffDays === 0;
+                if (filterVal === '7DAYS') return diffDays >= 0 && diffDays <= 7;
+                if (filterVal === '14DAYS') return diffDays >= 0 && diffDays <= 14;
+                if (filterVal === '30DAYS') return diffDays >= 0 && diffDays <= 30;
+                
+                return true;
+            });
+
+            renderTimeline(filteredHistory, tlId);
+        };
+
         window.renderTimeline = (history, elementId) => {
             const tl = document.getElementById(elementId);
             if(!tl) return;
             tl.innerHTML = '';
             
             if(!history || history.length === 0) {
-                tl.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada aktivitas tercatat.</p></div>';
+                tl.innerHTML = '<div class="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200"><p class="text-gray-400 font-bold text-sm">Belum ada aktivitas tercatat pada waktu tersebut.</p></div>';
                 return;
             }
 
@@ -778,7 +851,6 @@
             if (newGrade > 9) return "Lulus";
             if (newGrade < 7) return "Belum Masuk";
             
-            // LOGIKA BARU: Jika kelas sudah 8 atau 9, buang embel-embel A/B
             if (newGrade > 7) {
                 suffix = "";
             }
@@ -1136,7 +1208,6 @@
             return false;
         }
 
-        // --- SISTEM TAB YANG SUDAH DIBUAT 100% AMAN (ANTI-CRASH) ---
         window.switchTab = (mode) => {
             const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer'];
             
@@ -1207,6 +1278,7 @@
                 let displayPoin = poin > 0 ? `+${poin}` : poin;
                 
                 const namaRapi = formatNama(st.nama);
+                const safeNama = namaRapi.replace(/'/g, "\\'");
                 
                 tbody.insertAdjacentHTML('beforeend', `
                     <tr class="hover:bg-blue-50/50 transition-colors group cursor-pointer" onclick="openStudentEditor('${st.docId}')">
@@ -1218,10 +1290,10 @@
                         <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${st.calculatedKelas}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                         <td class="px-6 py-5">
-                            <div class="flex justify-end gap-2">
-                                <button class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
-                                <button onclick="bukaEditSiswa('${st.docId}', '${st.nama}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer pointer-events-auto shadow-sm">Edit</button>
-                                <button onclick="hapusSiswa('${st.docId}', '${st.nama}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer pointer-events-auto shadow-sm">Hapus</button>
+                            <div class="flex justify-end gap-2 relative z-20">
+                                <button type="button" class="pointer-events-none text-blue-600 font-bold text-sm bg-blue-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
+                                <button type="button" onclick="event.stopPropagation(); bukaEditSiswa('${st.docId}', '${safeNama}', event)" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer shadow-sm">Edit</button>
+                                <button type="button" onclick="event.stopPropagation(); hapusSiswa('${st.docId}', '${safeNama}', event)" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer shadow-sm">Hapus</button>
                             </div>
                         </td>
                     </tr>
@@ -1230,7 +1302,7 @@
         };
 
         window.hapusSiswa = (docId, nama, event) => {
-            event.stopPropagation(); 
+            if(event) event.stopPropagation(); 
             studentToDeleteId = docId;
             const delName = document.getElementById('delete-student-name');
             const delModal = document.getElementById('delete-modal');
@@ -1329,6 +1401,8 @@
             if(overlay) overlay.classList.add('hidden');
         };
 
+        let taskToDeleteId = null;
+
         window.hapusTugas = (id) => {
             taskToDeleteId = id;
             const modal = document.getElementById('delete-task-modal');
@@ -1393,7 +1467,7 @@
         };
 
         window.bukaEditSiswa = (docId, nama, event) => {
-            event.stopPropagation();
+            if(event) event.stopPropagation();
             const currentTahun = document.getElementById('filter-tahun')?.value || '2025/2026';
             const st = studentsData.find(s => s.docId === docId);
             const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
@@ -1605,7 +1679,9 @@
                 });
             }
 
-            renderTimeline(st.point_history, 'guru-timeline');
+            const filterEl = document.getElementById('guru-timeline-filter');
+            if(filterEl) filterEl.value = 'ALL';
+            window.applyTimelineFilter('guru');
 
             switchTab('editor');
         };
@@ -1642,6 +1718,7 @@
             if(st.point_history.length > 300) st.point_history.pop();
 
             await setDoc(doc(db, 'students', currentStudentId), st);
+            window.applyTimelineFilter('guru');
         };
 
         window.updateSubjectNote = async (idx, val) => {
@@ -1671,6 +1748,7 @@
             if(st.point_history.length > 300) st.point_history.pop();
 
             await setDoc(doc(db, 'students', currentStudentId), st);
+            window.applyTimelineFilter('guru');
         };
 
         window.quickTrackEvent = async (category, desc, pointVal, icon) => {
@@ -1689,6 +1767,7 @@
             st.poin = (st.poin || 0) + pointVal;
 
             await setDoc(doc(db, 'students', currentStudentId), st);
+            window.applyTimelineFilter('guru');
         };
 
         window.tambahTransaksiPoin = async () => {
@@ -1835,7 +1914,9 @@
                     }
                 }
 
-                renderTimeline(history, 'parent-timeline');
+                const filterElOrtu = document.getElementById('ortu-timeline-filter');
+                if(filterElOrtu && filterElOrtu.value === '') filterElOrtu.value = 'ALL';
+                window.applyTimelineFilter('ortu');
                 
             } catch (err) {
                 console.error("Kesalahan Rendering Visual:", err);
