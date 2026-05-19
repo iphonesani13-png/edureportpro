@@ -85,6 +85,22 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        .student-row-action {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+            .student-row-action {
+                opacity: 0;
+            }
+
+            tr.group:hover .student-row-action,
+            tr.group:focus-within .student-row-action {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 
@@ -1546,10 +1562,10 @@
                         <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${safeKelas}</span></td>
                         <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                         <td class="px-6 py-5">
-                            <div class="flex justify-end gap-2 relative z-50">
-                                <button type="button" class="pointer-events-none text-purple-600 font-bold text-sm bg-purple-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">Buka Profil &rarr;</button>
-                                <button type="button" data-student-action="edit" data-student-id="${safeDocId}" class="text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-100 cursor-pointer shadow-sm relative z-50 pointer-events-auto">Edit</button>
-                                <button type="button" data-student-action="delete" data-student-id="${safeDocId}" class="text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 cursor-pointer shadow-sm relative z-50 pointer-events-auto">Hapus</button>
+                            <div class="flex justify-end gap-2 relative z-50" data-row-action-block>
+                                <button type="button" data-student-action="profile" data-student-id="${safeDocId}" class="student-row-action text-purple-600 font-bold text-sm bg-purple-50 px-4 py-2 rounded-xl transition-opacity hover:bg-purple-100 cursor-pointer shadow-sm relative z-50">Buka Profil &rarr;</button>
+                                <button type="button" data-student-action="edit" data-student-id="${safeDocId}" class="student-row-action text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl transition-opacity hover:bg-orange-100 cursor-pointer shadow-sm relative z-50">Edit</button>
+                                <button type="button" data-student-action="delete" data-student-id="${safeDocId}" class="student-row-action text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl transition-opacity hover:bg-red-100 cursor-pointer shadow-sm relative z-50">Hapus</button>
                             </div>
                         </td>
                     </tr>
@@ -1560,11 +1576,19 @@
         const studentTableBody = document.getElementById('student-table-body');
         if (studentTableBody) {
             studentTableBody.addEventListener('click', (event) => {
-                const actionButton = event.target.closest('[data-student-action]');
+                const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+                if (!target) return;
+
+                const actionButton = target.closest('[data-student-action]');
                 if (actionButton) {
+                    event.preventDefault();
                     event.stopPropagation();
-                    const docId = actionButton.dataset.studentId;
-                    if (actionButton.dataset.studentAction === 'edit') {
+                    const docId = actionButton.getAttribute('data-student-id');
+                    if (!docId) return;
+
+                    if (actionButton.dataset.studentAction === 'profile') {
+                        window.openStudentEditor(docId);
+                    } else if (actionButton.dataset.studentAction === 'edit') {
                         window.bukaEditSiswa(docId);
                     } else if (actionButton.dataset.studentAction === 'delete') {
                         window.hapusSiswa(docId);
@@ -1572,7 +1596,9 @@
                     return;
                 }
 
-                const row = event.target.closest('tr[data-student-id]');
+                if (target.closest('[data-row-action-block], button, a, input, select, textarea')) return;
+
+                const row = target.closest('tr[data-student-id]');
                 if (row) {
                     window.openStudentEditor(row.dataset.studentId);
                 }
