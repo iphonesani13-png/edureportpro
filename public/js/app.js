@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun } from "./modules/utils.js";
+        import { loadPartial, renderAppFragments, registerStudentTableEvents } from "./modules/page-loader.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
@@ -35,17 +37,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let unsubscribeAssignments = null;
         let subjectsList = ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'];
 
-        // --- FUNGSI PARSING TANGGAL ---
-        const parseDate = (dateStr) => {
-            if (!dateStr) return new Date();
-            const parts = dateStr.split('/');
-            if (parts.length === 3) {
-                return new Date(parts[2], parts[1] - 1, parts[0]);
-            }
-            return new Date();
-        };
-
-        // --- FUNGSI GLOBAL RENDER TIMELINE DENGAN FILTER ---
+        // --- GLOBAL RENDER TIMELINE DENGAN FILTER ---
         window.applyTimelineFilter = (role) => {
             const filterId = role === 'guru' ? 'guru-timeline-filter' : 'ortu-timeline-filter';
             const tlId = role === 'guru' ? 'guru-timeline' : 'parent-timeline';
@@ -265,15 +257,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return newGrade + suffix;
         };
 
-        const getActiveTahun = () => {
-            const saved = localStorage.getItem('tahun_ajaran');
-            if (saved) return saved;
-            const now = new Date();
-            const y = now.getFullYear();
-            const startYear = now.getMonth() < 6 ? y - 1 : y;
-            return `${startYear}/${startYear + 1}`;
-        };
-
         const setupTahunAjaran = () => {
             const tahunSelect = document.getElementById('filter-tahun');
             if (tahunSelect) {
@@ -295,25 +278,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
         }
         
-        const loadPartial = async (filePath) => {
-            const response = await fetch(filePath);
-            if (!response.ok) {
-                throw new Error(`Failed to load partial: ${filePath}`);
-            }
-            return response.text();
-        };
-
-        const renderAppFragments = async () => {
-            const root = document.getElementById('app-root');
-            if (!root) return;
-            const loadingHtml = await loadPartial('./partials/loading.html');
-            const loginHtml = await loadPartial('./partials/login-screen.html');
-            const ortuHtml = await loadPartial('./partials/ortu-setup-screen.html');
-            const mainHtml = await loadPartial('./partials/main-app.html');
-            const modalsHtml = await loadPartial('./partials/body-modals.html');
-            root.innerHTML = loadingHtml + loginHtml + ortuHtml + mainHtml + modalsHtml;
-        };
-
         window.setLoginRole = (role) => {
             currentRole = role;
             const btnGuru = document.getElementById('role-btn-guru');
@@ -769,40 +733,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             input.value = '';
             input.focus();
             renderDashboard();
-        };
-
-        const registerStudentTableEvents = () => {
-            const studentTableBody = document.getElementById('student-table-body');
-            if (studentTableBody) {
-                studentTableBody.addEventListener('click', (event) => {
-                    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-                    if (!target) return;
-
-                    const actionButton = target.closest('[data-student-action]');
-                    if (actionButton) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const docId = actionButton.getAttribute('data-student-id');
-                        if (!docId) return;
-
-                        if (actionButton.dataset.studentAction === 'profile') {
-                            window.openStudentEditor(docId);
-                        } else if (actionButton.dataset.studentAction === 'edit') {
-                            window.bukaEditSiswa(docId);
-                        } else if (actionButton.dataset.studentAction === 'delete') {
-                            window.hapusSiswa(docId);
-                        }
-                        return;
-                    }
-
-                    if (target.closest('[data-row-action-block], button, a, input, select, textarea')) return;
-
-                    const row = target.closest('tr[data-student-id]');
-                    if (row) {
-                        window.openStudentEditor(row.dataset.studentId);
-                    }
-                });
-            }
         };
 
         const initApp = async () => {

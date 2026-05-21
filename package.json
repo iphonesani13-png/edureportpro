@@ -1,0 +1,16 @@
+{
+  "name": "edureportpro",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080 --directory public",
+    "serve": "python3 -m http.server 8080 --directory public"
+  },
+  "description": "Frontend project for edureportpro with modular JS and partial HTML layout.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iphonesani13-png/edureportpro.git"
+  },
+  "author": "iphonesani13-png"
+}
