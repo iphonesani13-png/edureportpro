@@ -1,0 +1,144 @@
+<!-- POP-UP CUSTOM UNTUK SEMUA NOTIFIKASI ERROR/BERHASIL -->
+    <div id="global-alert-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[300] flex items-center justify-center hidden">
+        <div
+            class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100 text-center relative">
+            <div id="global-alert-icon"
+                class="w-16 h-16 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">ℹ️</div>
+            <h3 id="global-alert-title" class="text-xl font-black text-gray-900 mb-2">Pemberitahuan</h3>
+            <p id="global-alert-message" class="text-sm text-gray-600 mb-8 leading-relaxed"></p>
+            <button onclick="closeGlobalAlert()"
+                class="w-full py-3.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors shadow-lg shadow-gray-200">Oke,
+                Mengerti</button>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Satuan -->
+    <div id="delete-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div
+                class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">
+                🗑️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Hapus Data Siswa?</h3>
+            <p class="text-sm text-gray-600 mb-8 text-center leading-relaxed">Anda yakin ingin menghapus data <strong
+                    id="delete-student-name" class="text-gray-900"></strong>? Data nilai dan riwayat yang dihapus tidak
+                dapat dikembalikan.</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapus()"
+                    class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiHapus()"
+                    class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya,
+                    Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus SEMUA Siswa -->
+    <div id="delete-all-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-red-100">
+            <div
+                class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">
+                ⚠️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Hapus SEMUA Siswa?</h3>
+            <p class="text-sm text-gray-600 mb-8 text-center leading-relaxed">Perhatian! Tindakan ini akan <b>menghapus
+                    seluruh data siswa</b> di database (Nilai, Poin, Riwayat). Sangat disarankan hanya digunakan saat
+                kelulusan atau reset awal tahun ajaran. Lanjutkan?</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapusSemua()"
+                    class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiHapusSemua()"
+                    class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya,
+                    Kosongkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus Tugas -->
+    <div id="delete-task-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div
+                class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">
+                🗑️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Hapus Tugas?</h3>
+            <p class="text-sm text-gray-600 mb-8 text-center leading-relaxed">Anda yakin ingin menghapus tugas ini? Info
+                ini akan langsung hilang dari dasbor Orang Tua.</p>
+            <div class="flex gap-3">
+                <button onclick="batalHapusTugas()"
+                    class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiHapusTugas()"
+                    class="flex-1 py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200">Ya,
+                    Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Mapel -->
+    <div id="tambah-mapel-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div
+                class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">
+                📚</div>
+            <h3 class="text-xl font-black text-gray-900 mb-2 text-center">Tambah Mata Pelajaran</h3>
+            <p class="text-sm text-gray-600 mb-6 text-center leading-relaxed">Mata pelajaran baru ini akan otomatis
+                ditambahkan ke profil nilai seluruh siswa.</p>
+
+            <div class="space-y-4 mb-6 text-left">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nama Mata
+                        Pelajaran</label>
+                    <input type="text" id="input-mapel-baru" placeholder="Cth: Prakarya"
+                        class="w-full p-3 mt-1 bg-gray-50 text-gray-900 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-purple-500">
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="batalTambahMapel()"
+                    class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiTambahMapel()"
+                    class="flex-1 py-3.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200">Tambahkan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit Siswa -->
+    <div id="edit-modal"
+        class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[200] flex items-center justify-center hidden">
+        <div class="bg-white p-6 md:p-8 rounded-3xl max-w-sm w-full mx-4 shadow-2xl border border-gray-100">
+            <div
+                class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 mx-auto">
+                ✏️</div>
+            <h3 class="text-xl font-black text-gray-900 mb-6 text-center">Edit Data Siswa</h3>
+
+            <div class="space-y-4 mb-6 text-left">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ID/NIS (Tetap)</label>
+                    <input type="text" id="edit-nis-input" disabled
+                        class="w-full p-3 mt-1 bg-gray-100 text-gray-500 rounded-xl font-mono text-sm border-0">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nama Lengkap</label>
+                    <input type="text" id="edit-nama-input"
+                        class="w-full p-3 mt-1 bg-gray-50 text-gray-900 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kelas / Rombel (Cth:
+                        8A)</label>
+                    <input type="text" id="edit-kelas-input" placeholder="Ketik Kelas Baru"
+                        class="w-full p-3 mt-1 bg-gray-50 text-gray-900 rounded-xl font-bold text-sm border-0 focus:ring-2 focus:ring-purple-500">
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="batalEdit()"
+                    class="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">Batal</button>
+                <button onclick="konfirmasiEdit()"
+                    class="flex-1 py-3.5 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors shadow-lg shadow-purple-200">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
