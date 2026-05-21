@@ -22,3 +22,4 @@ Struktur proyek telah ditingkatkan menjadi lebih profesional:
 3. Buka `http://localhost:8080`
 
 > `package.json` sudah ditambahkan agar kamu punya titik mulai untuk server lokal dan penggunaan modul JS.
+> `vercel.json` juga sudah ditambahkan agar deployment Vercel menggunakan folder `public` sebagai root.
