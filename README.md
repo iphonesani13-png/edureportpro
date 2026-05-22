@@ -18,7 +18,7 @@ Struktur proyek telah ditingkatkan menjadi lebih profesional:
 1. Buka terminal di folder proyek.
 2. Jalankan:
    - `npm start`
-   - atau `python3 -m http.server 8080`
+   - atau `python3 -m http.server 8080 --directory public`
 3. Buka `http://localhost:8080`
 
 > `package.json` sudah ditambahkan agar kamu punya titik mulai untuk server lokal dan penggunaan modul JS.

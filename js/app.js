@@ -218,44 +218,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (modalEl) modalEl.classList.add('hidden');
         };
 
-        const formatNama = (str) => {
-            if (!str) return "";
-            return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-        };
+        
 
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[char]));
-
-        const calculateCurrentKelas = (baseKelas, baseTahun, viewTahun) => {
-            if (!baseKelas || !baseTahun || !viewTahun) return baseKelas || '-';
-            const baseYearInt = parseInt(baseTahun.split('/')[0]);
-            const viewYearInt = parseInt(viewTahun.split('/')[0]);
-
-            if (isNaN(baseYearInt) || isNaN(viewYearInt)) return baseKelas;
-
-            const diff = viewYearInt - baseYearInt;
-            if (diff === 0) return baseKelas;
-
-            const match = baseKelas.match(/^(\d+)(.*)$/);
-            if (!match) return baseKelas;
-
-            let newGrade = parseInt(match[1]) + diff;
-            let suffix = match[2];
-
-            if (newGrade > 9) return "Lulus";
-            if (newGrade < 7) return "Belum Masuk";
-
-            if (newGrade > 7) {
-                suffix = "";
-            }
-
-            return newGrade + suffix;
-        };
+        
+        
 
         const setupTahunAjaran = () => {
             const tahunSelect = document.getElementById('filter-tahun');
