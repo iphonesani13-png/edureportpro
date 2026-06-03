@@ -1,34 +1,31 @@
-<section id="ortu-setup-screen" class="hidden min-h-screen flex items-center justify-center p-6 bg-[#FBF7F0] relative overflow-hidden">
-    <!-- DNA UmrohHub: Subtle Geometric Pattern -->
-    <div class="absolute top-0 left-0 w-full h-full opacity-[0.02] pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
-    <div class="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#C9A84C]/5 rounded-full blur-[100px]"></div>
+<section id="ortu-setup-screen" class="hidden min-h-screen flex items-center justify-center p-6 bg-[#f8fafc] relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/cubes.png');"></div>
 
     <div class="max-w-md w-full space-y-10 relative z-10">
         <div class="text-center">
-            <div class="w-20 h-20 bg-[#1B6B3A] rounded-[2rem] flex items-center justify-center text-[#F5E6C8] text-3xl font-black shadow-2xl mx-auto mb-8 transform hover:rotate-12 transition-transform duration-500">
+            <div class="w-16 h-16 bg-violet-600 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-lg shadow-violet-200 mx-auto mb-6">
                 LT
             </div>
-            <h2 class="text-4xl font-black text-[#1A2F1E] tracking-tighter italic">Aktivasi Portal Wali</h2>
-            <div class="w-12 h-1 bg-[#C9A84C] mx-auto mt-3 rounded-full"></div>
-            <p class="text-[#64748b] font-bold text-sm uppercase tracking-widest mt-6">Selamat datang, Ayah & Bunda</p>
+            <h2 class="text-3xl font-black text-slate-900 tracking-tight">Aktivasi Portal Wali</h2>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Selamat datang, Ayah & Bunda</p>
         </div>
 
-        <div class="glass-card p-10 md:p-12 border-none shadow-2xl bg-white">
+        <div class="glass-card p-10 md:p-12 bg-white">
             <div class="space-y-8">
                 <div>
-                    <label class="text-[10px] font-black text-[#C9A84C] uppercase tracking-[0.4em] block mb-4 text-center">Masukkan NIS Ananda</label>
-                    <input type="text" id="ortu-input-nis" placeholder="_ _ _ _ _" class="w-full p-6 bg-[#FBF7F0] border-2 border-transparent focus:border-[#C9A84C] rounded-3xl font-black text-[#1B6B3A] text-2xl focus:ring-0 text-center tracking-[0.2em] transition-all placeholder:text-slate-200">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] block mb-4 text-center">Masukkan NIS Siswa</label>
+                    <input type="text" id="ortu-input-nis" placeholder="12345" class="w-full p-5 bg-slate-50 border-none rounded-2xl font-black text-slate-800 text-2xl focus:ring-2 focus:ring-violet-500 text-center tracking-widest transition-all">
                 </div>
                 
-                <button onclick="verifyAndLinkStudent()" class="btn-premium w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl active:scale-95 transition-all">
+                <button onclick="verifyAndLinkStudent()" class="btn-premium w-full py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">
                     Hubungkan Data Portal 🚀
                 </button>
 
-                <div id="ortu-setup-error" class="hidden p-4 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center"></div>
+                <div id="ortu-setup-error" class="hidden p-4 bg-rose-50 text-rose-600 rounded-2xl text-[10px] font-black uppercase text-center"></div>
             </div>
         </div>
 
-        <button onclick="logout()" class="w-full text-[#64748b] font-black text-[10px] uppercase tracking-[0.3em] hover:text-[#1B6B3A] transition-colors">
+        <button onclick="logout()" class="w-full text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-violet-600 transition-colors">
             ← Kembali ke halaman login
         </button>
     </div>
