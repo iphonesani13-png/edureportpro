@@ -10,11 +10,12 @@ export const renderAppFragments = async () => {
     const root = document.getElementById('app-root');
     if (!root) return;
 
-    const loadingHtml = await loadPartial('./partials/loading.html');
-    const loginHtml = await loadPartial('./partials/login-screen.html');
-    const ortuHtml = await loadPartial('./partials/ortu-setup-screen.html');
-    const mainHtml = await loadPartial('./partials/main-app.html');
-    const modalsHtml = await loadPartial('./partials/body-modals.html');
+    // Gunakan path absolut dari root domain untuk keamanan di Vercel
+    const loadingHtml = await loadPartial('/partials/loading.html');
+    const loginHtml = await loadPartial('/partials/login-screen.html');
+    const ortuHtml = await loadPartial('/partials/ortu-setup-screen.html');
+    const mainHtml = await loadPartial('/partials/main-app.html');
+    const modalsHtml = await loadPartial('/partials/body-modals.html');
 
     root.innerHTML = loadingHtml + loginHtml + ortuHtml + mainHtml + modalsHtml;
 };
