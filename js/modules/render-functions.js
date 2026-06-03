@@ -55,6 +55,48 @@ export const renderTimeline = (history, elementId) => {
     });
 };
 
+export const renderDashboardTable = (students, query, currentTahun) => {
+    const tbody = document.getElementById('student-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (students.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-gray-400 font-bold">Tidak ada siswa yang ditemukan.</td></tr>`;
+        return;
+    }
+
+    students.forEach((st, index) => {
+        const poin = st.poin !== undefined ? st.poin : 0;
+        let badgeClass = poin > 0 ? 'bg-green-100 text-green-800' : (poin < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500');
+        let displayPoin = poin > 0 ? `+${poin}` : poin;
+
+        const docId = String(st.docId || '');
+        const safeDocId = escapeHtml(docId);
+        const namaRapi = formatNama(st.nama);
+        const safeNama = escapeHtml(namaRapi);
+        const safeKelas = escapeHtml(st.calculatedKelas);
+
+        tbody.insertAdjacentHTML('beforeend', `
+            <tr class="hover:bg-purple-50/50 transition-colors group cursor-pointer" data-student-id="${safeDocId}">
+                <td class="px-6 py-5 text-center font-black text-gray-400">${index + 1}</td>
+                <td class="px-6 py-5">
+                    <p class="font-bold text-gray-900 group-hover:text-purple-700 transition-colors">${safeDocId}</p>
+                </td>
+                <td class="px-6 py-5 font-bold text-gray-700">${safeNama}</td>
+                <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${safeKelas}</span></td>
+                <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
+                <td class="px-6 py-5">
+                    <div class="flex justify-end gap-2 relative z-50" data-row-action-block>
+                        <button type="button" data-student-action="profile" data-student-id="${safeDocId}" class="student-row-action text-purple-600 font-bold text-sm bg-purple-50 px-4 py-2 rounded-xl transition-opacity hover:bg-purple-100 cursor-pointer shadow-sm relative z-50">Buka Profil &rarr;</button>
+                        <button type="button" data-student-action="edit" data-student-id="${safeDocId}" class="student-row-action text-orange-600 font-bold text-sm bg-orange-50 px-4 py-2 rounded-xl transition-opacity hover:bg-orange-100 cursor-pointer shadow-sm relative z-50">Edit</button>
+                        <button type="button" data-student-action="delete" data-student-id="${safeDocId}" class="student-row-action text-red-600 font-bold text-sm bg-red-50 px-4 py-2 rounded-xl transition-opacity hover:bg-red-100 cursor-pointer shadow-sm relative z-50">Hapus</button>
+                    </div>
+                </td>
+            </tr>
+        `);
+    });
+};
+
 export const renderLeaderboard = (studentsData, currentTahun, selectedBulan) => {
     const listUnggulan = document.getElementById('list-unggulan');
     const listBimbingan = document.getElementById('list-bimbingan');
@@ -99,7 +141,7 @@ export const renderLeaderboard = (studentsData, currentTahun, selectedBulan) => 
     } else if (listUnggulan) {
         topPositif.forEach((st, idx) => {
             listUnggulan.insertAdjacentHTML('beforeend', `
-                <div class="flex justify-between items-center p-3 hover:bg-green-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-green-100 group" onclick="openStudentEditor('${st.docId}')">
+                <div class="flex justify-between items-center p-3 hover:bg-green-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-green-100 group" onclick="window.openStudentEditor('${st.docId}')">
                     <div class="flex items-center gap-4">
                         <div class="w-8 h-8 rounded-full bg-green-100 text-green-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
                         <div>
@@ -119,7 +161,7 @@ export const renderLeaderboard = (studentsData, currentTahun, selectedBulan) => 
     } else if (listBimbingan) {
         topNegatif.forEach((st, idx) => {
             listBimbingan.insertAdjacentHTML('beforeend', `
-                <div class="flex justify-between items-center p-3 hover:bg-red-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-red-100 group" onclick="openStudentEditor('${st.docId}')">
+                <div class="flex justify-between items-center p-3 hover:bg-red-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-red-100 group" onclick="window.openStudentEditor('${st.docId}')">
                     <div class="flex items-center gap-4">
                         <div class="w-8 h-8 rounded-full bg-red-100 text-red-700 font-black flex items-center justify-center text-xs group-hover:scale-110 transition-transform">${idx + 1}</div>
                         <div>

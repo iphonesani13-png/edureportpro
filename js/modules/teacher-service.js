@@ -2,7 +2,8 @@ import { db } from "./firebase-config.js";
 import { 
     doc, setDoc, deleteDoc, getDoc 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { formatNama, showCustomAlert, showLoading, hideLoading } from "./utils.js";
+import { formatNama } from "./utils.js";
+import { showCustomAlert, showLoading, hideLoading } from "./ui-manager.js";
 
 export const addAssignment = async (data) => {
     const newId = 'TGS' + Date.now();
