@@ -184,8 +184,21 @@ window.setLoginRole = (role) => {
     const btnGuru = document.getElementById('role-btn-guru');
     const btnOrtu = document.getElementById('role-btn-ortu');
     
-    if (btnGuru) btnGuru.className = role === 'guru' ? 'sidebar-item active py-6 px-2 rounded-3xl flex flex-col items-center gap-3 transition-all' : 'sidebar-item py-6 px-2 rounded-3xl flex flex-col items-center gap-3 transition-all text-[#64748b]';
-    if (btnOrtu) btnOrtu.className = role === 'orangtua' ? 'sidebar-item active py-6 px-2 rounded-3xl flex flex-col items-center gap-3 transition-all' : 'sidebar-item py-6 px-2 rounded-3xl flex flex-col items-center gap-3 transition-all text-[#64748b]';
+    // Premium Role Switch Animation Logic
+    const activeClasses = ['active', 'border-indigo-600', 'bg-indigo-50/30', 'text-indigo-600'];
+    const inactiveClasses = ['text-slate-400', 'border-slate-100'];
+
+    if (role === 'guru') {
+        btnGuru.classList.add(...activeClasses);
+        btnGuru.classList.remove(...inactiveClasses);
+        btnOrtu.classList.remove(...activeClasses);
+        btnOrtu.classList.add(...inactiveClasses);
+    } else {
+        btnOrtu.classList.add(...activeClasses);
+        btnOrtu.classList.remove(...inactiveClasses);
+        btnGuru.classList.remove(...activeClasses);
+        btnGuru.classList.add(...inactiveClasses);
+    }
 };
 
 window.handleGoogleLogin = () => loginWithGoogle(state.currentRole);

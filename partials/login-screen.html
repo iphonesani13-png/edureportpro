@@ -1,42 +1,86 @@
-<section id="login-screen" class="hidden min-h-screen flex items-center justify-center p-6 bg-white relative overflow-hidden">
-    <!-- Clean Abstract Background -->
-    <div class="absolute top-0 left-0 w-full h-full bg-[#f8fafc] opacity-50"></div>
-    <div class="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-indigo-50 rounded-full blur-[120px]"></div>
+<section id="login-screen" class="hidden min-h-screen flex items-center justify-center p-4 md:p-8 bg-[#fdfcff] relative overflow-hidden">
+    <!-- Animated Atmospheric Orbs -->
+    <div class="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-100/50 rounded-full blur-[120px] animate-pulse"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-violet-100/40 rounded-full blur-[140px] animate-pulse" style="animation-delay: 3s"></div>
+    <div class="absolute top-[20%] right-[10%] w-[300px] h-[300px] bg-blue-50/50 rounded-full blur-[100px] animate-float"></div>
 
-    <div class="max-w-md w-full relative z-10">
-        <div class="text-center mb-10">
-            <div class="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-200 mx-auto mb-6">
-                LT
+    <div class="max-w-5xl w-full flex flex-col md:flex-row glass-luxury shadow-premium rounded-[32px] overflow-hidden relative z-10 border border-white">
+        
+        <!-- LEFT: BRANDING SIDE (Minimalist & Classy) -->
+        <div class="hidden md:flex md:w-5/12 bg-indigo-600 p-12 flex-col justify-between relative overflow-hidden text-white">
+            <!-- Decorative Pattern -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: url('https://www.transparenttextures.com/patterns/pinstriped-suit.png');"></div>
+            
+            <div class="relative z-10">
+                <div class="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-white font-black text-2xl mb-8 border border-white/20 shadow-xl">LT</div>
+                <h2 class="text-3xl font-extrabold tracking-tight leading-tight italic">
+                    Investing in <br><span class="text-indigo-200">the Future.</span>
+                </h2>
+                <div class="w-12 h-1 bg-indigo-400 mt-6 rounded-full"></div>
             </div>
-            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-2">Portal Kesiswaan</h1>
-            <p class="text-slate-500 text-sm font-medium">SMPIT Laa Tahzan Citra</p>
+
+            <div class="relative z-10">
+                <p class="text-indigo-100/80 text-sm font-medium leading-relaxed">
+                    Sistem informasi kesiswaan terpadu untuk menciptakan generasi yang cerdas, mandiri, dan berakhlak mulia.
+                </p>
+                <div class="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-indigo-300">
+                    <span>Authentic</span>
+                    <span class="w-1 h-1 bg-indigo-300 rounded-full"></span>
+                    <span>Secure</span>
+                    <span class="w-1 h-1 bg-indigo-300 rounded-full"></span>
+                    <span>Modern</span>
+                </div>
+            </div>
+            
+            <!-- Bottom decorative orb -->
+            <div class="absolute -bottom-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         </div>
 
-        <div class="glass-card p-8 md:p-10 bg-white shadow-xl shadow-slate-200/50 border-slate-100">
-            <div class="space-y-8">
+        <!-- RIGHT: LOGIN SIDE -->
+        <div class="flex-grow p-10 md:p-16 bg-white flex flex-col justify-center">
+            <div class="mb-12 text-center md:text-left">
+                <div class="md:hidden w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-200 mx-auto mb-6">LT</div>
+                <h1 class="text-3xl font-black text-slate-900 tracking-tighter mb-2">Portal <span class="text-indigo-600">Kesiswaan</span></h1>
+                <p class="text-slate-400 text-sm font-semibold uppercase tracking-[0.2em]">SMPIT Laa Tahzan Citra</p>
+            </div>
+
+            <div class="space-y-10 max-w-sm mx-auto md:mx-0 w-full">
+                <!-- Role Selector -->
                 <div class="space-y-4">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Masuk sebagai</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button id="role-btn-guru" onclick="setLoginRole('guru')" class="sidebar-item active py-4 flex flex-col items-center gap-2 border border-slate-100 transition-all">
-                            <span class="text-xl">👨‍🏫</span>
-                            <span class="text-xs font-bold">GURU</span>
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Pilih Identitas Anda</p>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="role-btn-guru" onclick="setLoginRole('guru')" class="sidebar-item active group p-5 border border-slate-100 flex flex-col items-center gap-3 transition-all hover:border-indigo-200">
+                            <span class="text-2xl group-hover:scale-110 transition-transform">👨‍🏫</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-inherit">Guru / Admin</span>
                         </button>
-                        <button id="role-btn-ortu" onclick="setLoginRole('orangtua')" class="sidebar-item py-4 flex flex-col items-center gap-2 border border-slate-100 transition-all">
-                            <span class="text-xl">👪</span>
-                            <span class="text-xs font-bold text-slate-400">WALI</span>
+                        <button id="role-btn-ortu" onclick="setLoginRole('orangtua')" class="sidebar-item group p-5 border border-slate-100 flex flex-col items-center gap-3 transition-all hover:border-indigo-200 text-slate-400">
+                            <span class="text-2xl group-hover:scale-110 transition-transform">👪</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-inherit">Wali Murid</span>
                         </button>
                     </div>
                 </div>
 
-                <button onclick="handleGoogleLogin()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-black transition-all active:scale-95 shadow-lg shadow-slate-200">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5 h-5 bg-white p-0.5 rounded-full" alt="Google">
-                    <span class="text-sm">Masuk dengan Google</span>
-                </button>
+                <!-- Google Button (Premium Redesign) -->
+                <div class="space-y-6">
+                    <button onclick="handleGoogleLogin()" class="w-full bg-slate-900 text-white font-bold py-5 px-6 rounded-2xl flex items-center justify-center gap-4 hover:bg-black transition-all active:scale-[0.98] shadow-2xl shadow-slate-200 group overflow-hidden relative">
+                        <!-- Ripple effect decoration -->
+                        <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="bg-white p-1.5 rounded-full shadow-sm">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5 h-5" alt="Google">
+                        </div>
+                        <span class="text-sm tracking-tight">Lanjutkan Akses Portal</span>
+                    </button>
 
-                <div id="login-error-msg" class="hidden p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold text-center"></div>
+                    <div id="login-error-msg" class="hidden p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-[10px] font-black uppercase tracking-widest text-center animate-shake"></div>
+                </div>
+
+                <div class="pt-6 border-t border-slate-50 flex items-center justify-between opacity-50">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">&copy; 2026 Education System</p>
+                    <div class="flex gap-4">
+                        <span class="text-[9px] font-black text-slate-300">V3.5</span>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <p class="mt-10 text-center text-[10px] font-bold text-slate-300 uppercase tracking-widest">&copy; 2026 SMPIT LAA TAHZAN CITRA</p>
     </div>
 </section>

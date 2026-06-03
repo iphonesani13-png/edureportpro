@@ -81,6 +81,43 @@ h1, h2, h3, h4 {
     font-weight: 700;
 }
 
+/* Premium Layered Shadows */
+.shadow-premium {
+    box-shadow: 
+        0 1px 2px rgba(0,0,0,0.06), 
+        0 4px 6px rgba(0,0,0,0.04), 
+        0 12px 24px rgba(0,0,0,0.03), 
+        0 24px 48px rgba(0,0,0,0.02);
+}
+
+/* Luxury Glass Effect */
+.glass-luxury {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Floating Animation */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Button Pulse */
+@keyframes pulse-soft {
+    0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+    70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+.btn-active-pulse {
+    animation: pulse-soft 2s infinite;
+}
+
 /* Custom Scrollbar - Minimalist */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
