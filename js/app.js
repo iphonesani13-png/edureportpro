@@ -198,7 +198,23 @@ window.logout = () => {
 };
 
 window.switchTab = (mode) => {
-    switchTab(mode);
+    const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer'];
+
+    sections.forEach(s => {
+        const el = document.getElementById(`${s}-section`);
+        if (el) el.classList.add('hidden');
+    });
+
+    const targetEl = document.getElementById(`${mode}-section`);
+    if (targetEl) targetEl.classList.remove('hidden');
+
+    // Update Sidebar Active State
+    document.querySelectorAll('.sidebar-item').forEach(p => p.classList.remove('active'));
+    const activeBtn = document.getElementById(`btn-${mode}`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
     if (mode === 'leaderboard') window.renderLeaderboard();
     if (mode === 'dashboard') window.renderDashboard();
     if (mode === 'tugas') window.renderTugasGuru();
