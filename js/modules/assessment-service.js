@@ -22,6 +22,29 @@ export const getTemplatesBySubject = async (subjectId, academicYear) => {
 };
 
 /**
+ * Mendapatkan detail mata pelajaran (untuk KKM)
+ */
+export const getSubjectDetails = async (subjectId) => {
+    const snap = await getDoc(doc(db, "subjects", subjectId));
+    return snap.exists() ? snap.data() : null;
+};
+
+/**
+ * Mendapatkan seluruh aktivitas penilaian published untuk Rekap
+ */
+export const getAllPublishedAssessments = async (subjectId, classId, academicYear) => {
+    const q = query(
+        collection(db, "assessments"),
+        where("subjectId", "==", subjectId),
+        where("classId", "==", classId),
+        where("academicYear", "==", academicYear),
+        where("status", "==", "published")
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+};
+
+/**
  * Mendapatkan daftar aktivitas penilaian untuk TP dan Kelas tertentu
  */
 export const getAssessmentsByFilter = async (templateId, classId) => {

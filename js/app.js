@@ -603,8 +603,262 @@ window.backToNhList = () => {
     };
 
     window.loadRekapData = async () => {
-        // Todo: Implement Rekap Calculation Engine in next step
-        console.log("Loading Rekap Data for:", state.nhState.activeClassId);
+        const { activeClassId } = state.nhState;
+        const subjectId = document.getElementById('nh-select-mapel')?.value;
+        const academicYear = getActiveTahun();
+
+        if (!activeClassId || !subjectId) {
+            return showCustomAlert("Silakan pilih Mapel dan Kelas terlebih dahulu.", true);
+        }
+
+        showLoading("Mengkalkulasi Rekapitulasi...");
+        try {
+            // 1. DATA FETCHING (PRE-FETCH)
+            const [subject, templates, students, assessments] = await Promise.all([
+                AssessmentService.getSubjectDetails(subjectId),
+                AssessmentService.getTemplatesBySubject(subjectId, academicYear),
+                AssessmentService.getStudentsInClass(activeClassId),
+                AssessmentService.getAllPublishedAssessments(subjectId, activeClassId, academicYear)
+            ]);
+
+            const passingGrade = subject?.minPassingGrade || 75;
+
+            // Cache Base Data
+            state.nhState.rekapBaseData = {
+                students, templates, assessments, passingGrade
+            };
+
+            // 2. CALCULATION ENGINE
+            const tpStats = {}; // { [templateId]: { totalWeight: 0, activities: [] } }
+            const studentScores = {}; // { [templateId]: { [studentId]: weightedScoreSum } }
+
+            // Initialize structures
+            templates.forEach(t => {
+                tpStats[t.id] = { 
+                    totalWeight: 0, 
+                    activities: [], 
+                    lastAssessed: null,
+                    passCount: 0
+                };
+                studentScores[t.id] = {};
+                students.forEach(s => studentScores[t.id][s.id] = 0);
+            });
+
+            // Aggregate Assessments
+            assessments.forEach(a => {
+                const tId = a.templateId;
+                if (!tpStats[tId]) return; // Orphanned assessment
+
+                const weight = a.assessmentWeight || 100;
+                tpStats[tId].activities.push(a);
+                tpStats[tId].totalWeight += weight;
+
+                // Track last assessed date based on publishedAt or assessmentDate
+                let dateToCompare = null;
+                if (a.publishedAt && a.publishedAt.toDate) {
+                    dateToCompare = a.publishedAt.toDate();
+                } else if (a.assessmentDate) {
+                    dateToCompare = new Date(a.assessmentDate);
+                }
+
+                if (dateToCompare) {
+                    if (!tpStats[tId].lastAssessed || dateToCompare > tpStats[tId].lastAssessed) {
+                        tpStats[tId].lastAssessed = dateToCompare;
+                    }
+                }
+
+                // Sum weighted scores per student
+                students.forEach(s => {
+                    const score = a.scores[s.id] || 0;
+                    studentScores[tId][s.id] += (score * weight);
+                });
+            });
+
+            // Calculate final averages and pass rates per TP
+            let totalPassRateSum = 0;
+            let tpWithActivitiesCount = 0;
+
+            templates.forEach(t => {
+                const stats = tpStats[t.id];
+                if (stats.totalWeight > 0) {
+                    tpWithActivitiesCount++;
+                    students.forEach(s => {
+                        // Calculate average
+                        studentScores[t.id][s.id] = studentScores[t.id][s.id] / stats.totalWeight;
+                        // Check pass status
+                        if (studentScores[t.id][s.id] >= passingGrade) {
+                            stats.passCount++;
+                        }
+                    });
+                    
+                    stats.passRate = Math.round((stats.passCount / students.length) * 100) || 0;
+                    totalPassRateSum += stats.passRate;
+                } else {
+                    stats.passRate = 0;
+                }
+            });
+
+            // Cache computed scores
+            state.nhState.rekapComputedScores = studentScores;
+
+            // 3. LEVEL 1: SEMESTER SUMMARY RENDER
+            const totalTp = templates.length;
+            const doneTp = tpWithActivitiesCount;
+            const waitTp = totalTp - doneTp;
+            const classPassRate = doneTp > 0 ? Math.round(totalPassRateSum / doneTp) : 0;
+
+            document.getElementById('rekap-stat-total-tp').innerText = totalTp;
+            document.getElementById('rekap-stat-done-tp').innerText = doneTp;
+            document.getElementById('rekap-stat-wait-tp').innerText = waitTp;
+            document.getElementById('rekap-stat-pass-rate').innerText = `${classPassRate}%`;
+
+            // 4. LEVEL 2: TP LIST RENDER
+            const listContainer = document.getElementById('rekap-tp-list');
+            listContainer.innerHTML = '';
+
+            if (templates.length === 0) {
+                listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 font-bold text-sm">Belum ada TP untuk mapel ini.</div>`;
+            }
+
+            templates.forEach(t => {
+                const stats = tpStats[t.id];
+                const actCount = stats.activities.length;
+                let statusBadge, progressBarColor;
+
+                if (actCount === 0) {
+                    statusBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black uppercase">Belum Dinilai</span>`;
+                    progressBarColor = 'bg-slate-200';
+                } else if (stats.passRate >= 50) { // Using 50 as safe visual threshold if no school target
+                    statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Tuntas</span>`;
+                    progressBarColor = 'bg-emerald-500';
+                } else {
+                    statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Perlu Remedial</span>`;
+                    progressBarColor = 'bg-rose-500';
+                }
+
+                const lastDateStr = stats.lastAssessed ? stats.lastAssessed.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}) : '-';
+
+                listContainer.insertAdjacentHTML('beforeend', `
+                    <div onclick="window.openRekapDetail('${t.id}')" class="glass-card p-4 bg-white border border-slate-100 shadow-sm hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer group">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded uppercase tracking-widest">${t.tpId}</span>
+                                ${statusBadge}
+                            </div>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">Terkahir: ${lastDateStr}</span>
+                        </div>
+                        <h4 class="font-bold text-slate-900 text-sm mb-3 group-hover:text-indigo-600 transition-colors">${t.title}</h4>
+                        
+                        <div class="flex items-center justify-between mt-auto">
+                            <span class="text-[10px] font-bold text-slate-500">${actCount} Aktivitas</span>
+                            <div class="flex items-center gap-2 w-1/2">
+                                <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full ${progressBarColor}" style="width: ${stats.passRate}%"></div>
+                                </div>
+                                <span class="text-[10px] font-black text-slate-700 w-8 text-right">${stats.passRate}%</span>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+
+        } catch (e) {
+            console.error("Rekap Engine Error:", e);
+            showCustomAlert("Gagal mengkalkulasi rekap penilaian.", true);
+        }
+        hideLoading();
+    };
+
+    window.openRekapDetail = (templateId) => {
+        const { templates, assessments, students, passingGrade } = state.nhState.rekapBaseData;
+        const template = templates.find(t => t.id === templateId);
+        if (!template) return;
+
+        state.nhState.selectedTemplateId = templateId;
+
+        // UI Header
+        document.getElementById('rekap-detail-tpid').innerText = template.tpId;
+        document.getElementById('rekap-detail-title').innerText = template.title;
+
+        // Filter activities for this TP
+        const acts = assessments.filter(a => a.templateId === templateId);
+        
+        // 1. Render Activities & Reflections
+        const actContainer = document.getElementById('rekap-detail-activities');
+        const refContainer = document.getElementById('rekap-detail-reflections');
+        const refBox = document.getElementById('rekap-detail-reflection-box');
+        
+        actContainer.innerHTML = '';
+        refContainer.innerHTML = '';
+
+        if (acts.length === 0) {
+            actContainer.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada aktivitas.</p>`;
+            refBox.classList.add('hidden');
+        } else {
+            refBox.classList.remove('hidden');
+            acts.forEach(a => {
+                // Calc avg for activity
+                const validScores = Object.values(a.scores).filter(s => s > 0);
+                const avg = validScores.length ? Math.round(validScores.reduce((sum, s) => sum + s, 0) / validScores.length) : 0;
+                
+                actContainer.insertAdjacentHTML('beforeend', `
+                    <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div>
+                            <p class="text-[10px] font-bold text-slate-900">${a.assessmentName}</p>
+                            <p class="text-[8px] font-bold text-slate-400 uppercase">${a.assessmentType}</p>
+                        </div>
+                        <span class="text-xs font-black ${avg >= passingGrade ? 'text-emerald-600' : 'text-rose-600'}">${avg}</span>
+                    </div>
+                `);
+
+                if (a.teacherReflection) {
+                    refContainer.insertAdjacentHTML('beforeend', `
+                        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 text-xs text-indigo-900 italic">
+                            <span class="font-bold text-[9px] uppercase tracking-widest text-indigo-400 block mb-1">${a.assessmentName}</span>
+                            "${a.teacherReflection}"
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        // 2. Render Remedial List
+        const remList = document.getElementById('rekap-detail-remedial-list');
+        const remBox = document.getElementById('rekap-detail-remedial-box');
+        remList.innerHTML = '';
+
+        const scoresMap = state.nhState.rekapComputedScores[templateId];
+        let remedialCount = 0;
+
+        if (acts.length > 0 && scoresMap) {
+            students.forEach(st => {
+                const avgScore = scoresMap[st.id] || 0;
+                if (avgScore < passingGrade) {
+                    remedialCount++;
+                    remList.insertAdjacentHTML('beforeend', `
+                        <li class="flex justify-between items-center border-b border-rose-100/50 pb-1 last:border-0">
+                            <span>${formatNama(st.name || st.nama)}</span>
+                            <span class="font-black bg-rose-100 px-2 py-0.5 rounded">${Math.round(avgScore)}</span>
+                        </li>
+                    `);
+                }
+            });
+        }
+
+        if (remedialCount > 0) {
+            remBox.classList.remove('hidden');
+        } else if (acts.length > 0) {
+            remBox.classList.remove('hidden');
+            remList.innerHTML = `<li class="text-emerald-600 text-center py-2">✅ Semua siswa tuntas KKM (${passingGrade})</li>`;
+        } else {
+            remBox.classList.add('hidden');
+        }
+
+        // Show Panel (Mobile logic)
+        document.getElementById('rekap-detail-view').classList.remove('hidden', 'lg:block');
+        if (window.innerWidth < 1024) {
+            document.getElementById('rekap-master-view').classList.add('hidden');
+        }
     };
 
     window.renderNhGrid = () => {
