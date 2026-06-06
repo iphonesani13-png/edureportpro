@@ -35,8 +35,6 @@ import {
     renderAppFragments, registerStudentTableEvents 
 } from "./modules/page-loader.js";
 
-import { seedDatabase } from "./seed-script.js";
-
 // --- GLOBAL STATE ---
 let state = {
     currentUser: null,
@@ -84,10 +82,15 @@ const startAuthListener = () => {
                     return;
                 }
 
-                // AUTO-SEED TRIGGER FOR ADMIN
+// AUTO-SEED TRIGGER FOR ADMIN
                 if (user.email === 'iphonesani13@gmail.com') {
                     console.log("Admin detected. Checking seed data...");
-                    seedDatabase();
+                    try {
+                        const { seedDatabase } = await import("./seed-script.js");
+                        seedDatabase();
+                    } catch (e) {
+                        console.error("Seeding skipped or failed:", e);
+                    }
                 }
 
                 setupUIForRole(profile.role, profile.childId);
