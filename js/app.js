@@ -1210,47 +1210,172 @@ window.renderTugasGuru = () => {
 window.openStudentEditor = async (docId) => {
     const st = state.studentsData.find(s => s.docId === docId);
     if (!st) return;
-    await autoFixStudentData(st, state.subjectsList);
     state.currentStudentId = docId;
     
-    const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
-    const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+    showLoading("Memuat Buku Induk...");
     
-    document.getElementById('editor-title').innerText = formatNama(st.nama);
-    document.getElementById('editor-nis').innerText = `IDENTITAS: ${st.docId}`;
-    document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
-    document.getElementById('guru-view-poin').innerText = st.poin || 0;
+    try {
+        const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
+        const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+        
+        // 1. SET BASIC INFO (BAGIAN A)
+        document.getElementById('editor-title').innerText = formatNama(st.nama);
+        document.getElementById('editor-nis').innerText = `NIS: ${st.docId}`;
+        document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
+        document.getElementById('guru-view-poin').innerText = st.poin || 0;
 
-    const grid = document.getElementById('subjects-grid');
-    if (grid) {
-        grid.innerHTML = '';
-        st.subjects.forEach((sub, idx) => {
-            grid.insertAdjacentHTML('beforeend', `
-                <div class="glass-card p-6 space-y-4 border border-slate-100 bg-white">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-black text-slate-900 text-xs uppercase tracking-widest">${sub.name}</h4>
-                        <span class="text-[8px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-lg uppercase">${sub.last_updated_date ? 'Update: ' + sub.last_updated_date : 'Belum Dinilai'}</span>
-                    </div>
-                    <div class="grid grid-cols-4 gap-2">
-                        ${['harian', 'uh', 'pts', 'pas'].map(type => `
-                            <div class="bg-slate-50 rounded-xl p-2 text-center border border-slate-100/50">
-                                <p class="text-[7px] font-black text-slate-400 uppercase mb-0.5">${type === 'uh' ? 'UH' : type.toUpperCase()}</p>
-                                <p class="font-black text-indigo-600 text-sm">${sub[`score_${type}`] || 0}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                    ${sub.note ? `
-                        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
-                            <p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Catatan Guru</p>
-                            <p class="text-[10px] font-bold text-indigo-700 leading-relaxed">${sub.note}</p>
+        // 2. FETCH ALL PUBLISHED ASSESSMENTS FOR THIS STUDENT (YEAR SPECIFIC)
+        const q = query(
+            collection(db, "assessments"),
+            where("academicYear", "==", currentTahun),
+            where("status", "==", "published")
+        );
+        // Note: In a real large DB, we'd query by classId or subjectId to avoid full table scans,
+        // but since we need cross-subject data for one student, we fetch all year's published assessments
+        // and filter in-memory. For ~500 assessments/year, this is fast.
+        const snap = await getDocs(q);
+        const allAssessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // 3. PROCESS DATA FOR THIS SPECIFIC STUDENT
+        const studentAssessments = allAssessments.filter(a => a.scores[docId] !== undefined);
+        const missingTasks = allAssessments.filter(a => a.scores[docId] === undefined || a.scores[docId] === 0);
+
+        // Mapel Performance Tracking
+        const mapelStats = {}; // { "SUBJ_IPA": { totalScore: 0, weight: 0, actCount: 0 } }
+        const teacherNotes = [];
+
+        studentAssessments.forEach(a => {
+            const sid = a.subjectId;
+            if (!mapelStats[sid]) {
+                mapelStats[sid] = { totalScore: 0, totalWeight: 0, actCount: 0 };
+            }
+            
+            const w = a.assessmentWeight || 100;
+            const score = a.scores[docId];
+            
+            mapelStats[sid].totalScore += (score * w);
+            mapelStats[sid].totalWeight += w;
+            mapelStats[sid].actCount++;
+
+            if (a.notes && a.notes[docId]) {
+                teacherNotes.push({
+                    subjectId: sid,
+                    assessmentName: a.assessmentName,
+                    note: a.notes[docId],
+                    date: a.assessmentDate || (a.publishedAt ? a.publishedAt.toDate().toISOString().split('T')[0] : '')
+                });
+            }
+        });
+
+        // 4. RENDER BAGIAN B: ACADEMIC DASHBOARD
+        const mapelListContainer = document.getElementById('buku-induk-mapel-list');
+        mapelListContainer.innerHTML = '';
+        let redMapelCount = 0;
+
+        if (Object.keys(mapelStats).length === 0) {
+            mapelListContainer.innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Belum ada data nilai di tahun ajaran ini.</p></div>`;
+        } else {
+            // Need subject details for KKM and Names. We'll use state.subjectsList if available, or fetch.
+            // For now, we'll extract names from state or use generic KKM 75
+            for (const [sid, stats] of Object.entries(mapelStats)) {
+                // Determine subject name (Fallback logic if full subject master not pre-loaded)
+                const subjectName = sid.replace('SUBJ_', '').replace('_', ' '); 
+                const kkm = 75; // Default KKM
+                
+                const avg = stats.totalWeight > 0 ? Math.round(stats.totalScore / stats.totalWeight) : 0;
+                const isPassing = avg >= kkm;
+                
+                if (!isPassing) redMapelCount++;
+
+                // Missing task check for this subject
+                const missingInThisSub = missingTasks.filter(m => m.subjectId === sid).length;
+
+                mapelListContainer.insertAdjacentHTML('beforeend', `
+                    <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center transition-all hover:border-indigo-200">
+                        <div>
+                            <h4 class="font-black text-slate-900 text-sm uppercase tracking-tight">${subjectName}</h4>
+                            <p class="text-[9px] font-bold text-slate-400 mt-1">KKM: ${kkm} • ${stats.actCount} Aktivitas</p>
+                            ${missingInThisSub > 0 ? `<p class="text-[9px] font-black text-rose-500 mt-1 flex items-center gap-1"><span>⚠️</span> ${missingInThisSub} Tugas Kosong</p>` : ''}
                         </div>
-                    ` : ''}
-                </div>
-            `);
-        } );
+                        <div class="text-right">
+                            <span class="text-2xl font-black ${isPassing ? 'text-slate-900' : 'text-rose-600'}">${avg}</span>
+                        </div>
+                    </div>
+                `);
+            }
+        }
+
+        // 5. UPDATE HERO STATS
+        const redMapelEl = document.getElementById('buku-induk-red-mapel');
+        const statusBadge = document.getElementById('buku-induk-status');
+        const heroCard = document.getElementById('buku-induk-hero');
+
+        redMapelEl.innerText = redMapelCount;
+        
+        if (redMapelCount > 2) {
+            statusBadge.innerText = "KRITIS";
+            statusBadge.className = "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-rose-500 text-white shadow-sm shadow-rose-200";
+            heroCard.className = "glass-card p-6 md:p-8 border shadow-sm relative overflow-hidden transition-colors duration-300 bg-rose-50 border-rose-100";
+            redMapelEl.className = "text-3xl font-black text-rose-600";
+        } else if (redMapelCount > 0) {
+            statusBadge.innerText = "PERHATIAN";
+            statusBadge.className = "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-amber-400 text-white shadow-sm shadow-amber-200";
+            heroCard.className = "glass-card p-6 md:p-8 border border-slate-100 shadow-sm relative overflow-hidden transition-colors duration-300 bg-white";
+            redMapelEl.className = "text-3xl font-black text-amber-500";
+        } else {
+            statusBadge.innerText = "AMAN";
+            statusBadge.className = "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-emerald-500 text-white shadow-sm shadow-emerald-200";
+            heroCard.className = "glass-card p-6 md:p-8 border border-slate-100 shadow-sm relative overflow-hidden transition-colors duration-300 bg-white";
+            redMapelEl.className = "text-3xl font-black text-emerald-500";
+        }
+
+        // 6. RENDER BAGIAN C: DIAGNOSTICS & INSIGHTS
+        const missingList = document.getElementById('buku-induk-missing-tasks');
+        missingList.innerHTML = '';
+        if (missingTasks.length === 0) {
+            missingList.innerHTML = `<li class="text-xs font-bold text-emerald-600">✅ Tidak ada tunggakan nilai.</li>`;
+        } else {
+            missingTasks.slice(0, 10).forEach(m => { // Limit to 10 to avoid huge lists
+                missingList.insertAdjacentHTML('beforeend', `
+                    <li class="flex items-start gap-2 text-[10px] font-bold text-slate-600">
+                        <span class="text-rose-500 mt-0.5">•</span>
+                        <span>[${m.subjectId.replace('SUBJ_', '')}] ${m.assessmentName}</span>
+                    </li>
+                `);
+            });
+            if (missingTasks.length > 10) {
+                missingList.insertAdjacentHTML('beforeend', `<li class="text-[9px] italic text-slate-400 mt-2">+ ${missingTasks.length - 10} tugas lainnya</li>`);
+            }
+        }
+
+        const notesList = document.getElementById('buku-induk-teacher-notes');
+        notesList.innerHTML = '';
+        if (teacherNotes.length === 0) {
+            notesList.innerHTML = `<div class="text-center py-6 text-[10px] font-bold text-slate-400 italic">Belum ada catatan khusus dari guru mapel.</div>`;
+        } else {
+            teacherNotes.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(n => {
+                notesList.insertAdjacentHTML('beforeend', `
+                    <div class="p-3 bg-white border border-slate-100 rounded-xl shadow-sm relative pl-4 before:content-[''] before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:bg-indigo-400 before:rounded-l-xl">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[9px] font-black uppercase text-indigo-600">${n.subjectId.replace('SUBJ_', '')}</span>
+                            <span class="text-[8px] font-bold text-slate-400">${n.date}</span>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 mb-1 leading-tight">${n.assessmentName}</p>
+                        <p class="text-xs font-medium text-slate-700 leading-relaxed italic">"${n.note}"</p>
+                    </div>
+                `);
+            });
+        }
+
+        // Poin Karakter History (Legacy kept)
+        window.applyTimelineFilter('guru');
+        
+        window.switchTab('editor');
+    } catch (e) {
+        console.error("Gagal memuat Buku Induk:", e);
+        showCustomAlert("Gagal memuat data profil siswa.", true);
     }
-    window.switchTab('editor');
-    window.applyTimelineFilter('guru');
+    hideLoading();
 };
 
 window.bukaEditSiswa = (docId) => {
