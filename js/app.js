@@ -332,11 +332,21 @@ window.switchTab = (mode) => {
         const template = state.nhTemplates.find(t => t.id === templateId);
         state.nhState.activeTemplate = template;
 
+        console.log(`NH Flow: Loading Class=${classId}, Template=${templateId}`);
+
         // Load Students & Existing Assessment in parallel
         const [students, assessment] = await Promise.all([
-            AssessmentService.getStudentsInClass(classId),
-            AssessmentService.getAssessment(templateId, classId)
+            AssessmentService.getStudentsInClass(classId).catch(err => {
+                console.error("NH Error: Failed to fetch students:", err);
+                throw err;
+            }),
+            AssessmentService.getAssessment(templateId, classId).catch(err => {
+                console.error("NH Error: Failed to fetch assessment:", err);
+                throw err;
+            })
         ]);
+
+        console.log(`NH Flow: Found ${students.length} students. Assessment exists: ${!!assessment}`);
 
         state.nhState.currentClassStudents = students;
         state.nhState.activeAssessment = assessment;
