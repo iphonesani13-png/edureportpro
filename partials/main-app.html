@@ -15,16 +15,16 @@
                     <span>📊</span> Daftar Kelas
                 </button>
                 <button id="btn-nilai-harian" onclick="switchTab('nilai-harian')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
-                    <span>📊</span> Penilaian Harian
+                    <span>📝</span> Penilaian
+                </button>
+                <button id="btn-tugas" onclick="switchTab('tugas')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
+                    <span>📢</span> Tugas Siswa
                 </button>
                 <button id="btn-leaderboard" onclick="switchTab('leaderboard')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>🏆</span> Peringkat
                 </button>
-                <button id="btn-tugas" onclick="switchTab('tugas')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
-                    <span>📝</span> Tugas Siswa
-                </button>
                 <button id="btn-kurikulum" onclick="switchTab('kurikulum')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
-                    <span>📚</span> Administrasi Kurikulum
+                    <span>⚙️</span> Administrasi Kurikulum
                 </button>
                 <button id="btn-editor" onclick="switchTab('editor')" class="sidebar-item hidden w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>👤</span> Profil Siswa
@@ -210,11 +210,12 @@
                                 <span>📚 Mata Pelajaran</span>
                                 <span class="text-xs">→</span>
                             </button>
-                            <button onclick="switchKurikulumTab('nilai-uh')" class="kurikulum-nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                            <!-- Diberi class 'hidden' agar hilang dari pandangan guru, tapi logic tetap utuh -->
+                            <button onclick="switchKurikulumTab('nilai-uh')" class="kurikulum-nav-item hidden w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
                                 <span>🔥 Nilai UH</span>
                                 <span class="text-xs">→</span>
                             </button>
-                            <button onclick="switchKurikulumTab('nilai-pas')" class="kurikulum-nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                            <button onclick="switchKurikulumTab('nilai-pas')" class="kurikulum-nav-item hidden w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
                                 <span>🎓 Nilai PAS</span>
                                 <span class="text-xs">→</span>
                             </button>
