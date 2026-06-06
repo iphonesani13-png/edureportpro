@@ -5,7 +5,7 @@
 
 import { auth, db } from "./modules/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { doc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { 
     parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun 
