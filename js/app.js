@@ -1211,36 +1211,64 @@ window.openStudentEditor = async (docId) => {
     if (!st) return;
     state.currentStudentId = docId;
     
-    showLoading("Memuat Buku Induk...");
+    // Reset filters to ALL when opening a new student
+    const semEl = document.getElementById('bi-filter-semester');
+    const bulEl = document.getElementById('bi-filter-bulan');
+    if (semEl) semEl.value = 'ALL';
+    if (bulEl) bulEl.value = 'ALL';
+
+    await window.refreshBukuInduk();
+    window.switchTab('editor');
+};
+
+window.refreshBukuInduk = async () => {
+    const docId = state.currentStudentId;
+    const st = state.studentsData.find(s => s.docId === docId);
+    if (!st) return;
+
+    showLoading("Mengkalkulasi Rekap...");
     
     try {
         const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
         const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
         
-        // 1. SET BASIC INFO (BAGIAN A)
+        // Get filter values
+        const selectedSemester = document.getElementById('bi-filter-semester')?.value || 'ALL';
+        const selectedBulan = document.getElementById('bi-filter-bulan')?.value || 'ALL';
+
+        // 1. SET BASIC INFO
         document.getElementById('editor-title').innerText = formatNama(st.nama);
         document.getElementById('editor-nis').innerText = `NIS: ${st.docId}`;
         document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
         document.getElementById('guru-view-poin').innerText = st.poin || 0;
 
-        // 2. FETCH ALL PUBLISHED ASSESSMENTS FOR THIS STUDENT (YEAR SPECIFIC)
+        // 2. FETCH ALL PUBLISHED ASSESSMENTS (YEAR SPECIFIC)
         const q = query(
             collection(db, "assessments"),
             where("academicYear", "==", currentTahun),
             where("status", "==", "published")
         );
-        // Note: In a real large DB, we'd query by classId or subjectId to avoid full table scans,
-        // but since we need cross-subject data for one student, we fetch all year's published assessments
-        // and filter in-memory. For ~500 assessments/year, this is fast.
         const snap = await getDocs(q);
-        const allAssessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // 3. PROCESS DATA FOR THIS SPECIFIC STUDENT
-        const studentAssessments = allAssessments.filter(a => a.scores[docId] !== undefined);
-        const missingTasks = allAssessments.filter(a => a.scores[docId] === undefined || a.scores[docId] === 0);
+        // 3. APPLY FILTERS (IN-MEMORY)
+        if (selectedSemester !== 'ALL') {
+            const semNum = parseInt(selectedSemester);
+            assessments = assessments.filter(a => a.semester === semNum);
+        }
+        if (selectedBulan !== 'ALL') {
+            const bulNum = parseInt(selectedBulan);
+            assessments = assessments.filter(a => {
+                const date = new Date(a.assessmentDate);
+                return (date.getMonth() + 1) === bulNum;
+            });
+        }
+
+        const studentAssessments = assessments.filter(a => a.scores[docId] !== undefined);
+        const missingTasks = assessments.filter(a => a.scores[docId] === undefined || a.scores[docId] === 0);
 
         // Mapel Performance Tracking
-        const mapelStats = {}; // { "SUBJ_IPA": { totalScore: 0, weight: 0, actCount: 0 } }
+        const mapelStats = {};
         const teacherNotes = [];
 
         studentAssessments.forEach(a => {
@@ -1266,27 +1294,21 @@ window.openStudentEditor = async (docId) => {
             }
         });
 
-        // 4. RENDER BAGIAN B: ACADEMIC DASHBOARD
+        // 4. RENDER ACADEMIC DASHBOARD
         const mapelListContainer = document.getElementById('buku-induk-mapel-list');
         mapelListContainer.innerHTML = '';
         let redMapelCount = 0;
 
         if (Object.keys(mapelStats).length === 0) {
-            mapelListContainer.innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Belum ada data nilai di tahun ajaran ini.</p></div>`;
+            mapelListContainer.innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Tidak ada data untuk periode ini.</p></div>`;
         } else {
-            // Need subject details for KKM and Names. We'll use state.subjectsList if available, or fetch.
-            // For now, we'll extract names from state or use generic KKM 75
             for (const [sid, stats] of Object.entries(mapelStats)) {
-                // Determine subject name (Fallback logic if full subject master not pre-loaded)
                 const subjectName = sid.replace('SUBJ_', '').replace('_', ' '); 
-                const kkm = 75; // Default KKM
-                
+                const kkm = 75; 
                 const avg = stats.totalWeight > 0 ? Math.round(stats.totalScore / stats.totalWeight) : 0;
                 const isPassing = avg >= kkm;
-                
                 if (!isPassing) redMapelCount++;
 
-                // Missing task check for this subject
                 const missingInThisSub = missingTasks.filter(m => m.subjectId === sid).length;
 
                 mapelListContainer.insertAdjacentHTML('beforeend', `
@@ -1308,7 +1330,6 @@ window.openStudentEditor = async (docId) => {
         const redMapelEl = document.getElementById('buku-induk-red-mapel');
         const statusBadge = document.getElementById('buku-induk-status');
         const heroCard = document.getElementById('buku-induk-hero');
-
         redMapelEl.innerText = redMapelCount;
         
         if (redMapelCount > 2) {
@@ -1328,13 +1349,13 @@ window.openStudentEditor = async (docId) => {
             redMapelEl.className = "text-3xl font-black text-emerald-500";
         }
 
-        // 6. RENDER BAGIAN C: DIAGNOSTICS & INSIGHTS
+        // 6. RENDER DIAGNOSTICS & INSIGHTS
         const missingList = document.getElementById('buku-induk-missing-tasks');
         missingList.innerHTML = '';
         if (missingTasks.length === 0) {
             missingList.innerHTML = `<li class="text-xs font-bold text-emerald-600">✅ Tidak ada tunggakan nilai.</li>`;
         } else {
-            missingTasks.slice(0, 10).forEach(m => { // Limit to 10 to avoid huge lists
+            missingTasks.slice(0, 10).forEach(m => {
                 missingList.insertAdjacentHTML('beforeend', `
                     <li class="flex items-start gap-2 text-[10px] font-bold text-slate-600">
                         <span class="text-rose-500 mt-0.5">•</span>
@@ -1342,15 +1363,12 @@ window.openStudentEditor = async (docId) => {
                     </li>
                 `);
             });
-            if (missingTasks.length > 10) {
-                missingList.insertAdjacentHTML('beforeend', `<li class="text-[9px] italic text-slate-400 mt-2">+ ${missingTasks.length - 10} tugas lainnya</li>`);
-            }
         }
 
         const notesList = document.getElementById('buku-induk-teacher-notes');
         notesList.innerHTML = '';
         if (teacherNotes.length === 0) {
-            notesList.innerHTML = `<div class="text-center py-6 text-[10px] font-bold text-slate-400 italic">Belum ada catatan khusus dari guru mapel.</div>`;
+            notesList.innerHTML = `<div class="text-center py-6 text-[10px] font-bold text-slate-400 italic">Belum ada catatan guru untuk periode ini.</div>`;
         } else {
             teacherNotes.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(n => {
                 notesList.insertAdjacentHTML('beforeend', `
@@ -1365,14 +1383,11 @@ window.openStudentEditor = async (docId) => {
                 `);
             });
         }
-
-        // Poin Karakter History (Legacy kept)
-        window.applyTimelineFilter('guru');
         
-        window.switchTab('editor');
+        window.applyTimelineFilter('guru');
     } catch (e) {
-        console.error("Gagal memuat Buku Induk:", e);
-        showCustomAlert("Gagal memuat data profil siswa.", true);
+        console.error("Gagal refresh Buku Induk:", e);
+        showCustomAlert("Gagal memproses data periode.", true);
     }
     hideLoading();
 };
