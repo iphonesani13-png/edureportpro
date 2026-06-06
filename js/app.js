@@ -1167,10 +1167,117 @@ window.renderDashboard = () => {
     renderDashboardTable(filtered, query, currentTahun);
 };
 
-window.renderLeaderboard = () => {
+window.renderLeaderboard = async () => {
     const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
-    const selectedBulan = document.getElementById('leaderboard-bulan')?.value || 'ALL';
-    uiRenderLeaderboard(state.studentsData, currentTahun, selectedBulan);
+    const selSemester = document.getElementById('rank-filter-semester')?.value || 'ALL';
+    const selBulan = document.getElementById('rank-filter-bulan')?.value || 'ALL';
+
+    const listUnggulan = document.getElementById('rank-list-unggulan');
+    const listBimbingan = document.getElementById('rank-list-bimbingan');
+    if (!listUnggulan || !listBimbingan) return;
+
+    showLoading("Mengkalkulasi Peringkat...");
+
+    try {
+        // 1. FETCH ALL PUBLISHED ASSESSMENTS FOR THE YEAR
+        const q = query(
+            collection(db, "assessments"),
+            where("academicYear", "==", currentTahun),
+            where("status", "==", "published")
+        );
+        const snap = await getDocs(q);
+        let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // 2. APPLY TIME FILTERS
+        if (selSemester !== 'ALL') {
+            const semNum = parseInt(selSemester);
+            assessments = assessments.filter(a => a.semester === semNum);
+        }
+        if (selBulan !== 'ALL') {
+            const bulNum = parseInt(selBulan);
+            assessments = assessments.filter(a => {
+                const date = new Date(a.assessmentDate);
+                return (date.getMonth() + 1) === bulNum;
+            });
+        }
+
+        // 3. AGGREGATE PER STUDENT
+        const studentStats = {}; // { [studentId]: { totalScore: 0, totalWeight: 0, redMapel: Set } }
+        const kkm = 75;
+
+        assessments.forEach(a => {
+            const weight = a.assessmentWeight || 100;
+            for (const [sid, score] of Object.entries(a.scores)) {
+                if (!studentStats[sid]) {
+                    studentStats[sid] = { totalScore: 0, totalWeight: 0, redMapel: new Set(), name: "" };
+                }
+                studentStats[sid].totalScore += (score * weight);
+                studentStats[sid].totalWeight += weight;
+
+                // Track failing subjects
+                if (score < kkm) {
+                    studentStats[sid].redMapel.add(a.subjectId);
+                }
+            }
+        });
+
+        // 4. PREPARE FINAL LISTS
+        const students = state.studentsData; // Use pre-loaded students for names
+        const finalData = Object.entries(studentStats).map(([id, stats]) => {
+            const st = students.find(s => s.docId === id);
+            return {
+                id,
+                name: st ? st.nama : "Siswa " + id,
+                avg: stats.totalWeight > 0 ? Math.round(stats.totalScore / stats.totalWeight) : 0,
+                redCount: stats.redMapel.size
+            };
+        });
+
+        // 5. SORT & RENDER UNGGULAN (By Average DESC)
+        const unggulan = [...finalData].sort((a, b) => b.avg - a.avg).slice(0, 10);
+        listUnggulan.innerHTML = '';
+        if (unggulan.length === 0) listUnggulan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Belum ada data nilai.</p>';
+
+        unggulan.forEach((s, idx) => {
+            listUnggulan.insertAdjacentHTML('beforeend', `
+                <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <span class="w-8 h-8 flex items-center justify-center font-black text-xs ${idx < 3 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'} rounded-lg">${idx + 1}</span>
+                        <div>
+                            <p class="font-black text-slate-900 text-sm">${formatNama(s.name)}</p>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Rata-Rata Kelas</p>
+                        </div>
+                    </div>
+                    <span class="text-xl font-black text-indigo-600">${s.avg}</span>
+                </div>
+            `);
+        });
+
+        // 6. SORT & RENDER BIMBINGAN (By Red Mapel DESC, only if redCount > 0)
+        const bimbingan = [...finalData].filter(s => s.redCount > 0).sort((a, b) => b.redCount - a.redCount).slice(0, 10);
+        listBimbingan.innerHTML = '';
+        if (bimbingan.length === 0) listBimbingan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Semua siswa tuntas KKM!</p>';
+
+        bimbingan.forEach((s) => {
+            listBimbingan.insertAdjacentHTML('beforeend', `
+                <div class="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="w-8 h-8 flex items-center justify-center bg-rose-100 text-rose-600 rounded-lg text-xs">⚠️</div>
+                        <div>
+                            <p class="font-black text-rose-900 text-sm">${formatNama(s.name)}</p>
+                            <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest">Mapel di Bawah KKM</p>
+                        </div>
+                    </div>
+                    <span class="text-xl font-black text-rose-600">${s.redCount}</span>
+                </div>
+            `);
+        });
+
+    } catch (e) {
+        console.error("Gagal memproses peringkat:", e);
+        showCustomAlert("Gagal memuat data peringkat akademik.", true);
+    }
+    hideLoading();
 };
 
 window.renderTugasGuru = () => {
