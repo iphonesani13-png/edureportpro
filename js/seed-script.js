@@ -1,4 +1,4 @@
-import { db } from "./firebase-config.js";
+import { db } from "./modules/firebase-config.js";
 import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const SEED_DATA = {
