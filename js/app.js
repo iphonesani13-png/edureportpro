@@ -93,12 +93,13 @@ const startAuthListener = () => {
 
 // AUTO-SEED TRIGGER FOR ADMIN
                 if (user.email === 'iphonesani13@gmail.com') {
-                    console.log("Admin detected. Checking seed data...");
+                    console.log("🛠️ Admin detected. Running database seed/migration...");
                     try {
                         const { seedDatabase } = await import("./seed-script.js");
-                        seedDatabase(user.uid);
+                        await seedDatabase(user.uid);
+                        console.log("✨ Seeding process finished.");
                     } catch (e) {
-                        console.error("Seeding skipped or failed:", e);
+                        console.error("⚠️ Seeding crashed in orchestrator:", e);
                     }
                 }
 

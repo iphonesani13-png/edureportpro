@@ -53,41 +53,75 @@ const SEED_DATA = {
 };
 
 export const seedDatabase = async (realUid) => {
-    console.log("Starting Seeding V1.0 (Relational IDs)...");
+    console.log("🚀 Starting Seeding V1.0 (Relational IDs)...");
     
-    const adminUid = realUid || "GURU_ADMIN_ID";
+    try {
+        const adminUid = realUid || "GURU_ADMIN_ID";
 
-    // Seed Subjects
-    for (const sub of SEED_DATA.subjects) {
-        const { id, ...data } = sub;
-        await setDoc(doc(db, "subjects", id), data);
+        // Seed Subjects
+        console.log("📦 Seeding Subjects...");
+        for (const sub of SEED_DATA.subjects) {
+            const { id, ...data } = sub;
+            try {
+                await setDoc(doc(db, "subjects", id), data);
+                console.log(`   ✅ Subject: ${id}`);
+            } catch (err) {
+                console.error(`   ❌ Failed Subject ${id}:`, err.message);
+            }
+        }
+
+        // Seed Templates
+        console.log("📦 Seeding Assessment Templates...");
+        for (const tpl of SEED_DATA.assessment_templates) {
+            const { id, ...data } = tpl;
+            try {
+                await setDoc(doc(db, "assessment_templates", id), data);
+                console.log(`   ✅ Template: ${id}`);
+            } catch (err) {
+                console.error(`   ❌ Failed Template ${id}:`, err.message);
+            }
+        }
+
+        // Seed Classes
+        console.log("📦 Seeding Classes...");
+        for (const cls of SEED_DATA.classes) {
+            const { id, ...data } = cls;
+            if (data.homeroomTeacherId === "GURU_ADMIN_ID") data.homeroomTeacherId = adminUid;
+            try {
+                await setDoc(doc(db, "classes", id), data);
+                console.log(`   ✅ Class: ${id}`);
+            } catch (err) {
+                console.error(`   ❌ Failed Class ${id}:`, err.message);
+            }
+        }
+
+        // Seed Students
+        console.log("📦 Seeding Students...");
+        for (const student of SEED_DATA.students) {
+            const { id, ...data } = student;
+            try {
+                await setDoc(doc(db, "students", id), data);
+                console.log(`   ✅ Student: ${id}`);
+            } catch (err) {
+                console.error(`   ❌ Failed Student ${id}:`, err.message);
+            }
+        }
+
+        // Seed User (Admin)
+        console.log("📦 Seeding Admin User Profile...");
+        const adminProfile = SEED_DATA.users[0];
+        try {
+            await setDoc(doc(db, "users", adminUid), {
+                ...adminProfile,
+                uid: adminUid
+            });
+            console.log(`   ✅ Admin Profile: ${adminUid}`);
+        } catch (err) {
+            console.error(`   ❌ Failed Admin Profile ${adminUid}:`, err.message);
+        }
+        
+        console.log("🎉 Migration & Seeding Complete!");
+    } catch (globalErr) {
+        console.error("⛔ Global Seeding Failure:", globalErr.message);
     }
-
-    // Seed Templates
-    for (const tpl of SEED_DATA.assessment_templates) {
-        const { id, ...data } = tpl;
-        await setDoc(doc(db, "assessment_templates", id), data);
-    }
-
-    // Seed Classes
-    for (const cls of SEED_DATA.classes) {
-        const { id, ...data } = cls;
-        if (data.homeroomTeacherId === "GURU_ADMIN_ID") data.homeroomTeacherId = adminUid;
-        await setDoc(doc(db, "classes", id), data);
-    }
-
-    // Seed Students
-    for (const student of SEED_DATA.students) {
-        const { id, ...data } = student;
-        await setDoc(doc(db, "students", id), data);
-    }
-
-    // Seed User (Admin)
-    const adminProfile = SEED_DATA.users[0];
-    await setDoc(doc(db, "users", adminUid), {
-        ...adminProfile,
-        uid: adminUid
-    });
-    
-    console.log("Migration & Seeding Complete!");
 };
