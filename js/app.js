@@ -904,20 +904,25 @@ window.openStudentEditor = async (docId) => {
         grid.innerHTML = '';
         st.subjects.forEach((sub, idx) => {
             grid.insertAdjacentHTML('beforeend', `
-                <div class="glass-card p-6 space-y-4">
+                <div class="glass-card p-6 space-y-4 border border-slate-100 bg-white">
                     <div class="flex justify-between items-center">
-                        <h4 class="font-black text-[#1A2F1E] text-xs uppercase tracking-widest">${sub.name}</h4>
-                        <span class="text-[8px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">${sub.last_updated_date ? 'UPDATE: ' + sub.last_updated_date : 'BELUM DINILAI'}</span>
+                        <h4 class="font-black text-slate-900 text-xs uppercase tracking-widest">${sub.name}</h4>
+                        <span class="text-[8px] font-black text-slate-400 bg-slate-50 px-2 py-1 rounded-lg uppercase">${sub.last_updated_date ? 'Update: ' + sub.last_updated_date : 'Belum Dinilai'}</span>
                     </div>
                     <div class="grid grid-cols-4 gap-2">
                         ${['harian', 'uh', 'pts', 'pas'].map(type => `
-                            <div class="text-center">
-                                <p class="text-[8px] font-black text-slate-400 uppercase mb-1">${type === 'uh' ? 'UH' : type.toUpperCase()}</p>
-                                <input type="number" value="${sub[`score_${type}`] || 0}" onchange="window.updateSubjectScore(${idx}, '${type}', this.value)" class="w-full p-2 text-center font-black text-[#1B6B3A] bg-[#FBF7F0] border-none rounded-xl text-xs focus:ring-1 focus:ring-[#C9A84C]">
+                            <div class="bg-slate-50 rounded-xl p-2 text-center border border-slate-100/50">
+                                <p class="text-[7px] font-black text-slate-400 uppercase mb-0.5">${type === 'uh' ? 'UH' : type.toUpperCase()}</p>
+                                <p class="font-black text-indigo-600 text-sm">${sub[`score_${type}`] || 0}</p>
                             </div>
                         `).join('')}
                     </div>
-                    <input type="text" value="${sub.note || ''}" onchange="window.updateSubjectNote(${idx}, this.value)" placeholder="Catatan..." class="w-full p-3 text-[10px] font-bold text-slate-600 bg-slate-50 rounded-xl border-none focus:ring-1 focus:ring-[#1B6B3A]">
+                    ${sub.note ? `
+                        <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                            <p class="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">Catatan Guru</p>
+                            <p class="text-[10px] font-bold text-indigo-700 leading-relaxed">${sub.note}</p>
+                        </div>
+                    ` : ''}
                 </div>
             `);
         } );
