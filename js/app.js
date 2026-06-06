@@ -322,10 +322,51 @@ window.initNilaiHarian = async () => {
     }
     };
 
-    window.onNhMapelChange = async () => {
+    window.tambahTpCepat = async () => {
+    const subjectId = document.getElementById('nh-select-mapel')?.value;
+    if (!subjectId) return showCustomAlert("Pilih Mapel terlebih dahulu!", true);
+
+    const title = prompt("Masukkan Judul Materi / TP:");
+    if (!title || title.trim() === "") return;
+
+    const desc = prompt("Masukkan Deskripsi Tujuan Pembelajaran (TP):", title);
+    
+    showLoading("Menambahkan TP...");
+    try {
+        const tpId = `TP_${Date.now()}`;
+        const newTemplate = {
+            id: tpId,
+            subjectId: subjectId,
+            academicYear: getActiveTahun(),
+            semester: 1, // Default ganjil
+            type: "formative",
+            title: title.trim(),
+            tpId: `TP.${Math.floor(Math.random() * 100)}`, // Dummy TP ID
+            tpDesc: desc,
+            cognitiveLevel: "C3",
+            weight: 1
+        };
+
+        await setDoc(doc(db, "assessment_templates", tpId), newTemplate);
+        
+        showCustomAlert("Tujuan Pembelajaran berhasil ditambahkan.");
+        await window.onNhMapelChange(); // Refresh dropdown TP
+        document.getElementById('nh-select-tp').value = tpId;
+        window.onNhFilterChange();
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal menambah TP: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.onNhMapelChange = async () => {
     const subjectId = document.getElementById('nh-select-mapel')?.value;
     const selectTp = document.getElementById('nh-select-tp');
+    const btnAddTp = document.getElementById('nh-btn-add-tp');
     if (!subjectId || !selectTp) return;
+
+    if (btnAddTp) btnAddTp.classList.remove('hidden');
 
     showLoading("Memuat TP...");
     try {
@@ -339,7 +380,7 @@ window.initNilaiHarian = async () => {
         showCustomAlert("Gagal memuat TP.", true);
     }
     hideLoading();
-    };
+};
 
     window.onNhFilterChange = async () => {
     const rawClassId = document.getElementById('nh-select-kelas')?.value;
