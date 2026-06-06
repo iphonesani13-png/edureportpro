@@ -703,8 +703,8 @@ function renderKurikulumContent(tab) {
             </div>
         `;
     } else {
-        const typeLabel = tab === 'nilai-harian' ? 'Harian' : (tab === 'nilai-uh' ? 'UH' : 'PAS');
-        const typeKey = tab === 'nilai-harian' ? 'harian' : (tab === 'nilai-uh' ? 'uh' : 'pas');
+        const typeLabel = tab === 'nilai-uh' ? 'UH' : 'PAS';
+        const typeKey = tab === 'nilai-uh' ? 'uh' : 'pas';
 
         container.innerHTML = `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -740,7 +740,7 @@ function renderKurikulumContent(tab) {
 }
 
 window.refreshInputNilai = (tab) => {
-    const typeKey = tab === 'nilai-harian' ? 'harian' : (tab === 'nilai-uh' ? 'uh' : 'pas');
+    const typeKey = tab === 'nilai-uh' ? 'uh' : 'pas';
     const selectedKelas = document.getElementById('kurikulum-filter-kelas')?.value;
     const selectedMapel = document.getElementById('kurikulum-filter-mapel')?.value;
     const body = document.getElementById('input-nilai-body');
