@@ -143,6 +143,15 @@ function initRealtimeSync(role, childId = null) {
             if (!document.getElementById('dashboard-section')?.classList.contains('hidden')) window.renderDashboard();
             if (!document.getElementById('leaderboard-section')?.classList.contains('hidden')) window.renderLeaderboard();
             if (!document.getElementById('editor-section')?.classList.contains('hidden') && state.currentStudentId) window.openStudentEditor(state.currentStudentId);
+            
+            // Refresh Kurikulum if active
+            if (!document.getElementById('kurikulum-section')?.classList.contains('hidden')) {
+                const progressBody = document.getElementById('progress-nilai-body');
+                if (progressBody) {
+                    const title = document.querySelector('#kurikulum-content h3')?.innerText;
+                    if (title) window.refreshTableProgress(title);
+                }
+            }
         });
 
         state.unsubscribeAssignments = streamAssignments((data) => {
@@ -278,14 +287,30 @@ window.refreshTableProgress = (mapel) => {
     if (!body || !selectedKelas) return;
 
     const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
+    
+    // Debug: Cek data mentah
+    console.log(`Filtering for Mapel: ${mapel}, Kelas: ${selectedKelas}, Tahun: ${currentTahun}`);
+    console.log(`Total Students in state: ${state.studentsData.length}`);
+
     const filteredSiswa = state.studentsData.filter(st => {
-        const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+        const baseK = st.base_kelas || st.kelas || '';
+        const baseT = st.base_tahun || '2025/2026';
+        const calculatedKelas = calculateCurrentKelas(baseK, baseT, currentTahun);
+        
+        // Debug per siswa jika masih kosong
+        // console.log(`Siswa: ${st.nama}, Base: ${baseK} (${baseT}), Calc: ${calculatedKelas}`);
+        
         return calculatedKelas === selectedKelas;
     }).sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
 
+    console.log(`Found ${filteredSiswa.length} students matching class ${selectedKelas}`);
+
     body.innerHTML = '';
     if (filteredSiswa.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-400 font-bold text-xs italic">Tidak ada siswa di kelas ini.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-400 font-bold text-xs italic">
+            Tidak ada siswa ditemukan di kelas ${selectedKelas}.<br>
+            <span class="text-[10px] opacity-50">Pastikan data base_kelas dan base_tahun siswa sudah benar.</span>
+        </td></tr>`;
         return;
     }
 
