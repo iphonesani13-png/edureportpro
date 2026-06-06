@@ -596,6 +596,37 @@ window.onNhMapelChange = async () => {
         updateNhStats();
     };
 
+    window.syncNhInput = (studentId, type, val) => {
+        if (type === 'score') {
+            let num = parseInt(val) || 0;
+            if (num > 100) num = 100;
+            state.nhState.tempScores[studentId] = num;
+        } else {
+            state.nhState.tempNotes[studentId] = val;
+        }
+        updateNhStats();
+    };
+
+    function updateNhStats() {
+        const scores = Object.values(state.nhState.tempScores);
+        const validScores = scores.filter(s => s > 0);
+
+        const total = state.nhState.currentClassStudents.length;
+        const max = validScores.length ? Math.max(...validScores) : 0;
+        const min = validScores.length ? Math.min(...validScores) : 0;
+        const avg = validScores.length ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
+
+        const statTotal = document.getElementById('nh-stat-total');
+        const statMax = document.getElementById('nh-stat-max');
+        const statMin = document.getElementById('nh-stat-min');
+        const statAvg = document.getElementById('nh-stat-avg');
+
+        if (statTotal) statTotal.innerText = total;
+        if (statMax) statMax.innerText = max;
+        if (statMin) statMin.innerText = min;
+        if (statAvg) statAvg.innerText = avg;
+    }
+
     window.handleSaveDraft = async () => {
         const id = state.nhState.currentAssessmentId;
         const reflection = document.getElementById('nh-reflection').value;
