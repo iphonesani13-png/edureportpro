@@ -16,8 +16,9 @@ export const renderAppFragments = async () => {
     const ortuHtml = await loadPartial('/partials/ortu-setup-screen.html');
     const mainHtml = await loadPartial('/partials/main-app.html');
     const modalsHtml = await loadPartial('/partials/body-modals.html');
+    const nhHtml = await loadPartial('/partials/nilai-harian-section.html');
 
-    root.innerHTML = loadingHtml + loginHtml + ortuHtml + mainHtml + modalsHtml;
+    root.innerHTML = loadingHtml + loginHtml + ortuHtml + mainHtml + modalsHtml + nhHtml;
 };
 
 export const registerStudentTableEvents = () => {
