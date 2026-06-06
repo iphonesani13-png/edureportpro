@@ -539,6 +539,17 @@ window.onNhMapelChange = async () => {
             document.getElementById('nh-workspace').classList.remove('hidden');
             document.getElementById('nh-action-buttons').classList.remove('hidden');
         } catch (e) {
+            console.error("NH GRID ERROR:", e);
+            
+            // Debugging context
+            try {
+                const assessment = await AssessmentService.getAssessmentById(id);
+                if (assessment) console.log("ASSESSMENT DATA:", assessment);
+            } catch(innerE) {}
+            
+            console.log("ACTIVE TEMPLATE:", state.nhState.activeTemplate);
+            console.log("ACTIVE CLASS ID:", state.nhState.activeClassId);
+
             showCustomAlert("Gagal memuat grid nilai.", true);
         }
         hideLoading();
