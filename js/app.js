@@ -622,8 +622,8 @@ window.backToNhList = () => {
             const [subject, templates, students, assessments] = await Promise.all([
                 AssessmentService.getSubjectDetails(subjectId),
                 AssessmentService.getTemplatesBySubject(subjectId, academicYear),
-                AssessmentService.getStudentsInClass(activeClassId),
-                AssessmentService.getAllPublishedAssessments(subjectId, activeClassId, academicYear)
+                AssessmentService.getStudentsInClass(classId),
+                AssessmentService.getAllPublishedAssessments(subjectId, classId, academicYear)
             ]);
 
             const passingGrade = subject?.minPassingGrade || 75;
