@@ -33,7 +33,7 @@ export const hideLoading = () => {
 };
 
 export const switchTab = (mode) => {
-    const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer', 'kurikulum'];
+    const sections = ['dashboard', 'leaderboard', 'tugas', 'editor', 'viewer', 'kurikulum', 'nilai-harian'];
 
     sections.forEach(s => {
         const el = document.getElementById(`${s}-section`);

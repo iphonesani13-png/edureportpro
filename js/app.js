@@ -35,6 +35,8 @@ import {
     renderAppFragments, registerStudentTableEvents 
 } from "./modules/page-loader.js";
 
+import * as AssessmentService from "./modules/assessment-service.js";
+
 // --- GLOBAL STATE ---
 let state = {
     currentUser: null,
@@ -44,7 +46,14 @@ let state = {
     currentStudentId: null,
     unsubscribeStudents: null,
     unsubscribeAssignments: null,
-    subjectsList: ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class']
+    subjectsList: ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'],
+    nhState: {
+        activeTemplate: null,
+        activeAssessment: null,
+        currentClassStudents: [],
+        tempScores: {},
+        tempNotes: {}
+    }
 };
 
 // --- AUTHENTICATION LOGIC ---
@@ -239,9 +248,214 @@ window.switchTab = (mode) => {
     if (mode === 'dashboard') window.renderDashboard();
     if (mode === 'tugas') window.renderTugasGuru();
     if (mode === 'kurikulum') window.renderKurikulum();
-};
+    if (mode === 'nilai-harian') window.initNilaiHarian();
+    };
 
-window.renderKurikulum = () => {
+    // --- NILAI HARIAN ORCHESTRATION ---
+    window.initNilaiHarian = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    // Load Mapel (managedSubjects)
+    const profile = await getUserProfile(user.uid);
+    const managedSubjects = profile?.managedSubjects || ['IPA']; // Default if empty for now
+
+    const selectMapel = document.getElementById('nh-select-mapel');
+    if (selectMapel) {
+        selectMapel.innerHTML = '<option value="">Pilih Mapel...</option>';
+        managedSubjects.forEach(s => {
+            selectMapel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`);
+        });
+        if (managedSubjects.length === 1) {
+            selectMapel.value = managedSubjects[0];
+            window.onNhMapelChange();
+        }
+    }
+
+    // Load Kelas
+    const selectKelas = document.getElementById('nh-select-kelas');
+    if (selectKelas) {
+        selectKelas.innerHTML = `
+            <option value="">Pilih Kelas...</option>
+            <option value="7A">Kelas 7A</option>
+            <option value="7B">Kelas 7B</option>
+            <option value="8">Kelas 8</option>
+            <option value="9">Kelas 9</option>
+        `;
+    }
+    };
+
+    window.onNhMapelChange = async () => {
+    const subjectId = document.getElementById('nh-select-mapel')?.value;
+    const selectTp = document.getElementById('nh-select-tp');
+    if (!subjectId || !selectTp) return;
+
+    showLoading("Memuat TP...");
+    try {
+        const templates = await AssessmentService.getTemplatesBySubject(subjectId, getActiveTahun());
+        selectTp.innerHTML = '<option value="">Pilih TP...</option>';
+        templates.forEach(t => {
+            selectTp.insertAdjacentHTML('beforeend', `<option value="${t.id}">${t.tpId} - ${t.title}</option>`);
+        });
+        state.nhTemplates = templates;
+    } catch (e) {
+        showCustomAlert("Gagal memuat TP.", true);
+    }
+    hideLoading();
+    };
+
+    window.onNhFilterChange = async () => {
+    const classId = document.getElementById('nh-select-kelas')?.value;
+    const templateId = document.getElementById('nh-select-tp')?.value;
+    const workspace = document.getElementById('nh-workspace');
+    const emptyState = document.getElementById('nh-empty-state');
+    const actionBar = document.getElementById('nh-action-buttons');
+
+    if (!classId || !templateId) {
+        workspace?.classList.add('hidden');
+        actionBar?.classList.add('hidden');
+        emptyState?.classList.remove('hidden');
+        return;
+    }
+
+    showLoading("Menyiapkan Penilaian...");
+    try {
+        const template = state.nhTemplates.find(t => t.id === templateId);
+        state.nhState.activeTemplate = template;
+
+        // Load Students & Existing Assessment in parallel
+        const [students, assessment] = await Promise.all([
+            AssessmentService.getStudentsInClass(classId),
+            AssessmentService.getAssessment(templateId, classId)
+        ]);
+
+        state.nhState.currentClassStudents = students;
+        state.nhState.activeAssessment = assessment;
+        state.nhState.tempScores = assessment?.scores || {};
+        state.nhState.tempNotes = assessment?.notes || {};
+
+        // UI Setup
+        document.getElementById('nh-tp-title').innerText = `${template.tpId} - ${template.title}`;
+        document.getElementById('nh-tp-desc').innerText = template.tpDesc;
+        document.getElementById('nh-reflection').value = assessment?.teacherReflection || "";
+
+        window.renderNhGrid();
+
+        workspace?.classList.remove('hidden');
+        actionBar?.classList.remove('hidden');
+        emptyState?.classList.add('hidden');
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal memuat data penilaian.", true);
+    }
+    hideLoading();
+    };
+
+    window.renderNhGrid = () => {
+    const body = document.getElementById('nh-table-body');
+    if (!body) return;
+
+    body.innerHTML = '';
+    state.nhState.currentClassStudents.forEach((st, idx) => {
+        const score = state.nhState.tempScores[st.id] || 0;
+        const note = state.nhState.tempNotes[st.id] || "";
+
+        body.insertAdjacentHTML('beforeend', `
+            <tr class="hover:bg-slate-50/50 transition-all">
+                <td class="py-4 px-6 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
+                <td class="py-4 px-4">
+                    <p class="font-black text-slate-700 text-sm">${formatNama(st.name)}</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${st.id}</p>
+                </td>
+                <td class="py-4 px-4">
+                    <input type="number" value="${score}" min="0" max="100"
+                        onfocus="this.select()"
+                        oninput="window.syncNhInput('${st.id}', 'score', this.value)"
+                        class="w-20 mx-auto block p-2.5 text-center font-black text-indigo-600 bg-indigo-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500">
+                </td>
+                <td class="py-4 px-6">
+                    <input type="text" value="${note}" placeholder="Catatan..."
+                        oninput="window.syncNhInput('${st.id}', 'note', this.value)"
+                        class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                </td>
+            </tr>
+        `);
+    });
+    updateNhStats();
+    };
+
+    window.syncNhInput = (studentId, type, val) => {
+    if (type === 'score') {
+        let num = parseInt(val) || 0;
+        if (num > 100) num = 100;
+        state.nhState.tempScores[studentId] = num;
+    } else {
+        state.nhState.tempNotes[studentId] = val;
+    }
+    updateNhStats();
+    };
+
+    function updateNhStats() {
+    const scores = Object.values(state.nhState.tempScores);
+    const validScores = scores.filter(s => s > 0);
+
+    const total = state.nhState.currentClassStudents.length;
+    const max = validScores.length ? Math.max(...validScores) : 0;
+    const min = validScores.length ? Math.min(...validScores) : 0;
+    const avg = validScores.length ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
+
+    document.getElementById('nh-stat-total').innerText = total;
+    document.getElementById('nh-stat-max').innerText = max;
+    document.getElementById('nh-stat-min').innerText = min;
+    document.getElementById('nh-stat-avg').innerText = avg;
+    }
+
+    window.handleSaveDraft = async () => {
+    const template = state.nhState.activeTemplate;
+    const classId = document.getElementById('nh-select-kelas').value;
+    const reflection = document.getElementById('nh-reflection').value;
+
+    showLoading("Menyimpan Draft...");
+    try {
+        await AssessmentService.saveAssessment(
+            template, classId, 
+            state.nhState.tempScores, 
+            state.nhState.tempNotes, 
+            reflection, 
+            false
+        );
+        showCustomAlert("Draft berhasil disimpan.");
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+    };
+
+    window.handlePublish = async () => {
+    const template = state.nhState.activeTemplate;
+    const classId = document.getElementById('nh-select-kelas').value;
+    const reflection = document.getElementById('nh-reflection').value;
+    const total = state.nhState.currentClassStudents.length;
+
+    showLoading("Mempublikasikan Nilai...");
+    try {
+        await AssessmentService.saveAssessment(
+            template, classId, 
+            state.nhState.tempScores, 
+            state.nhState.tempNotes, 
+            reflection, 
+            true,
+            total
+        );
+        showCustomAlert("Nilai berhasil dipublish ke Wali Kelas & Ortu.");
+        window.onNhFilterChange(); // Refresh to lock UI
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+    };
+
+    window.renderDashboard = () => {
     // Default sub-tab jika baru dibuka
     const content = document.getElementById('kurikulum-content');
     if (content && content.innerHTML.includes('Pilih Menu')) {
