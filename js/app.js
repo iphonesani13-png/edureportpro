@@ -60,7 +60,11 @@ let state = {
             passingGrade: 75
         },
         rekapComputedScores: {},
-        selectedTemplateId: null
+        selectedTemplateId: null,
+        // KURIKULUM V2 Workspace
+        currentSubjectId: null,
+        currentWorkspaceTab: 'tp', // cp, tp, atp, kkm
+        allTemplates: [] // Global cache for readiness check
     }
 };
 
@@ -980,31 +984,154 @@ window.backToNhList = () => {
     }
 };
 
-function renderKurikulumContent(tab) {
-    const container = document.getElementById('kurikulum-content');
-    if (!container) return;
+window.renderKurikulum = async () => {
+    const content = document.getElementById('kurikulum-content');
+    if (!content) return;
 
-    if (tab === 'mapel') {
+    if (!state.nhState.currentSubjectId) {
+        await window.renderKatalog();
+    } else {
+        await window.renderWorkspace();
+    }
+};
+
+window.renderKatalog = async () => {
+    const container = document.getElementById('kurikulum-content');
+    const headerActions = document.getElementById('kurikulum-global-actions');
+    const workspaceActions = document.getElementById('workspace-actions');
+
+    if (headerActions) headerActions.classList.remove('hidden');
+    if (workspaceActions) workspaceActions.classList.add('hidden');
+
+    showLoading("Memuat Katalog...");
+    try {
+        // Fetch all templates for readiness check
+        const q = query(
+            collection(db, "assessment_templates"),
+            where("academicYear", "==", getActiveTahun())
+        );
+        const snap = await getDocs(q);
+        state.nhState.allTemplates = snap.docs.map(d => d.data());
+
         container.innerHTML = `
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">Daftar Mata Pelajaran</h3>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                ${state.subjectsList.map(sub => `
-                    <div class="p-5 bg-white border border-slate-100 rounded-3xl flex justify-between items-center group transition-all">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg">📚</div>
-                            <div>
-                                <span class="font-black text-slate-900 text-sm block">${sub}</span>
-                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Setup Kurikulum Aktif</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                ${state.subjectsList.map(sub => {
+                    const sid = "SUBJ_" + sub.toUpperCase().replace(/\s+/g, '_');
+                    const readiness = calculateSubjectReadiness(sid);
+                    
+                    return `
+                        <div onclick="window.openSubjectWorkspace('${sid}')" 
+                             class="glass-card p-6 bg-white border border-slate-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">📚</div>
+                                <div class="flex items-center gap-1.5">
+                                    <div class="w-2 h-2 rounded-full ${readiness.color}"></div>
+                                    <span class="text-[8px] font-black uppercase tracking-widest text-slate-400">${readiness.text}</span>
+                                </div>
+                            </div>
+                            <h4 class="font-black text-slate-900 leading-tight mb-2">${sub}</h4>
+                            <p class="text-[10px] font-medium text-slate-400 leading-relaxed">Klik untuk mengelola materi dan standar akademik.</p>
+                            <div class="mt-6 pt-4 border-t border-slate-50 flex justify-between items-center">
+                                <span class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Buka Workspace</span>
+                                <span class="text-xs group-hover:translate-x-1 transition-transform">→</span>
                             </div>
                         </div>
-                        <button onclick="window.hapusMapel('${sub}')" class="text-rose-500 opacity-0 group-hover:opacity-100 transition-all text-[10px] font-black uppercase px-3 py-2 hover:bg-rose-50 rounded-xl">Hapus</button>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal memuat katalog mapel.", true);
     }
+    hideLoading();
+};
+
+function calculateSubjectReadiness(subjectId) {
+    const templates = state.nhState.allTemplates.filter(t => t.subjectId === subjectId);
+    
+    // 🔴 Belum Siap: 0 TP
+    if (templates.length === 0) {
+        return { text: "Belum Siap", color: "bg-rose-500" };
+    }
+
+    // Check if ATP (semester/order) is complete for all templates
+    const atpIncomplete = templates.some(t => !t.semester || t.order === undefined);
+    
+    // 🟡 Sedang Disiapkan: TP ada tapi ATP/KKM belum lengkap
+    // (Note: KKM check would need subject details, assuming Yellow if ATP missing)
+    if (atpIncomplete) {
+        return { text: "Sedang Disiapkan", color: "bg-amber-400" };
+    }
+
+    // 🟢 Siap Mengajar
+    return { text: "Siap Mengajar", color: "bg-emerald-500" };
+}
+
+window.openSubjectWorkspace = async (subjectId) => {
+    state.nhState.currentSubjectId = subjectId;
+    state.nhState.currentWorkspaceTab = 'tp';
+    window.renderKurikulum();
+};
+
+window.backToKatalog = () => {
+    state.nhState.currentSubjectId = null;
+    window.renderKurikulum();
+};
+
+window.renderWorkspace = async () => {
+    const container = document.getElementById('kurikulum-content');
+    const headerActions = document.getElementById('kurikulum-global-actions');
+    const workspaceActions = document.getElementById('workspace-actions');
+    const subjectId = state.nhState.currentSubjectId;
+    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+
+    if (headerActions) headerActions.classList.add('hidden');
+    if (workspaceActions) workspaceActions.classList.remove('hidden');
+
+    container.innerHTML = `
+        <div class="space-y-6">
+            <!-- Workspace Navigation -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <div class="flex items-center gap-6">
+                    <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest border-r border-slate-200 pr-6">${subjectName}</h3>
+                    <div class="flex gap-4">
+                        <button onclick="window.switchWorkspaceTab('cp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'cp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">CP</button>
+                        <button onclick="window.switchWorkspaceTab('tp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'tp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">TP & Materi</button>
+                        <button onclick="window.switchWorkspaceTab('atp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'atp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">ATP</button>
+                        <button onclick="window.switchWorkspaceTab('kkm')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'kkm' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">KKM</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="workspace-tab-content" class="py-4">
+                <div class="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-2xl mb-4 shadow-sm">🛠️</div>
+                    <h3 class="text-lg font-bold text-slate-900">Workspace ${state.nhState.currentWorkspaceTab.toUpperCase()}</h3>
+                    <p class="text-slate-400 text-sm max-w-xs">Fitur ${state.nhState.currentWorkspaceTab} sedang dalam pengembangan Fase 2.</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add Workspace Active Styles
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .workspace-tab { color: #94a3b8; }
+        .workspace-tab.active { color: #4f46e5; border-color: #4f46e5; }
+    `;
+    document.head.appendChild(style);
+};
+
+window.switchWorkspaceTab = (tab) => {
+    state.nhState.currentWorkspaceTab = tab;
+    window.renderWorkspace();
+};
+
+function renderKurikulumContent(tab) {
+    // This function is now legacy and handled by window.renderKurikulum
+    window.renderKurikulum();
 }
 
 window.konfirmasiTambahMapel = async () => {

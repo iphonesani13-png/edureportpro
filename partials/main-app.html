@@ -286,56 +286,29 @@
             </section>
 
             <!-- KURIKULUM SECTION -->
+            <!-- KURIKULUM SECTION (ADMINISTRASI KURIKULUM V2) -->
             <section id="kurikulum-section" class="hidden animate-fade-in space-y-6">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div id="kurikulum-header" class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Manajemen Kurikulum</h2>
-                        <p class="text-slate-400 text-sm font-medium mt-0.5">Kelola mata pelajaran dan penilaian akademik.</p>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Administrasi Kurikulum</h2>
+                        <p class="text-slate-400 text-sm font-medium mt-0.5">Persiapan materi dan standar akademik mata pelajaran.</p>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div id="kurikulum-global-actions" class="flex items-center gap-3">
                         <button onclick="toggleModal('tambah-mapel-modal', true)" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md">
                             Tambah Mata Pelajaran
                         </button>
                     </div>
+                    <div id="workspace-actions" class="flex items-center gap-3 hidden">
+                        <button onclick="window.backToKatalog()" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">
+                            ← Kembali ke Katalog
+                        </button>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- Navigasi Internal Kurikulum -->
-                    <div class="md:col-span-1 space-y-4">
-                        <div class="glass-card p-4 bg-white border border-slate-100 shadow-sm flex flex-col gap-2">
-                            <button onclick="switchKurikulumTab('mapel')" class="kurikulum-nav-item active w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
-                                <span>📚 Mata Pelajaran</span>
-                                <span class="text-xs">→</span>
-                            </button>
-                            <!-- Diberi class 'hidden' agar hilang dari pandangan guru, tapi logic tetap utuh -->
-                            <button onclick="switchKurikulumTab('nilai-uh')" class="kurikulum-nav-item hidden w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
-                                <span>🔥 Nilai UH</span>
-                                <span class="text-xs">→</span>
-                            </button>
-                            <button onclick="switchKurikulumTab('nilai-pas')" class="kurikulum-nav-item hidden w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
-                                <span>🎓 Nilai PAS</span>
-                                <span class="text-xs">→</span>
-                            </button>
-                        </div>
-
-                        <!-- Card Info Singkat -->
-                        <div class="glass-card p-6 bg-indigo-50 border border-indigo-100 rounded-3xl">
-                            <h4 class="text-xs font-black text-indigo-900 uppercase tracking-widest mb-2">Tips Kurikulum</h4>
-                            <p class="text-[10px] text-indigo-700 font-medium leading-relaxed">
-                                Gunakan fitur ini untuk menginput nilai secara massal per kelas untuk efisiensi waktu Bapak/Ibu Guru.
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Area Konten Dinamis Kurikulum -->
-                    <div class="md:col-span-2 space-y-6">
-                        <div id="kurikulum-content" class="glass-card p-8 bg-white border border-slate-100 shadow-sm min-h-[400px]">
-                            <div class="flex flex-col items-center justify-center h-full py-20 text-center">
-                                <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl mb-4">📂</div>
-                                <h3 class="text-lg font-bold text-slate-900">Pilih Menu</h3>
-                                <p class="text-slate-400 text-sm max-w-xs">Pilih salah satu menu di samping untuk mulai mengelola data kurikulum.</p>
-                            </div>
-                        </div>
+                <div id="kurikulum-content" class="min-h-[400px]">
+                    <!-- Konten dinamis (Katalog atau Workspace) dirender oleh JS -->
+                    <div class="flex items-center justify-center py-20">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                     </div>
                 </div>
             </section>
