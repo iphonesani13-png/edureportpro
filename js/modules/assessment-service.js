@@ -1,10 +1,10 @@
 import { db, auth } from "./firebase-config.js";
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, runTransaction 
+    doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, runTransaction, addDoc 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 /**
- * AssessmentService V1.0 (Refined)
+ * AssessmentService V1.1 (Multi-Assessment Model)
  * Academic Engine for SMPIT Tracker
  */
 
@@ -22,11 +22,23 @@ export const getTemplatesBySubject = async (subjectId, academicYear) => {
 };
 
 /**
- * Mendapatkan dokumen assessment spesifik
+ * Mendapatkan daftar aktivitas penilaian untuk TP dan Kelas tertentu
  */
-export const getAssessment = async (templateId, classId) => {
-    const id = `${templateId}_${classId}`;
-    const docRef = doc(db, "assessments", id);
+export const getAssessmentsByFilter = async (templateId, classId) => {
+    const q = query(
+        collection(db, "assessments"),
+        where("templateId", "==", templateId),
+        where("classId", "==", classId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+};
+
+/**
+ * Mendapatkan satu dokumen assessment berdasarkan ID
+ */
+export const getAssessmentById = async (assessmentId) => {
+    const docRef = doc(db, "assessments", assessmentId);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
         return { id: snap.id, ...snap.data() };
@@ -49,65 +61,60 @@ const validatePublish = (scores, reflection, totalStudents) => {
 };
 
 /**
- * Menyimpan atau Update data assessment menggunakan Transaction
+ * Menyimpan atau Update data assessment (Multi-Assessment)
  */
-export const saveAssessment = async (template, classId, scores, notes, reflection, isPublish = false, totalStudents = 0) => {
+export const saveAssessment = async (assessmentId, assessmentData, isPublish = false, totalStudents = 0) => {
     const user = auth.currentUser;
     if (!user) throw new Error("User tidak terautentikasi.");
     
     const teacherId = user.uid;
-    const id = `${template.id}_${classId}`;
-    const docRef = doc(db, "assessments", id);
 
     if (isPublish) {
-        validatePublish(scores, reflection, totalStudents);
+        validatePublish(assessmentData.scores || {}, assessmentData.teacherReflection, totalStudents);
     }
 
-    return await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(docRef);
-        
-        const baseData = {
-            scores,
-            notes,
-            teacherReflection: reflection,
-            updatedAt: serverTimestamp(),
-            updatedBy: teacherId
-        };
+    const baseData = {
+        ...assessmentData,
+        updatedAt: serverTimestamp(),
+        updatedBy: teacherId,
+        gradingStatus: isPublish ? "completed" : "ongoing" // New V1.1 Field
+    };
 
-        if (isPublish) {
-            baseData.status = "published";
-            baseData.publishedAt = serverTimestamp();
-            baseData.publishedBy = teacherId;
-        }
+    if (isPublish) {
+        baseData.status = "published";
+        baseData.publishedAt = serverTimestamp();
+        baseData.publishedBy = teacherId;
+    }
 
-        if (!snap.exists()) {
-            // Logic Create
-            const newData = {
-                ...baseData,
-                templateId: template.id,
-                classId: classId,
-                subjectId: template.subjectId,
-                teacherId: teacherId,
-                academicYear: template.academicYear,
-                semester: template.semester,
-                status: isPublish ? "published" : "draft",
-                createdAt: serverTimestamp(),
-                createdBy: teacherId,
-                isRemedial: false,
-                originalAssessmentId: null
-            };
-            transaction.set(docRef, newData);
-        } else {
-            // Logic Update - Proteksi Lock Published (Hanya Admin/Principal via Rules)
-            const existingData = snap.data();
-            if (existingData.status === "published" && !isPublish) {
-                throw new Error("Dokumen sudah dipublish dan terkunci.");
+    if (!assessmentId) {
+        // CREATE NEW (Auto-ID)
+        const docRef = await addDoc(collection(db, "assessments"), {
+            ...baseData,
+            status: isPublish ? "published" : "draft",
+            createdAt: serverTimestamp(),
+            createdBy: teacherId,
+            isRemedial: false,
+            originalAssessmentId: null
+        });
+        return docRef.id;
+    } else {
+        // UPDATE EXISTING
+        const docRef = doc(db, "assessments", assessmentId);
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(docRef);
+            if (!snap.exists()) throw new Error("Dokumen tidak ditemukan.");
+            
+            const existing = snap.data();
+            if (existing.status === "published" && !isPublish) {
+                // Principal/Admin can override this via rules, but logic prevents it for teachers
+                if (user.role !== 'admin' && user.role !== 'principal') {
+                    throw new Error("Dokumen sudah dipublish dan terkunci.");
+                }
             }
             transaction.update(docRef, baseData);
-        }
-        
-        return id;
-    });
+        });
+        return assessmentId;
+    }
 };
 
 /**

@@ -383,145 +383,204 @@ window.onNhMapelChange = async () => {
 };
 
     window.onNhFilterChange = async () => {
-    const rawClassId = document.getElementById('nh-select-kelas')?.value;
-    const templateId = document.getElementById('nh-select-tp')?.value;
-    const workspace = document.getElementById('nh-workspace');
-    const emptyState = document.getElementById('nh-empty-state');
-    const actionBar = document.getElementById('nh-action-buttons');
+        const rawClassId = document.getElementById('nh-select-kelas')?.value;
+        const templateId = document.getElementById('nh-select-tp')?.value;
+        const workspace = document.getElementById('nh-workspace');
+        const emptyState = document.getElementById('nh-empty-state');
+        const listView = document.getElementById('nh-list-view');
+        const actionBar = document.getElementById('nh-action-buttons');
+        const metaForm = document.getElementById('nh-metadata-form');
 
-    if (!rawClassId || !templateId) {
-        workspace?.classList.add('hidden');
-        actionBar?.classList.add('hidden');
-        emptyState?.classList.remove('hidden');
-        return;
+        if (!rawClassId || !templateId) {
+            [workspace, listView, actionBar, metaForm].forEach(el => el?.classList.add('hidden'));
+            emptyState?.classList.remove('hidden');
+            return;
+        }
+
+        const yearParts = getActiveTahun().split('/');
+        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        
+        state.nhState.activeClassId = classId;
+        state.nhState.activeTemplateId = templateId;
+        state.nhState.activeTemplate = state.nhTemplates.find(t => t.id === templateId);
+
+        showLoading("Memuat Daftar Penilaian...");
+        try {
+            const assessments = await AssessmentService.getAssessmentsByFilter(templateId, classId);
+            state.nhState.assessmentsList = assessments;
+            
+            renderNhList();
+            
+            [workspace, emptyState, metaForm, actionBar].forEach(el => el?.classList.add('hidden'));
+            listView?.classList.remove('hidden');
+        } catch (e) {
+            console.error(e);
+            showCustomAlert("Gagal memuat daftar penilaian.", true);
+        }
+        hideLoading();
+    };
+
+    function renderNhList() {
+        const container = document.getElementById('nh-assessment-cards');
+        if (!container) return;
+
+        container.innerHTML = '';
+        if (state.nhState.assessmentsList.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                    <p class="text-slate-400 font-bold text-sm">Belum ada aktivitas penilaian untuk TP ini.</p>
+                </div>
+            `;
+            return;
+        }
+
+        state.nhState.assessmentsList.forEach(asmt => {
+            const date = new Date(asmt.assessmentDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            const isPub = asmt.status === 'published';
+            
+            container.insertAdjacentHTML('beforeend', `
+                <div onclick="window.openAssessmentGrid('${asmt.id}')" class="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md hover:border-indigo-500 transition-all cursor-pointer group relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${isPub ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
+                            ${asmt.status}
+                        </span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase">${date}</span>
+                    </div>
+                    <h4 class="font-black text-slate-900 leading-tight mb-1 group-hover:text-indigo-600 transition-colors">${asmt.assessmentName}</h4>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${asmt.assessmentType} • Bobot ${asmt.assessmentWeight}%</p>
+                </div>
+            `);
+        });
     }
 
-    // ARSITEKTUR V1.0: Gabungkan Tahun + Kelas (cth: 2025/2026_7A -> 2526_7A)
-    const currentTahun = getActiveTahun();
-    const prefix = currentTahun.replace('/', ''); // "2025/2026" -> "20252026" ?? 
-    // Berdasarkan PRD V1.0, format ID adalah "2526_7A" (mengambil 2 digit akhir setiap tahun)
-    const yearParts = currentTahun.split('/');
-    const shortPrefix = yearParts[0].slice(-2) + yearParts[1].slice(-2); // "2526"
-    const classId = `${shortPrefix}_${rawClassId}`;
+    window.showNhMetadataForm = () => {
+        document.getElementById('nh-list-view').classList.add('hidden');
+        document.getElementById('nh-metadata-form').classList.remove('hidden');
+        document.getElementById('nh-input-date').value = new Date().toISOString().split('T')[0];
+    };
 
-    showLoading("Menyiapkan Penilaian...");
-    try {
-        const template = state.nhTemplates.find(t => t.id === templateId);
-        state.nhState.activeTemplate = template;
+    window.cancelNhMetadataForm = () => {
+        document.getElementById('nh-metadata-form').classList.add('hidden');
+        document.getElementById('nh-list-view').classList.remove('hidden');
+    };
 
-        console.log(`NH Flow: Loading Class=${classId}, Template=${templateId}`);
+    window.confirmCreateAssessment = async () => {
+        const name = document.getElementById('nh-input-name').value;
+        const type = document.getElementById('nh-input-type').value;
+        const date = document.getElementById('nh-input-date').value;
+        const weight = document.getElementById('nh-input-weight').value;
 
-        // Load Students & Existing Assessment in parallel
-        const [students, assessment] = await Promise.all([
-            AssessmentService.getStudentsInClass(classId).catch(err => {
-                console.error("NH Error: Failed to fetch students:", err);
-                throw err;
-            }),
-            AssessmentService.getAssessment(templateId, classId).catch(err => {
-                console.error("NH Error: Failed to fetch assessment:", err);
-                throw err;
-            })
-        ]);
+        if (!name || !date) return showCustomAlert("Lengkapi data penilaian!", true);
 
-        console.log(`NH Flow: Found ${students.length} students. Assessment exists: ${!!assessment}`);
+        showLoading("Memulai Penilaian...");
+        try {
+            const assessmentData = {
+                assessmentName: name,
+                assessmentType: type,
+                assessmentDate: date,
+                assessmentWeight: parseInt(weight) || 100,
+                templateId: state.nhState.activeTemplateId,
+                classId: state.nhState.activeClassId,
+                subjectId: state.nhState.activeTemplate.subjectId,
+                academicYear: state.nhState.activeTemplate.academicYear,
+                semester: state.nhState.activeTemplate.semester,
+                scores: {},
+                notes: {},
+                teacherReflection: ""
+            };
 
-        state.nhState.currentClassStudents = students;
-        state.nhState.activeAssessment = assessment;
-        state.nhState.tempScores = assessment?.scores || {};
-        state.nhState.tempNotes = assessment?.notes || {};
+            const newId = await AssessmentService.saveAssessment(null, assessmentData);
+            await window.openAssessmentGrid(newId);
+        } catch (e) {
+            showCustomAlert(e.message, true);
+        }
+        hideLoading();
+    };
 
-        // UI Setup
-        document.getElementById('nh-tp-title').innerText = `${template.tpId} - ${template.title}`;
-        document.getElementById('nh-tp-desc').innerText = template.tpDesc;
-        document.getElementById('nh-reflection').value = assessment?.teacherReflection || "";
+    window.openAssessmentGrid = async (id) => {
+        showLoading("Memuat Grid Nilai...");
+        try {
+            const assessment = await AssessmentService.getAssessmentById(id);
+            const students = await AssessmentService.getStudentsInClass(assessment.classId);
 
-        window.renderNhGrid();
+            state.nhState.currentAssessmentId = id;
+            state.nhState.activeAssessment = assessment;
+            state.nhState.currentClassStudents = students;
+            state.nhState.tempScores = assessment.scores || {};
+            state.nhState.tempNotes = assessment.notes || {};
 
-        workspace?.classList.remove('hidden');
-        actionBar?.classList.remove('hidden');
-        emptyState?.classList.add('hidden');
-    } catch (e) {
-        console.error(e);
-        showCustomAlert("Gagal memuat data penilaian.", true);
-    }
-    hideLoading();
+            // UI Setup
+            document.getElementById('nh-tp-title').innerText = assessment.assessmentName;
+            document.getElementById('nh-tp-desc').innerText = state.nhState.activeTemplate.tpDesc;
+            document.getElementById('nh-reflection').value = assessment.teacherReflection || "";
+            
+            window.renderNhGrid();
+
+            document.getElementById('nh-list-view').classList.add('hidden');
+            document.getElementById('nh-metadata-form').classList.add('hidden');
+            document.getElementById('nh-workspace').classList.remove('hidden');
+            document.getElementById('nh-action-buttons').classList.remove('hidden');
+        } catch (e) {
+            showCustomAlert("Gagal memuat grid nilai.", true);
+        }
+        hideLoading();
+    };
+
+    window.backToNhList = () => {
+        document.getElementById('nh-workspace').classList.add('hidden');
+        document.getElementById('nh-action-buttons').classList.add('hidden');
+        window.onNhFilterChange(); // Refresh list
     };
 
     window.renderNhGrid = () => {
-    const body = document.getElementById('nh-table-body');
-    if (!body) return;
+        const body = document.getElementById('nh-table-body');
+        if (!body) return;
 
-    body.innerHTML = '';
-    state.nhState.currentClassStudents.forEach((st, idx) => {
-        const score = state.nhState.tempScores[st.id] || 0;
-        const note = state.nhState.tempNotes[st.id] || "";
+        const isLocked = state.nhState.activeAssessment.status === 'published';
 
-        body.insertAdjacentHTML('beforeend', `
-            <tr class="hover:bg-slate-50/50 transition-all">
-                <td class="py-4 px-6 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
-                <td class="py-4 px-4">
-                    <p class="font-black text-slate-700 text-sm">${formatNama(st.nama || "Tanpa Nama")}</p>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${st.id}</p>
-                </td>
-                <td class="py-4 px-4">
-                    <input type="number" value="${score}" min="0" max="100"
-                        onfocus="this.select()"
-                        oninput="window.syncNhInput('${st.id}', 'score', this.value)"
-                        class="w-20 mx-auto block p-2.5 text-center font-black text-indigo-600 bg-indigo-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500">
-                </td>
-                <td class="py-4 px-6">
-                    <input type="text" value="${note}" placeholder="Catatan..."
-                        oninput="window.syncNhInput('${st.id}', 'note', this.value)"
-                        class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                </td>
-            </tr>
-        `);
-    });
-    updateNhStats();
+        body.innerHTML = '';
+        state.nhState.currentClassStudents.forEach((st, idx) => {
+            const score = state.nhState.tempScores[st.id] || 0;
+            const note = state.nhState.tempNotes[st.id] || "";
+
+            body.insertAdjacentHTML('beforeend', `
+                <tr class="hover:bg-slate-50/50 transition-all">
+                    <td class="py-4 px-6 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
+                    <td class="py-4 px-4">
+                        <p class="font-black text-slate-700 text-sm">${formatNama(st.nama || "Tanpa Nama")}</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${st.id}</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <input type="number" value="${score}" min="0" max="100"
+                            ${isLocked ? 'disabled' : ''}
+                            onfocus="this.select()"
+                            oninput="window.syncNhInput('${st.id}', 'score', this.value)"
+                            class="w-20 mx-auto block p-2.5 text-center font-black text-indigo-600 bg-indigo-50/50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                    </td>
+                    <td class="py-4 px-6">
+                        <input type="text" value="${note}" placeholder="Catatan..."
+                            ${isLocked ? 'disabled' : ''}
+                            oninput="window.syncNhInput('${st.id}', 'note', this.value)"
+                            class="w-full p-2.5 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 disabled:opacity-50">
+                    </td>
+                </tr>
+            `);
+        });
+        updateNhStats();
     };
-
-    window.syncNhInput = (studentId, type, val) => {
-    if (type === 'score') {
-        let num = parseInt(val) || 0;
-        if (num > 100) num = 100;
-        state.nhState.tempScores[studentId] = num;
-    } else {
-        state.nhState.tempNotes[studentId] = val;
-    }
-    updateNhStats();
-    };
-
-    function updateNhStats() {
-    const scores = Object.values(state.nhState.tempScores);
-    const validScores = scores.filter(s => s > 0);
-
-    const total = state.nhState.currentClassStudents.length;
-    const max = validScores.length ? Math.max(...validScores) : 0;
-    const min = validScores.length ? Math.min(...validScores) : 0;
-    const avg = validScores.length ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
-
-    document.getElementById('nh-stat-total').innerText = total;
-    document.getElementById('nh-stat-max').innerText = max;
-    document.getElementById('nh-stat-min').innerText = min;
-    document.getElementById('nh-stat-avg').innerText = avg;
-    }
 
     window.handleSaveDraft = async () => {
-        const template = state.nhState.activeTemplate;
-        const rawClassId = document.getElementById('nh-select-kelas').value;
-        const yearParts = getActiveTahun().split('/');
-        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        const id = state.nhState.currentAssessmentId;
         const reflection = document.getElementById('nh-reflection').value;
 
         showLoading("Menyimpan Draft...");
         try {
-            await AssessmentService.saveAssessment(
-                template, classId, 
-                state.nhState.tempScores, 
-                state.nhState.tempNotes, 
-                reflection, 
-                false
-            );
+            const updatedData = {
+                scores: state.nhState.tempScores,
+                notes: state.nhState.tempNotes,
+                teacherReflection: reflection
+            };
+            await AssessmentService.saveAssessment(id, updatedData, false);
             showCustomAlert("Draft berhasil disimpan.");
         } catch (e) {
             showCustomAlert(e.message, true);
@@ -530,25 +589,20 @@ window.onNhMapelChange = async () => {
     };
 
     window.handlePublish = async () => {
-        const template = state.nhState.activeTemplate;
-        const rawClassId = document.getElementById('nh-select-kelas').value;
-        const yearParts = getActiveTahun().split('/');
-        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        const id = state.nhState.currentAssessmentId;
         const reflection = document.getElementById('nh-reflection').value;
         const total = state.nhState.currentClassStudents.length;
 
         showLoading("Mempublikasikan Nilai...");
         try {
-            await AssessmentService.saveAssessment(
-                template, classId, 
-                state.nhState.tempScores, 
-                state.nhState.tempNotes, 
-                reflection, 
-                true,
-                total
-            );
-            showCustomAlert("Nilai berhasil dipublish ke Wali Kelas & Ortu.");
-            window.onNhFilterChange(); // Refresh to lock UI
+            const updatedData = {
+                scores: state.nhState.tempScores,
+                notes: state.nhState.tempNotes,
+                teacherReflection: reflection
+            };
+            await AssessmentService.saveAssessment(id, updatedData, true, total);
+            showCustomAlert("Nilai berhasil dipublish.");
+            window.backToNhList();
         } catch (e) {
             showCustomAlert(e.message, true);
         }
@@ -774,32 +828,6 @@ window.refreshInputNilai = (tab) => {
             </tr>
         `);
     });
-};
-
-window.updateBulkScore = (studentId, mapel, type, val) => {
-    const st = state.studentsData.find(s => s.docId === studentId);
-    if (!st) return;
-    
-    // Pastikan array subjects ada
-    if (!st.subjects) st.subjects = [];
-    
-    let sub = st.subjects.find(s => s.name === mapel);
-    if (!sub) {
-        sub = { name: mapel };
-        st.subjects.push(sub);
-    }
-    
-    sub[`score_${type}`] = parseInt(val) || 0;
-    sub.last_updated_date = new Date().toLocaleDateString('id-ID');
-    
-    setDoc(doc(db, 'students', studentId), st)
-        .then(() => {
-            console.log(`Saved score for ${studentId} - ${mapel} - ${type}`);
-        })
-        .catch(err => {
-            console.error("Error saving score:", err);
-            showCustomAlert("Gagal menyimpan nilai.", true);
-        });
 };
 
 window.konfirmasiTambahMapel = async () => {
