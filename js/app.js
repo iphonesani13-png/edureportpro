@@ -36,6 +36,7 @@ import {
 } from "./modules/page-loader.js";
 
 import * as AssessmentService from "./modules/assessment-service.js";
+import "./wipe-script.js"; // TEMP: Wipe grades on load
 
 // --- GLOBAL STATE ---
 let state = {
