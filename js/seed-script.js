@@ -1,6 +1,6 @@
 import { db } from "./modules/firebase-config.js";
 import { 
-    doc, setDoc, getDocs, collection, query, where 
+    doc, setDoc, getDocs, collection 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const SEED_DATA = {
@@ -24,7 +24,6 @@ const SEED_DATA = {
     ],
     users: [
         {
-            uid: "GURU_ADMIN_ID",
             email: "iphonesani13@gmail.com",
             role: "guru",
             name: "Rizki Akhsani",
@@ -39,38 +38,42 @@ export const seedDatabase = async (realUid) => {
     try {
         const adminUid = realUid || "GURU_ADMIN_ID";
 
-        // 1. Seed Subjects
+        // 1. Sync Subjects (Master Data)
         console.log("📦 Syncing Subjects...");
         for (const sub of SEED_DATA.subjects) {
             await setDoc(doc(db, "subjects", sub.id), sub);
         }
 
-        // 2. Seed Templates
+        // 2. Sync Templates (Materi/TP)
         console.log("📦 Syncing Assessment Templates...");
         for (const tpl of SEED_DATA.assessment_templates) {
             await setDoc(doc(db, "assessment_templates", tpl.id), tpl);
         }
 
-        // 3. READ EXISTING STUDENTS & GROUP BY CLASS
-        console.log("🔍 Fetching existing students from Firestore...");
+        // 3. READ ALL EXISTING STUDENTS FROM YOUR DATABASE
+        console.log("🔍 Scanning existing students in Firestore...");
         const studentsSnap = await getDocs(collection(db, "students"));
+        
+        // Map untuk menampung list NIS per kelas
         const classMap = {
             "7A": [], "7B": [], "8": [], "9": []
         };
 
+        let totalScanned = 0;
         studentsSnap.forEach(d => {
             const data = d.data();
-            const kelas = data.base_kelas || data.kelas;
-            const tahun = data.base_tahun || "2025/2026";
+            // Ambil kelas dari input manual Anda (field 'kelas') atau fallback 'base_kelas'
+            const kelasSiswa = data.kelas || data.base_kelas;
             
-            // Masukkan hanya yang tahun ajaran 2025/2026
-            if (tahun === "2025/2026" && classMap[kelas]) {
-                classMap[kelas].push(d.id);
+            if (kelasSiswa && classMap[kelasSiswa]) {
+                classMap[kelasSiswa].push(d.id); // Masukkan NIS (doc ID) ke list kelas
+                totalScanned++;
             }
         });
+        console.log(`📊 Found ${totalScanned} students to sync.`);
 
-        // 4. UPDATE CLASSES DYNAMICALLY
-        console.log("📦 Updating Class Member Lists...");
+        // 4. UPDATE COLLECTION 'classes' SECARA OTOMATIS
+        console.log("📦 Updating Class Registries (Bridge)...");
         for (const [className, studentIds] of Object.entries(classMap)) {
             const classId = `2526_${className}`;
             const classData = {
@@ -81,10 +84,10 @@ export const seedDatabase = async (realUid) => {
                 studentIds: studentIds
             };
             await setDoc(doc(db, "classes", classId), classData);
-            console.log(`   ✅ Class ${classId}: Linked ${studentIds.length} students`);
+            console.log(`   ✅ Class ${classId}: Registered ${studentIds.length} students`);
         }
 
-        // 5. Seed User (Admin)
+        // 5. Sync Admin Profile
         console.log("📦 Syncing Admin User Profile...");
         const adminProfile = SEED_DATA.users[0];
         await setDoc(doc(db, "users", adminUid), {
@@ -92,7 +95,7 @@ export const seedDatabase = async (realUid) => {
             uid: adminUid
         });
         
-        console.log("🎉 Dynamic Sync Complete!");
+        console.log("🎉 Dynamic Sync Complete! All your students are now linked.");
     } catch (globalErr) {
         console.error("⛔ Sync Failure:", globalErr.message);
     }
