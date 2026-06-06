@@ -20,6 +20,9 @@
                 <button id="btn-tugas" onclick="switchTab('tugas')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>📝</span> Tugas Siswa
                 </button>
+                <button id="btn-kurikulum" onclick="switchTab('kurikulum')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
+                    <span>📚</span> Kurikulum
+                </button>
                 <button id="btn-editor" onclick="switchTab('editor')" class="sidebar-item hidden w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>👤</span> Profil Siswa
                 </button>
@@ -119,7 +122,127 @@
                 </div>
             </section>
 
-            <!-- Other sections remain but with simplified styling... -->
+            <!-- LEADERBOARD SECTION -->
+            <section id="leaderboard-section" class="hidden animate-fade-in space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Peringkat Siswa</h2>
+                        <p class="text-slate-400 text-sm font-medium mt-0.5">Siswa terbaik berdasarkan akumulasi poin.</p>
+                    </div>
+                    <select id="leaderboard-bulan" onchange="renderLeaderboard()" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold">
+                        <option value="ALL">Semua Waktu</option>
+                        <option value="1">Januari</option><option value="2">Februari</option>
+                        <!-- Tambahkan bulan lainnya jika perlu -->
+                    </select>
+                </div>
+                <div id="leaderboard-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- TUGAS SECTION -->
+            <section id="tugas-section" class="hidden animate-fade-in space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Tugas Siswa</h2>
+                    <button onclick="toggleModal('tambah-tugas-modal', true)" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md">Tambah Tugas</button>
+                </div>
+                <div id="guru-tugas-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </section>
+
+            <!-- EDITOR SECTION -->
+            <section id="editor-section" class="hidden animate-fade-in space-y-6">
+                <div class="glass-card p-8 bg-white border border-slate-100 shadow-sm relative overflow-hidden">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                        <div class="text-center md:text-left">
+                            <span id="editor-badge-kelas" class="text-[9px] font-bold bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full uppercase tracking-widest mb-3 inline-block border border-indigo-100">KELAS</span>
+                            <h1 id="editor-title" class="text-3xl font-black text-slate-900 mb-1 tracking-tight">Memuat...</h1>
+                            <p id="editor-nis" class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">NIS: -</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="bg-indigo-600 text-white p-6 rounded-2xl text-center min-w-[140px] shadow-lg shadow-indigo-100">
+                                <p class="text-[9px] font-bold uppercase tracking-widest text-indigo-100 mb-1">Total Poin</p>
+                                <h2 id="guru-view-poin" class="text-4xl font-bold">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="subjects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 glass-card p-6 bg-white border border-slate-100">
+                        <h3 class="font-bold text-slate-900 mb-4">Riwayat Poin</h3>
+                        <div id="guru-timeline" class="space-y-4 max-h-[400px] overflow-y-auto pr-2"></div>
+                    </div>
+                    <div class="glass-card p-6 bg-white border border-slate-100 h-fit">
+                        <h3 class="font-bold text-slate-900 mb-4">Input Poin</h3>
+                        <div class="space-y-4">
+                            <select id="poin-jenis" class="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                                <option value="plus">Poin Positif (⭐)</option>
+                                <option value="minus">Poin Negatif (⚠️)</option>
+                            </select>
+                            <input type="number" id="poin-angka" placeholder="Jumlah Poin" class="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                            <textarea id="poin-catatan" placeholder="Keterangan..." class="w-full p-3 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500 h-24"></textarea>
+                            <button onclick="tambahTransaksiPoin()" class="w-full py-3 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all">Simpan Poin</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KURIKULUM SECTION -->
+            <section id="kurikulum-section" class="hidden animate-fade-in space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Manajemen Kurikulum</h2>
+                        <p class="text-slate-400 text-sm font-medium mt-0.5">Kelola mata pelajaran dan penilaian akademik.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleModal('tambah-mapel-modal', true)" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md">
+                            Tambah Mata Pelajaran
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Navigasi Internal Kurikulum -->
+                    <div class="md:col-span-1 space-y-4">
+                        <div class="glass-card p-4 bg-white border border-slate-100 shadow-sm flex flex-col gap-2">
+                            <button onclick="switchKurikulumTab('mapel')" class="kurikulum-nav-item active w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                                <span>📚 Mata Pelajaran</span>
+                                <span class="text-xs">→</span>
+                            </button>
+                            <button onclick="switchKurikulumTab('nilai-harian')" class="kurikulum-nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                                <span>📝 Nilai Harian</span>
+                                <span class="text-xs">→</span>
+                            </button>
+                            <button onclick="switchKurikulumTab('nilai-uh')" class="kurikulum-nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                                <span>🔥 Nilai UH</span>
+                                <span class="text-xs">→</span>
+                            </button>
+                            <button onclick="switchKurikulumTab('nilai-pas')" class="kurikulum-nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all">
+                                <span>🎓 Nilai PAS</span>
+                                <span class="text-xs">→</span>
+                            </button>
+                        </div>
+
+                        <!-- Card Info Singkat -->
+                        <div class="glass-card p-6 bg-indigo-50 border border-indigo-100 rounded-3xl">
+                            <h4 class="text-xs font-black text-indigo-900 uppercase tracking-widest mb-2">Tips Kurikulum</h4>
+                            <p class="text-[10px] text-indigo-700 font-medium leading-relaxed">
+                                Gunakan fitur ini untuk menginput nilai secara massal per kelas untuk efisiensi waktu Bapak/Ibu Guru.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Area Konten Dinamis Kurikulum -->
+                    <div class="md:col-span-2 space-y-6">
+                        <div id="kurikulum-content" class="glass-card p-8 bg-white border border-slate-100 shadow-sm min-h-[400px]">
+                            <div class="flex flex-col items-center justify-center h-full py-20 text-center">
+                                <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl mb-4">📂</div>
+                                <h3 class="text-lg font-bold text-slate-900">Pilih Menu</h3>
+                                <p class="text-slate-400 text-sm max-w-xs">Pilih salah satu menu di samping untuk mulai mengelola data kurikulum.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section id="viewer-section" class="hidden animate-fade-in space-y-8">
                 <div id="ortu-content-box" class="space-y-6">
                     <div class="glass-card p-8 bg-indigo-600 text-white border-none shadow-xl">

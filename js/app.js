@@ -218,6 +218,173 @@ window.switchTab = (mode) => {
     if (mode === 'leaderboard') window.renderLeaderboard();
     if (mode === 'dashboard') window.renderDashboard();
     if (mode === 'tugas') window.renderTugasGuru();
+    if (mode === 'kurikulum') window.renderKurikulum();
+};
+
+window.renderKurikulum = () => {
+    // Default sub-tab jika baru dibuka
+    const content = document.getElementById('kurikulum-content');
+    if (content && content.innerHTML.includes('Pilih Menu')) {
+        window.switchKurikulumTab('mapel');
+    }
+};
+
+window.switchKurikulumTab = (tab) => {
+    // Update active state di nav internal
+    document.querySelectorAll('.kurikulum-nav-item').forEach(btn => {
+        btn.classList.remove('active', 'bg-indigo-600', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-900');
+    });
+
+    const activeBtn = Array.from(document.querySelectorAll('.kurikulum-nav-item')).find(btn => btn.getAttribute('onclick').includes(tab));
+    if (activeBtn) {
+        activeBtn.classList.add('active', 'bg-indigo-600', 'text-white');
+        activeBtn.classList.remove('bg-white', 'text-slate-900');
+    }
+
+    renderKurikulumContent(tab);
+};
+
+function renderKurikulumContent(tab) {
+    const container = document.getElementById('kurikulum-content');
+    if (!container) return;
+
+    if (tab === 'mapel') {
+        container.innerHTML = `
+            <h3 class="text-lg font-black text-slate-900 mb-6 uppercase tracking-tight">Daftar Mata Pelajaran</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                ${state.subjectsList.map(sub => `
+                    <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center group">
+                        <span class="font-bold text-slate-700 text-sm">${sub}</span>
+                        <button onclick="window.hapusMapel('${sub}')" class="text-rose-500 opacity-0 group-hover:opacity-100 transition-all text-xs font-bold px-2 py-1 hover:bg-rose-50 rounded-lg">Hapus</button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else {
+        const typeLabel = tab === 'nilai-harian' ? 'Harian' : (tab === 'nilai-uh' ? 'UH' : 'PAS');
+        const typeKey = tab === 'nilai-harian' ? 'harian' : (tab === 'nilai-uh' ? 'uh' : 'pas');
+
+        container.innerHTML = `
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">Input Nilai ${typeLabel}</h3>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <select id="kurikulum-filter-kelas" onchange="window.refreshInputNilai('${tab}')" class="flex-grow sm:flex-grow-0 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                        <option value="7A">Kelas 7A</option><option value="7B">Kelas 7B</option>
+                        <option value="8">Kelas 8</option><option value="9">Kelas 9</option>
+                    </select>
+                    <select id="kurikulum-filter-mapel" onchange="window.refreshInputNilai('${tab}')" class="flex-grow sm:flex-grow-0 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
+                        ${state.subjectsList.map(s => `<option value="${s}">${s}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead>
+                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
+                            <th class="py-4 px-2 w-12 text-center">No</th>
+                            <th class="py-4 px-4">Nama Siswa</th>
+                            <th class="py-4 px-4 text-center w-32">Nilai ${typeLabel}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="input-nilai-body" class="divide-y divide-slate-50">
+                        <!-- Siswa akan dimuat di sini -->
+                    </tbody>
+                </table>
+            </div>
+        `;
+        window.refreshInputNilai(tab);
+    }
+}
+
+window.refreshInputNilai = (tab) => {
+    const typeKey = tab === 'nilai-harian' ? 'harian' : (tab === 'nilai-uh' ? 'uh' : 'pas');
+    const selectedKelas = document.getElementById('kurikulum-filter-kelas')?.value;
+    const selectedMapel = document.getElementById('kurikulum-filter-mapel')?.value;
+    const body = document.getElementById('input-nilai-body');
+    if (!body || !selectedKelas || !selectedMapel) return;
+
+    const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
+    const filteredSiswa = state.studentsData.filter(st => {
+        const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
+        return calculatedKelas === selectedKelas;
+    }).sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
+
+    body.innerHTML = '';
+    if (filteredSiswa.length === 0) {
+        body.innerHTML = `<tr><td colspan="3" class="py-10 text-center text-slate-400 font-bold text-xs italic">Tidak ada siswa di kelas ini.</td></tr>`;
+        return;
+    }
+
+    filteredSiswa.forEach((st, idx) => {
+        const sub = (st.subjects || []).find(s => s.name === selectedMapel) || { [`score_${typeKey}`]: 0 };
+        const val = sub[`score_${typeKey}`] || 0;
+        
+        body.insertAdjacentHTML('beforeend', `
+            <tr class="hover:bg-slate-50/50 transition-all">
+                <td class="py-4 px-2 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
+                <td class="py-4 px-4 font-bold text-slate-700 text-sm">${formatNama(st.nama)}</td>
+                <td class="py-4 px-4">
+                    <input type="number" value="${val}" 
+                        onchange="window.updateBulkScore('${st.docId}', '${selectedMapel}', '${typeKey}', this.value)"
+                        class="w-20 mx-auto block p-2 text-center font-black text-indigo-600 bg-indigo-50/50 border-none rounded-xl text-sm focus:ring-1 focus:ring-indigo-500">
+                </td>
+            </tr>
+        `);
+    });
+};
+
+window.updateBulkScore = (studentId, mapel, type, val) => {
+    const st = state.studentsData.find(s => s.docId === studentId);
+    if (!st) return;
+    
+    // Pastikan array subjects ada
+    if (!st.subjects) st.subjects = [];
+    
+    let sub = st.subjects.find(s => s.name === mapel);
+    if (!sub) {
+        sub = { name: mapel };
+        st.subjects.push(sub);
+    }
+    
+    sub[`score_${type}`] = parseInt(val) || 0;
+    sub.last_updated_date = new Date().toLocaleDateString('id-ID');
+    
+    setDoc(doc(db, 'students', studentId), st)
+        .then(() => {
+            console.log(`Saved score for ${studentId} - ${mapel} - ${type}`);
+        })
+        .catch(err => {
+            console.error("Error saving score:", err);
+            showCustomAlert("Gagal menyimpan nilai.", true);
+        });
+};
+
+window.konfirmasiTambahMapel = async () => {
+    const nama = document.getElementById('input-mapel-baru')?.value.trim();
+    if (!nama) return showCustomAlert("Nama mapel tidak boleh kosong!", true);
+    
+    if (state.subjectsList.includes(nama)) return showCustomAlert("Mapel sudah ada!", true);
+    
+    showLoading("Menambahkan Mapel...");
+    state.subjectsList.push(nama);
+    
+    // Tambahkan mapel ke seluruh siswa (optional, bisa lewat autoFix nantinya)
+    // Untuk saat ini biarkan sync yang handle atau user fix manual
+    
+    toggleModal('tambah-mapel-modal', false);
+    document.getElementById('input-mapel-baru').value = '';
+    renderKurikulumContent('mapel');
+    hideLoading();
+    showCustomAlert("Mata pelajaran berhasil ditambahkan.");
+};
+
+window.hapusMapel = (nama) => {
+    if (confirm(`Yakin ingin menghapus mata pelajaran ${nama}? Nilai siswa untuk mapel ini akan tetap ada di database tapi tidak muncul di daftar ini.`)) {
+        state.subjectsList = state.subjectsList.filter(s => s !== nama);
+        renderKurikulumContent('mapel');
+    }
 };
 
 window.renderDashboard = () => {
@@ -318,6 +485,32 @@ window.openStudentEditor = async (docId) => {
     window.applyTimelineFilter('guru');
 };
 
+window.bukaEditSiswa = (docId) => {
+    const st = state.studentsData.find(s => s.docId === docId);
+    if (!st) return;
+    state.currentStudentId = docId;
+    document.getElementById('edit-nis-input').value = st.docId;
+    document.getElementById('edit-nama-input').value = st.nama;
+    document.getElementById('edit-kelas-input').value = st.kelas;
+    toggleModal('edit-modal', true);
+};
+
+window.konfirmasiEdit = async () => {
+    const nama = document.getElementById('edit-nama-input').value;
+    const kelas = document.getElementById('edit-kelas-input').value;
+    if (!nama || !kelas) return showCustomAlert("Lengkapi data!", true);
+    
+    showLoading("Menyimpan...");
+    try {
+        await updateStudentBasicInfo(state.currentStudentId, { nama, kelas });
+        toggleModal('edit-modal', false);
+        showCustomAlert("Berhasil diperbarui.");
+    } catch (err) {
+        showCustomAlert("Gagal.", true);
+    }
+    hideLoading();
+};
+
 window.hapusSiswa = (docId) => {
     const st = state.studentsData.find(s => s.docId === docId);
     state.currentStudentId = docId;
@@ -344,6 +537,7 @@ window.tambahTugas = async () => {
     if (!data.judul || !data.tenggat) return showCustomAlert("Lengkapi data!", true);
     showLoading("Menyebarkan...");
     await addAssignment(data);
+    toggleModal('tambah-tugas-modal', false);
     const input = document.getElementById('tugas-judul');
     if (input) input.value = '';
     hideLoading();
@@ -426,6 +620,13 @@ window.applyTimelineFilter = (role) => {
 };
 
 window.closeGlobalAlert = closeGlobalAlert;
+
+// --- MODAL HELPERS ---
+window.batalHapus = () => toggleModal('delete-modal', false);
+window.batalHapusSemua = () => toggleModal('delete-all-modal', false);
+window.batalHapusTugas = () => toggleModal('delete-task-modal', false);
+window.batalTambahMapel = () => toggleModal('tambah-mapel-modal', false);
+window.batalEdit = () => toggleModal('edit-modal', false);
 
 // --- INITIALIZATION ---
 const initApp = async () => {
