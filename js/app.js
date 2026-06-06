@@ -253,7 +253,43 @@ window.switchTab = (mode) => {
     };
 
     // --- NILAI HARIAN ORCHESTRATION ---
-    window.initNilaiHarian = async () => {
+    window.tambahMapelCepat = async () => {
+    const nama = prompt("Masukkan Nama Mata Pelajaran Baru:");
+    if (!nama || nama.trim() === "") return;
+
+    const subjectId = "SUBJ_" + nama.trim().toUpperCase().replace(/\s+/g, '_');
+    
+    showLoading("Menambahkan Mapel...");
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error("User tidak terautentikasi.");
+
+        // 1. Simpan ke koleksi subjects
+        await setDoc(doc(db, "subjects", subjectId), {
+            id: subjectId,
+            name: nama.trim(),
+            category: "nasional", // Default
+            minPassingGrade: 75
+        });
+
+        // 2. Update profile user (managedSubjects)
+        const profile = await getUserProfile(user.uid);
+        const managed = profile.managedSubjects || [];
+        if (!managed.includes(subjectId)) {
+            managed.push(subjectId);
+            await saveUserProfile(user.uid, { managedSubjects: managed });
+        }
+
+        showCustomAlert("Mata pelajaran berhasil ditambahkan.");
+        window.initNilaiHarian(); // Refresh dropdown
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal menambah mapel: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.initNilaiHarian = async () => {
     const user = auth.currentUser;
     if (!user) return;
 

@@ -268,9 +268,12 @@
                 <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Mata Pelajaran</label>
-                        <select id="nh-select-mapel" onchange="window.onNhMapelChange()" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Pilih Mapel...</option>
-                        </select>
+                        <div class="flex gap-2">
+                            <select id="nh-select-mapel" onchange="window.onNhMapelChange()" class="flex-grow px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih Mapel...</option>
+                            </select>
+                            <button onclick="window.tambahMapelCepat()" class="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all font-bold" title="Tambah Mapel Baru">+</button>
+                        </div>
                     </div>
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Kelas</label>
