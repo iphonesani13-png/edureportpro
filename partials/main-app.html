@@ -288,6 +288,253 @@
                 </div>
             </section>
 
+            <!-- NILAI HARIAN SECTION -->
+            <section id="nilai-harian-section" class="hidden animate-fade-in space-y-6">
+                <!-- HEADER & TABS -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Penilaian <span class="text-indigo-600">V1.1</span></h2>
+                        <p class="text-slate-400 text-sm font-medium mt-0.5">Manajemen aktivitas penilaian dan rekapitulasi semester.</p>
+                    </div>
+                    <div class="flex bg-slate-100 p-1 rounded-2xl">
+                        <button onclick="window.switchNhMode('input')" id="nh-tab-input" class="px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all">Input Harian</button>
+                        <button onclick="window.switchNhMode('rekap')" id="nh-tab-rekap" class="px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">Rekap Semester</button>
+                    </div>
+                </div>
+
+                <!-- GLOBAL SELECTION BAR (Shared between Input & Rekap) -->
+                <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Mata Pelajaran</label>
+                        <div class="flex gap-2">
+                            <select id="nh-select-mapel" onchange="window.onNhMapelChange()" class="flex-grow px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih Mapel...</option>
+                            </select>
+                            <button onclick="window.tambahMapelCepat()" class="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all font-bold" title="Tambah Mapel Baru">+</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Kelas</label>
+                        <select id="nh-select-kelas" onchange="window.onNhFilterChange()" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Pilih Kelas...</option>
+                            <option value="7A">Kelas 7A</option>
+                            <option value="7B">Kelas 7B</option>
+                            <option value="8">Kelas 8</option>
+                            <option value="9">Kelas 9</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MODE: INPUT HARIAN (Current Functionality) -->
+                <!-- ========================================== -->
+                <div id="nh-mode-input" class="space-y-6 block">
+                    <!-- TP SELECTION (Only for Input Mode) -->
+                    <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Tujuan Pembelajaran (TP)</label>
+                        <div class="flex gap-2">
+                            <select id="nh-select-tp" onchange="window.onNhFilterChange()" class="flex-grow px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih TP...</option>
+                            </select>
+                            <button id="nh-btn-add-tp" onclick="window.tambahTpCepat()" class="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all font-bold hidden" title="Tambah TP Baru">+</button>
+                        </div>
+                    </div>
+
+                    <div id="nh-action-buttons" class="flex items-center justify-end gap-3 hidden">
+                        <button onclick="window.backToNhList()" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all">
+                            ← Kembali ke Daftar
+                        </button>
+                        <button onclick="window.handleSaveDraft()" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                            💾 Simpan Draft
+                        </button>
+                        <button onclick="window.handlePublish()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-md">
+                            🚀 Publish Nilai
+                        </button>
+                    </div>
+
+                    <!-- LIST OF ASSESSMENTS VIEW -->
+                    <div id="nh-list-view" class="hidden space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest">Daftar Aktivitas Penilaian</h3>
+                            <button onclick="window.showNhMetadataForm()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">+ Tambah Penilaian</button>
+                        </div>
+                        <div id="nh-assessment-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <!-- Assessment cards generated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- NEW ASSESSMENT METADATA FORM -->
+                    <div id="nh-metadata-form" class="hidden glass-card p-8 bg-white border border-slate-100 shadow-sm space-y-6 max-w-2xl mx-auto">
+                        <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight text-center">Informasi Penilaian Baru</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Nama Aktivitas</label>
+                                <input type="text" id="nh-input-name" placeholder="Cth: Kuis 1 Struktur Sel" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Jenis Asesmen</label>
+                                <select id="nh-input-type" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                    <option value="kuis">Kuis / UH</option>
+                                    <option value="tugas">Tugas Mandiri</option>
+                                    <option value="praktikum">Praktikum / Proyek</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Tanggal Pelaksanaan</label>
+                                <input type="date" id="nh-input-date" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Bobot Nilai (%)</label>
+                                <input type="number" id="nh-input-weight" value="100" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-4">
+                            <button onclick="window.cancelNhMetadataForm()" class="flex-1 py-3.5 bg-slate-100 text-slate-600 font-black uppercase text-[10px] rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                            <button onclick="window.confirmCreateAssessment()" class="flex-1 py-3.5 bg-indigo-600 text-white font-black uppercase text-[10px] rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Mulai Menilai</button>
+                        </div>
+                    </div>
+
+                    <!-- MAIN WORKSPACE GRID -->
+                    <div id="nh-workspace" class="hidden space-y-6">
+                        <!-- TP DESCRIPTION ALERT -->
+                        <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex gap-4 items-start">
+                            <div class="text-xl">ℹ️</div>
+                            <div>
+                                <h4 id="nh-tp-title" class="text-xs font-black text-indigo-900 uppercase">JUDUL TP</h4>
+                                <p id="nh-tp-desc" class="text-xs text-indigo-700 font-medium mt-1">Deskripsi tujuan pembelajaran akan muncul di sini.</p>
+                            </div>
+                        </div>
+
+                        <!-- SUMMARY CARDS -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="glass-card p-4 bg-white border border-slate-100">
+                                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Siswa</p>
+                                <p id="nh-stat-total" class="text-xl font-bold text-slate-900">0</p>
+                            </div>
+                            <div class="glass-card p-4 bg-white border border-slate-100">
+                                <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Nilai Tertinggi</p>
+                                <p id="nh-stat-max" class="text-xl font-bold text-slate-900">0</p>
+                            </div>
+                            <div class="glass-card p-4 bg-white border border-slate-100">
+                                <p class="text-[9px] font-bold text-rose-500 uppercase tracking-widest mb-1">Nilai Terendah</p>
+                                <p id="nh-stat-min" class="text-xl font-bold text-slate-900">0</p>
+                            </div>
+                            <div class="glass-card p-4 bg-white border border-slate-100">
+                                <p class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest mb-1">Rata-rata</p>
+                                <p id="nh-stat-avg" class="text-xl font-bold text-slate-900">0</p>
+                            </div>
+                        </div>
+
+                        <!-- INPUT GRID -->
+                        <div class="glass-card overflow-hidden bg-white border border-slate-100 shadow-sm">
+                            <table class="w-full text-left whitespace-nowrap">
+                                <thead>
+                                    <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 border-b border-slate-100">
+                                        <th class="py-4 px-6 w-16 text-center">No</th>
+                                        <th class="py-4 px-4">Nama Siswa</th>
+                                        <th class="py-4 px-4 text-center w-32">Nilai (0-100)</th>
+                                        <th class="py-4 px-6">Catatan Singkat</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="nh-table-body" class="divide-y divide-slate-50">
+                                    <!-- Rows generated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- TEACHER REFLECTION -->
+                        <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Refleksi Guru (Wajib untuk Publish)</label>
+                            <textarea id="nh-reflection" placeholder="Tuliskan kendala atau keberhasilan materi ini..." class="w-full p-4 bg-slate-50 border-none rounded-2xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 h-32"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- MODE: REKAP SEMESTER (New Feature V1.1)    -->
+                <!-- ========================================== -->
+                <div id="nh-mode-rekap" class="hidden space-y-6">
+                    <!-- LEVEL 1: SEMESTER SUMMARY -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="glass-card p-5 bg-white border border-slate-100">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total TP</p>
+                            <p id="rekap-stat-total-tp" class="text-3xl font-black text-slate-900">0</p>
+                        </div>
+                        <div class="glass-card p-5 bg-indigo-50 border border-indigo-100">
+                            <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Sudah Dinilai</p>
+                            <p id="rekap-stat-done-tp" class="text-3xl font-black text-indigo-700">0</p>
+                        </div>
+                        <div class="glass-card p-5 bg-white border border-slate-100">
+                            <p class="text-[9px] font-bold text-amber-500 uppercase tracking-widest mb-1">Belum Dinilai</p>
+                            <p id="rekap-stat-wait-tp" class="text-3xl font-black text-amber-600">0</p>
+                        </div>
+                        <div class="glass-card p-5 bg-white border border-slate-100">
+                            <p class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Ketuntasan Kelas</p>
+                            <p id="rekap-stat-pass-rate" class="text-3xl font-black text-emerald-600">0%</p>
+                        </div>
+                    </div>
+
+                    <!-- LEVEL 2 & 3 CONTAINER (Master-Detail Split Pane) -->
+                    <div class="flex flex-col lg:flex-row gap-6">
+                        <!-- MASTER: TP LIST -->
+                        <div id="rekap-master-view" class="w-full lg:w-1/2 space-y-4">
+                            <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest pl-2">Progress per TP</h3>
+                            <div id="rekap-tp-list" class="space-y-3">
+                                <!-- TP Rows Generated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- DETAIL: TP INSIGHTS -->
+                        <div id="rekap-detail-view" class="w-full lg:w-1/2 hidden lg:block">
+                            <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm sticky top-24 space-y-6">
+                                <div class="border-b border-slate-100 pb-4 mb-4">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <span id="rekap-detail-tpid" class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md uppercase tracking-widest">TP.X</span>
+                                            <h3 id="rekap-detail-title" class="text-lg font-black text-slate-900 mt-2 leading-tight">Pilih TP untuk melihat detail</h3>
+                                        </div>
+                                        <button onclick="window.closeRekapDetail()" class="lg:hidden w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-200 transition-all text-xs">✕</button>
+                                    </div>
+                                </div>
+
+                                <!-- Activities -->
+                                <div>
+                                    <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Aktivitas Penilaian</h4>
+                                    <div id="rekap-detail-activities" class="space-y-2">
+                                        <p class="text-xs text-slate-500 italic">Pilih materi di samping kiri...</p>
+                                    </div>
+                                </div>
+
+                                <!-- Remedial List -->
+                                <div id="rekap-detail-remedial-box" class="hidden">
+                                    <h4 class="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3">Daftar Siswa Belum Tuntas</h4>
+                                    <div class="bg-rose-50 border border-rose-100 rounded-2xl p-4">
+                                        <ul id="rekap-detail-remedial-list" class="text-sm font-bold text-rose-700 space-y-2">
+                                            <!-- Remedial students here -->
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- Teacher Reflection Aggregation -->
+                                <div id="rekap-detail-reflection-box" class="hidden">
+                                    <h4 class="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">Jurnal Refleksi</h4>
+                                    <div id="rekap-detail-reflections" class="space-y-3 max-h-48 overflow-y-auto pr-2">
+                                        <!-- Reflections here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EMPTY STATE -->
+                <div id="nh-empty-state" class="flex flex-col items-center justify-center py-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
+                    <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl mb-4">📝</div>
+                    <h3 class="text-lg font-bold text-slate-900">Siap Menilai?</h3>
+                    <p class="text-slate-400 text-sm max-w-xs">Silakan pilih Mata Pelajaran dan Kelas di atas untuk memulainya.</p>
+                </div>
+            </section>
+
 
             <section id="viewer-section" class="hidden animate-fade-in space-y-8">
                 <div id="ortu-content-box" class="space-y-6">
