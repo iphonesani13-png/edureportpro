@@ -517,8 +517,11 @@ window.onNhMapelChange = async () => {
 
     window.openAssessmentGrid = async (id) => {
         showLoading("Memuat Grid Nilai...");
+        let assessment = null;
         try {
-            const assessment = await AssessmentService.getAssessmentById(id);
+            assessment = await AssessmentService.getAssessmentById(id);
+            if (!assessment) throw new Error("Dokumen penilaian tidak ditemukan (ID: " + id + ")");
+            
             const students = await AssessmentService.getStudentsInClass(assessment.classId);
 
             state.nhState.currentAssessmentId = id;
@@ -540,13 +543,8 @@ window.onNhMapelChange = async () => {
             document.getElementById('nh-action-buttons').classList.remove('hidden');
         } catch (e) {
             console.error("NH GRID ERROR:", e);
-            
-            // Debugging context
-            try {
-                const assessment = await AssessmentService.getAssessmentById(id);
-                if (assessment) console.log("ASSESSMENT DATA:", assessment);
-            } catch(innerE) {}
-            
+            console.log("ASSESSMENT ID SEARCHED:", id);
+            if (assessment) console.log("ASSESSMENT DATA RECOVERED:", assessment);
             console.log("ACTIVE TEMPLATE:", state.nhState.activeTemplate);
             console.log("ACTIVE CLASS ID:", state.nhState.activeClassId);
 
