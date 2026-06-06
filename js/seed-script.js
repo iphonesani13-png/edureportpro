@@ -9,7 +9,7 @@ const SEED_DATA = {
     assessment_templates: [
         {
             id: "TPL_IPA_BAB1",
-            subjectId: "IPA",
+            subjectId: "SUBJ_IPA", // FK to subjects.id
             academicYear: "2025/2026",
             semester: 1,
             type: "formative",
@@ -47,13 +47,13 @@ const SEED_DATA = {
             email: "iphonesani13@gmail.com",
             role: "guru",
             name: "Rizki Akhsani",
-            managedSubjects: ["IPA", "Bahasa Indonesia"]
+            managedSubjects: ["SUBJ_IPA", "SUBJ_INDO"] // Using Master IDs
         }
     ]
 };
 
 export const seedDatabase = async (realUid) => {
-    console.log("Starting Seeding V1.0...");
+    console.log("Starting Seeding V1.0 (Relational IDs)...");
     
     const adminUid = realUid || "GURU_ADMIN_ID";
 
@@ -89,5 +89,5 @@ export const seedDatabase = async (realUid) => {
         uid: adminUid
     });
     
-    console.log("Seeding Complete!");
+    console.log("Migration & Seeding Complete!");
 };
