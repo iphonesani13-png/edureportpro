@@ -1117,79 +1117,8 @@ function renderKurikulumContent(tab) {
                 `).join('')}
             </div>
         `;
-    } else {
-        const typeLabel = tab === 'nilai-uh' ? 'UH' : 'PAS';
-        const typeKey = tab === 'nilai-uh' ? 'uh' : 'pas';
-
-        container.innerHTML = `
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">Input Nilai ${typeLabel}</h3>
-                <div class="flex gap-2 w-full sm:w-auto">
-                    <select id="kurikulum-filter-kelas" onchange="window.refreshInputNilai('${tab}')" class="flex-grow sm:flex-grow-0 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                        <option value="7A">Kelas 7A</option><option value="7B">Kelas 7B</option>
-                        <option value="8">Kelas 8</option><option value="9">Kelas 9</option>
-                    </select>
-                    <select id="kurikulum-filter-mapel" onchange="window.refreshInputNilai('${tab}')" class="flex-grow sm:flex-grow-0 px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                        ${state.subjectsList.map(s => `<option value="${s}">${s}</option>`).join('')}
-                    </select>
-                </div>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="w-full text-left whitespace-nowrap">
-                    <thead>
-                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
-                            <th class="py-4 px-2 w-12 text-center">No</th>
-                            <th class="py-4 px-4">Nama Siswa</th>
-                            <th class="py-4 px-4 text-center w-32">Nilai ${typeLabel}</th>
-                        </tr>
-                    </thead>
-                    <tbody id="input-nilai-body" class="divide-y divide-slate-50">
-                        <!-- Siswa akan dimuat di sini -->
-                    </tbody>
-                </table>
-            </div>
-        `;
-        window.refreshInputNilai(tab);
     }
 }
-
-window.refreshInputNilai = (tab) => {
-    const typeKey = tab === 'nilai-uh' ? 'uh' : 'pas';
-    const selectedKelas = document.getElementById('kurikulum-filter-kelas')?.value;
-    const selectedMapel = document.getElementById('kurikulum-filter-mapel')?.value;
-    const body = document.getElementById('input-nilai-body');
-    if (!body || !selectedKelas || !selectedMapel) return;
-
-    const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
-    const filteredSiswa = state.studentsData.filter(st => {
-        const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
-        return calculatedKelas === selectedKelas;
-    }).sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
-
-    body.innerHTML = '';
-    if (filteredSiswa.length === 0) {
-        body.innerHTML = `<tr><td colspan="3" class="py-10 text-center text-slate-400 font-bold text-xs italic">Tidak ada siswa di kelas ini.</td></tr>`;
-        return;
-    }
-
-    filteredSiswa.forEach((st, idx) => {
-        const sub = (st.subjects || []).find(s => s.name === selectedMapel) || { [`score_${typeKey}`]: 0 };
-        const val = sub[`score_${typeKey}`] || 0;
-        
-        body.insertAdjacentHTML('beforeend', `
-            <tr class="hover:bg-slate-50/50 transition-all">
-                <td class="py-4 px-2 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
-                <td class="py-4 px-4 font-bold text-slate-700 text-sm">${formatNama(st.nama)}</td>
-                <td class="py-4 px-4">
-                    <input type="number" value="${val}" 
-                        onchange="window.updateBulkScore('${st.docId}', '${selectedMapel}', '${typeKey}', this.value)"
-                        class="w-20 mx-auto block p-2 text-center font-black text-indigo-600 bg-indigo-50/50 border-none rounded-xl text-sm focus:ring-1 focus:ring-indigo-500">
-                </td>
-            </tr>
-        `);
-    });
-};
 
 window.konfirmasiTambahMapel = async () => {
     const nama = document.getElementById('input-mapel-baru')?.value.trim();
