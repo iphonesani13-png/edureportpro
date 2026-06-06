@@ -400,9 +400,12 @@ window.onNhMapelChange = async () => {
         const yearParts = getActiveTahun().split('/');
         const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
         
+        // FIX: Ensure classId is saved to state
         state.nhState.activeClassId = classId;
         state.nhState.activeTemplateId = templateId;
         state.nhState.activeTemplate = state.nhTemplates.find(t => t.id === templateId);
+
+        console.log(`NH Filter Change: classId=${classId}, templateId=${templateId}`);
 
         showLoading("Memuat Daftar Penilaian...");
         try {
@@ -472,6 +475,14 @@ window.onNhMapelChange = async () => {
 
         if (!name || !date) return showCustomAlert("Lengkapi data penilaian!", true);
 
+        const { activeClassId, activeTemplateId, activeTemplate } = state.nhState;
+        
+        // VALIDASI STATE CRITICAL
+        if (!activeClassId) {
+            console.error("Critical Error: state.nhState.activeClassId is missing.");
+            return showCustomAlert("Sesi kelas kadaluarsa. Silakan pilih ulang kelas.", true);
+        }
+
         showLoading("Memulai Penilaian...");
         try {
             const assessmentData = {
@@ -479,17 +490,24 @@ window.onNhMapelChange = async () => {
                 assessmentType: type,
                 assessmentDate: date,
                 assessmentWeight: parseInt(weight) || 100,
-                templateId: state.nhState.activeTemplateId,
-                classId: state.nhState.activeClassId,
-                subjectId: state.nhState.activeTemplate.subjectId,
-                academicYear: state.nhState.activeTemplate.academicYear,
-                semester: state.nhState.activeTemplate.semester,
+                templateId: activeTemplateId,
+                classId: activeClassId,
+                subjectId: activeTemplate.subjectId,
+                academicYear: activeTemplate.academicYear,
+                semester: activeTemplate.semester,
                 scores: {},
                 notes: {},
                 teacherReflection: ""
             };
 
             const newId = await AssessmentService.saveAssessment(null, assessmentData);
+            
+            console.log(`✨ NH Assessment Created:
+               assessmentId=${newId}
+               classId=${activeClassId}
+               templateId=${activeTemplateId}
+               subjectId=${activeTemplate.subjectId}`);
+
             await window.openAssessmentGrid(newId);
         } catch (e) {
             showCustomAlert(e.message, true);
