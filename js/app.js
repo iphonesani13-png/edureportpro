@@ -303,7 +303,13 @@ window.initNilaiHarian = async () => {
         managedSubjects.forEach(s => {
             selectMapel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`);
         });
-        if (managedSubjects.length === 1) {
+
+        // UX: Auto-select last used subject from localStorage
+        const lastSubject = localStorage.getItem('nh_last_subject');
+        if (lastSubject && managedSubjects.includes(lastSubject)) {
+            selectMapel.value = lastSubject;
+            window.onNhMapelChange(); // Auto-load TP list
+        } else if (managedSubjects.length === 1) {
             selectMapel.value = managedSubjects[0];
             window.onNhMapelChange();
         }
@@ -365,6 +371,9 @@ window.onNhMapelChange = async () => {
     const selectTp = document.getElementById('nh-select-tp');
     const btnAddTp = document.getElementById('nh-btn-add-tp');
     if (!subjectId || !selectTp) return;
+
+    // UX: Remember last subject
+    localStorage.setItem('nh_last_subject', subjectId);
 
     if (btnAddTp) btnAddTp.classList.remove('hidden');
 
