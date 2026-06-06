@@ -383,7 +383,7 @@ window.switchTab = (mode) => {
             <tr class="hover:bg-slate-50/50 transition-all">
                 <td class="py-4 px-6 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
                 <td class="py-4 px-4">
-                    <p class="font-black text-slate-700 text-sm">${formatNama(st.name)}</p>
+                    <p class="font-black text-slate-700 text-sm">${formatNama(st.nama || "Tanpa Nama")}</p>
                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${st.id}</p>
                 </td>
                 <td class="py-4 px-4">
