@@ -2,6 +2,33 @@ import { db } from "./firebase-config.js";
 import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const SEED_DATA = {
+    subjects: [
+        { id: "SUBJ_IPA", name: "IPA", category: "nasional", minPassingGrade: 75 },
+        { id: "SUBJ_INDO", name: "Bahasa Indonesia", category: "nasional", minPassingGrade: 75 }
+    ],
+    assessment_templates: [
+        {
+            id: "TPL_IPA_BAB1",
+            subjectId: "IPA",
+            academicYear: "2025/2026",
+            semester: 1,
+            type: "formative",
+            title: "Sistem Organisasi Kehidupan",
+            tpId: "IPA.7.1",
+            tpDesc: "Siswa dapat mengidentifikasi sel sebagai unit terkecil kehidupan.",
+            cognitiveLevel: "C2",
+            weight: 1
+        }
+    ],
+    classes: [
+        {
+            id: "2526_7A",
+            name: "7A",
+            academicYear: "2025/2026",
+            homeroomTeacherId: "GURU_ADMIN_ID",
+            studentIds: ["252607001"]
+        }
+    ],
     students: [
         {
             id: "252607001",
@@ -10,88 +37,57 @@ const SEED_DATA = {
             base_tahun: "2025/2026",
             kelas: "7A",
             poin: 100,
-            point_history: [
-                { id: 1, date: "06/06/2026", time: "08:00", category: "Karakter", desc: "Membantu merapikan kelas", pointChange: 10, icon: "⭐" }
-            ],
-            subjects: [
-                { name: "IPA", score_harian: 85, score_uh: 80, score_pts: 78, score_pas: 88, last_updated_date: "06/06/2026", note: "Sangat baik" },
-                { name: "Bahasa Indonesia", score_harian: 90, score_uh: 85, score_pts: 80, score_pas: 92, last_updated_date: "06/06/2026", note: "" },
-                { name: "Matematika", score_harian: 75, score_uh: 70, score_pts: 75, score_pas: 80, last_updated_date: "06/06/2026", note: "Perlu latihan soal" }
-            ]
-        },
-        {
-            id: "252607002",
-            nama: "Siti Aminah",
-            base_kelas: "7B",
-            base_tahun: "2025/2026",
-            kelas: "7B",
-            poin: 150,
             point_history: [],
             subjects: []
-        },
-        {
-            id: "252608001",
-            nama: "Budi Santoso",
-            base_kelas: "8",
-            base_tahun: "2025/2026",
-            kelas: "8",
-            poin: 50,
-            point_history: [],
-            subjects: []
-        },
-        {
-            id: "252609001",
-            nama: "Dewi Sartika",
-            base_kelas: "9",
-            base_tahun: "2025/2026",
-            kelas: "9",
-            poin: 200,
-            point_history: [],
-            subjects: []
-        }
-    ],
-    assignments: [
-        {
-            id: "TGS001",
-            judul: "Latihan Bab Sel",
-            mapel: "IPA",
-            kelas: "7A",
-            tenggat: "2026-06-15",
-            tahun_ajaran: "2025/2026",
-            tanggal_dibuat: new Date().toISOString()
         }
     ],
     users: [
         {
-            uid: "GURU_ADMIN_ID", // Replace with real UID from Auth
+            uid: "GURU_ADMIN_ID",
             email: "iphonesani13@gmail.com",
             role: "guru",
-            name: "Rizki Akhsani"
+            name: "Rizki Akhsani",
+            managedSubjects: ["IPA", "Bahasa Indonesia"]
         }
     ]
 };
 
-export const seedDatabase = async () => {
-    console.log("Starting Seeding...");
+export const seedDatabase = async (realUid) => {
+    console.log("Starting Seeding V1.0...");
     
+    const adminUid = realUid || "GURU_ADMIN_ID";
+
+    // Seed Subjects
+    for (const sub of SEED_DATA.subjects) {
+        const { id, ...data } = sub;
+        await setDoc(doc(db, "subjects", id), data);
+    }
+
+    // Seed Templates
+    for (const tpl of SEED_DATA.assessment_templates) {
+        const { id, ...data } = tpl;
+        await setDoc(doc(db, "assessment_templates", id), data);
+    }
+
+    // Seed Classes
+    for (const cls of SEED_DATA.classes) {
+        const { id, ...data } = cls;
+        if (data.homeroomTeacherId === "GURU_ADMIN_ID") data.homeroomTeacherId = adminUid;
+        await setDoc(doc(db, "classes", id), data);
+    }
+
     // Seed Students
     for (const student of SEED_DATA.students) {
         const { id, ...data } = student;
         await setDoc(doc(db, "students", id), data);
-        console.log(`Seeded student: ${student.nama}`);
     }
 
-    // Seed Assignments
-    for (const task of SEED_DATA.assignments) {
-        const { id, ...data } = task;
-        await setDoc(doc(db, "assignments", id), data);
-    }
-
-    // Seed Users
-    for (const user of SEED_DATA.users) {
-        const { uid, ...data } = user;
-        await setDoc(doc(db, "users", uid), data);
-    }
-
+    // Seed User (Admin)
+    const adminProfile = SEED_DATA.users[0];
+    await setDoc(doc(db, "users", adminUid), {
+        ...adminProfile,
+        uid: adminUid
+    });
+    
     console.log("Seeding Complete!");
 };

@@ -96,7 +96,7 @@ const startAuthListener = () => {
                     console.log("Admin detected. Checking seed data...");
                     try {
                         const { seedDatabase } = await import("./seed-script.js");
-                        seedDatabase();
+                        seedDatabase(user.uid);
                     } catch (e) {
                         console.error("Seeding skipped or failed:", e);
                     }
@@ -455,8 +455,7 @@ window.switchTab = (mode) => {
     hideLoading();
     };
 
-    window.renderDashboard = () => {
-    // Default sub-tab jika baru dibuka
+    window.renderKurikulum = () => {
     const content = document.getElementById('kurikulum-content');
     if (content && content.innerHTML.includes('Pilih Menu')) {
         window.switchKurikulumTab('mapel');
