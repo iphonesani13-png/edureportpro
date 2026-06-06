@@ -136,5 +136,5 @@ export const getStudentsInClass = async (classId) => {
         snap.forEach(d => students.push({ id: d.id, ...d.data() }));
     });
 
-    return students.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    return students.sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
 };
