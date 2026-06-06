@@ -980,117 +980,6 @@ window.backToNhList = () => {
     }
 };
 
-window.lihatProgressMapel = (mapel) => {
-    const container = document.getElementById('kurikulum-content');
-    const selectedKelas = document.getElementById('mapel-filter-kelas')?.value || '7A';
-    
-    container.innerHTML = `
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-            <div class="flex items-center gap-4">
-                <button onclick="window.switchKurikulumTab('mapel')" class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-xl hover:bg-slate-200 transition-all text-xs">←</button>
-                <div>
-                    <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">${mapel}</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress Nilai Kelas ${selectedKelas}</p>
-                </div>
-            </div>
-            <select id="progress-filter-kelas" onchange="window.refreshTableProgress('${mapel}')" class="px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                <option value="7A" ${selectedKelas === '7A' ? 'selected' : ''}>Kelas 7A</option>
-                <option value="7B" ${selectedKelas === '7B' ? 'selected' : ''}>Kelas 7B</option>
-                <option value="8" ${selectedKelas === '8' ? 'selected' : ''}>Kelas 8</option>
-                <option value="9" ${selectedKelas === '9' ? 'selected' : ''}>Kelas 9</option>
-            </select>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full text-left whitespace-nowrap">
-                <thead>
-                    <tr class="text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50">
-                        <th class="py-4 px-2 w-12 text-center">No</th>
-                        <th class="py-4 px-4">Nama Siswa</th>
-                        <th class="py-4 px-2 text-center">Harian</th>
-                        <th class="py-4 px-2 text-center">UH</th>
-                        <th class="py-4 px-2 text-center">PTS</th>
-                        <th class="py-4 px-2 text-center">PAS</th>
-                    </tr>
-                </thead>
-                <tbody id="progress-nilai-body" class="divide-y divide-slate-50">
-                    <!-- Data siswa akan dimuat di sini -->
-                </tbody>
-            </table>
-        </div>
-    `;
-    
-    window.refreshTableProgress(mapel);
-};
-
-window.refreshTableProgress = (mapel) => {
-    const selectedKelas = document.getElementById('progress-filter-kelas')?.value;
-    const body = document.getElementById('progress-nilai-body');
-    if (!body || !selectedKelas) return;
-
-    const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
-    
-    // Debug: Cek data mentah
-    console.log(`Filtering for Mapel: ${mapel}, Kelas: ${selectedKelas}, Tahun: ${currentTahun}`);
-    console.log(`Total Students in state: ${state.studentsData.length}`);
-
-    const filteredSiswa = state.studentsData.filter(st => {
-        const baseK = st.base_kelas || st.kelas || '';
-        const baseT = st.base_tahun || '2025/2026';
-        const calculatedKelas = calculateCurrentKelas(baseK, baseT, currentTahun);
-        
-        // Debug per siswa jika masih kosong
-        // console.log(`Siswa: ${st.nama}, Base: ${baseK} (${baseT}), Calc: ${calculatedKelas}`);
-        
-        return calculatedKelas === selectedKelas;
-    }).sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
-
-    console.log(`Found ${filteredSiswa.length} students matching class ${selectedKelas}`);
-
-    body.innerHTML = '';
-    if (filteredSiswa.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-slate-400 font-bold text-xs italic">
-            Tidak ada siswa ditemukan di kelas ${selectedKelas}.<br>
-            <span class="text-[10px] opacity-50">Pastikan data base_kelas dan base_tahun siswa sudah benar.</span>
-        </td></tr>`;
-        return;
-    }
-
-    filteredSiswa.forEach((st, idx) => {
-        const sub = (st.subjects || []).find(s => s.name === mapel) || {};
-        
-        body.insertAdjacentHTML('beforeend', `
-            <tr class="hover:bg-slate-50/50 transition-all">
-                <td class="py-4 px-2 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
-                <td class="py-4 px-4 font-bold text-slate-700 text-sm">${formatNama(st.nama)}</td>
-                ${['harian', 'uh', 'pts', 'pas'].map(type => `
-                    <td class="py-4 px-2">
-                        <input type="number" value="${sub[`score_${type}`] || 0}" 
-                            onchange="window.updateBulkScore('${st.docId}', '${mapel}', '${type}', this.value)"
-                            class="w-16 mx-auto block p-2 text-center font-black text-indigo-600 bg-indigo-50/30 border-none rounded-xl text-xs focus:ring-1 focus:ring-indigo-500">
-                    </td>
-                `).join('')}
-            </tr>
-        `);
-    });
-};
-
-window.switchKurikulumTab = (tab) => {
-    // Update active state di nav internal
-    document.querySelectorAll('.kurikulum-nav-item').forEach(btn => {
-        btn.classList.remove('active', 'bg-indigo-600', 'text-white');
-        btn.classList.add('bg-white', 'text-slate-900');
-    });
-
-    const activeBtn = Array.from(document.querySelectorAll('.kurikulum-nav-item')).find(btn => btn.getAttribute('onclick').includes(tab));
-    if (activeBtn) {
-        activeBtn.classList.add('active', 'bg-indigo-600', 'text-white');
-        activeBtn.classList.remove('bg-white', 'text-slate-900');
-    }
-
-    renderKurikulumContent(tab);
-};
-
 function renderKurikulumContent(tab) {
     const container = document.getElementById('kurikulum-content');
     if (!container) return;
@@ -1098,24 +987,19 @@ function renderKurikulumContent(tab) {
     if (tab === 'mapel') {
         container.innerHTML = `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">Pilih Mata Pelajaran</h3>
-                <select id="mapel-filter-kelas" class="px-4 py-2 bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-1 focus:ring-indigo-500">
-                    <option value="7A">Kelas 7A</option><option value="7B">Kelas 7B</option>
-                    <option value="8">Kelas 8</option><option value="9">Kelas 9</option>
-                </select>
+                <h3 class="text-lg font-black text-slate-900 uppercase tracking-tight">Daftar Mata Pelajaran</h3>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 ${state.subjectsList.map(sub => `
-                    <div class="p-5 bg-white border border-slate-100 rounded-3xl flex justify-between items-center group hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-50 transition-all cursor-pointer" 
-                         onclick="window.lihatProgressMapel('${sub}')">
+                    <div class="p-5 bg-white border border-slate-100 rounded-3xl flex justify-between items-center group transition-all">
                         <div class="flex items-center gap-4">
                             <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-lg">📚</div>
                             <div>
                                 <span class="font-black text-slate-900 text-sm block">${sub}</span>
-                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Klik untuk lihat nilai</span>
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Setup Kurikulum Aktif</span>
                             </div>
                         </div>
-                        <button onclick="event.stopPropagation(); window.hapusMapel('${sub}')" class="text-rose-500 opacity-0 group-hover:opacity-100 transition-all text-[10px] font-black uppercase px-3 py-2 hover:bg-rose-50 rounded-xl">Hapus</button>
+                        <button onclick="window.hapusMapel('${sub}')" class="text-rose-500 opacity-0 group-hover:opacity-100 transition-all text-[10px] font-black uppercase px-3 py-2 hover:bg-rose-50 rounded-xl">Hapus</button>
                     </div>
                 `).join('')}
             </div>
