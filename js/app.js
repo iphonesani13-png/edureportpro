@@ -306,18 +306,26 @@ window.switchTab = (mode) => {
     };
 
     window.onNhFilterChange = async () => {
-    const classId = document.getElementById('nh-select-kelas')?.value;
+    const rawClassId = document.getElementById('nh-select-kelas')?.value;
     const templateId = document.getElementById('nh-select-tp')?.value;
     const workspace = document.getElementById('nh-workspace');
     const emptyState = document.getElementById('nh-empty-state');
     const actionBar = document.getElementById('nh-action-buttons');
 
-    if (!classId || !templateId) {
+    if (!rawClassId || !templateId) {
         workspace?.classList.add('hidden');
         actionBar?.classList.add('hidden');
         emptyState?.classList.remove('hidden');
         return;
     }
+
+    // ARSITEKTUR V1.0: Gabungkan Tahun + Kelas (cth: 2025/2026_7A -> 2526_7A)
+    const currentTahun = getActiveTahun();
+    const prefix = currentTahun.replace('/', ''); // "2025/2026" -> "20252026" ?? 
+    // Berdasarkan PRD V1.0, format ID adalah "2526_7A" (mengambil 2 digit akhir setiap tahun)
+    const yearParts = currentTahun.split('/');
+    const shortPrefix = yearParts[0].slice(-2) + yearParts[1].slice(-2); // "2526"
+    const classId = `${shortPrefix}_${rawClassId}`;
 
     showLoading("Menyiapkan Penilaian...");
     try {
@@ -412,48 +420,52 @@ window.switchTab = (mode) => {
     }
 
     window.handleSaveDraft = async () => {
-    const template = state.nhState.activeTemplate;
-    const classId = document.getElementById('nh-select-kelas').value;
-    const reflection = document.getElementById('nh-reflection').value;
+        const template = state.nhState.activeTemplate;
+        const rawClassId = document.getElementById('nh-select-kelas').value;
+        const yearParts = getActiveTahun().split('/');
+        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        const reflection = document.getElementById('nh-reflection').value;
 
-    showLoading("Menyimpan Draft...");
-    try {
-        await AssessmentService.saveAssessment(
-            template, classId, 
-            state.nhState.tempScores, 
-            state.nhState.tempNotes, 
-            reflection, 
-            false
-        );
-        showCustomAlert("Draft berhasil disimpan.");
-    } catch (e) {
-        showCustomAlert(e.message, true);
-    }
-    hideLoading();
+        showLoading("Menyimpan Draft...");
+        try {
+            await AssessmentService.saveAssessment(
+                template, classId, 
+                state.nhState.tempScores, 
+                state.nhState.tempNotes, 
+                reflection, 
+                false
+            );
+            showCustomAlert("Draft berhasil disimpan.");
+        } catch (e) {
+            showCustomAlert(e.message, true);
+        }
+        hideLoading();
     };
 
     window.handlePublish = async () => {
-    const template = state.nhState.activeTemplate;
-    const classId = document.getElementById('nh-select-kelas').value;
-    const reflection = document.getElementById('nh-reflection').value;
-    const total = state.nhState.currentClassStudents.length;
+        const template = state.nhState.activeTemplate;
+        const rawClassId = document.getElementById('nh-select-kelas').value;
+        const yearParts = getActiveTahun().split('/');
+        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        const reflection = document.getElementById('nh-reflection').value;
+        const total = state.nhState.currentClassStudents.length;
 
-    showLoading("Mempublikasikan Nilai...");
-    try {
-        await AssessmentService.saveAssessment(
-            template, classId, 
-            state.nhState.tempScores, 
-            state.nhState.tempNotes, 
-            reflection, 
-            true,
-            total
-        );
-        showCustomAlert("Nilai berhasil dipublish ke Wali Kelas & Ortu.");
-        window.onNhFilterChange(); // Refresh to lock UI
-    } catch (e) {
-        showCustomAlert(e.message, true);
-    }
-    hideLoading();
+        showLoading("Mempublikasikan Nilai...");
+        try {
+            await AssessmentService.saveAssessment(
+                template, classId, 
+                state.nhState.tempScores, 
+                state.nhState.tempNotes, 
+                reflection, 
+                true,
+                total
+            );
+            showCustomAlert("Nilai berhasil dipublish ke Wali Kelas & Ortu.");
+            window.onNhFilterChange(); // Refresh to lock UI
+        } catch (e) {
+            showCustomAlert(e.message, true);
+        }
+        hideLoading();
     };
 
     window.renderKurikulum = () => {
