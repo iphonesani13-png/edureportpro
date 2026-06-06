@@ -48,11 +48,19 @@ let state = {
     unsubscribeAssignments: null,
     subjectsList: ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'],
     nhState: {
+        activeMode: 'input', // 'input' or 'rekap'
         activeTemplate: null,
         activeAssessment: null,
         currentClassStudents: [],
         tempScores: {},
-        tempNotes: {}
+        tempNotes: {},
+        // Caching for Rekap
+        rekapBaseData: {
+            assessments: [],
+            passingGrade: 75
+        },
+        rekapComputedScores: {},
+        selectedTemplateId: null
     }
 };
 
@@ -562,10 +570,41 @@ window.onNhMapelChange = async () => {
         hideLoading();
     };
 
-    window.backToNhList = () => {
+window.backToNhList = () => {
         document.getElementById('nh-workspace').classList.add('hidden');
         document.getElementById('nh-action-buttons').classList.add('hidden');
         window.onNhFilterChange(); // Refresh list
+    };
+
+    window.switchNhMode = (mode) => {
+        state.nhState.activeMode = mode;
+        const tabInput = document.getElementById('nh-tab-input');
+        const tabRekap = document.getElementById('nh-tab-rekap');
+        const viewInput = document.getElementById('nh-mode-input');
+        const viewRekap = document.getElementById('nh-mode-rekap');
+
+        if (mode === 'input') {
+            tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
+            tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
+            viewInput.classList.remove('hidden');
+            viewRekap.classList.add('hidden');
+        } else {
+            tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
+            tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
+            viewInput.classList.add('hidden');
+            viewRekap.classList.remove('hidden');
+            window.loadRekapData(); // Trigger data computation
+        }
+    };
+
+    window.closeRekapDetail = () => {
+        document.getElementById('rekap-detail-view').classList.add('hidden', 'lg:block'); // Hide on mobile, keep on desktop
+        document.getElementById('rekap-master-view').classList.remove('hidden'); // Show master on mobile
+    };
+
+    window.loadRekapData = async () => {
+        // Todo: Implement Rekap Calculation Engine in next step
+        console.log("Loading Rekap Data for:", state.nhState.activeClassId);
     };
 
     window.renderNhGrid = () => {
