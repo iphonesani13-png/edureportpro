@@ -35,6 +35,8 @@ import {
     renderAppFragments, registerStudentTableEvents 
 } from "./modules/page-loader.js";
 
+import { seedDatabase } from "./seed-script.js";
+
 // --- GLOBAL STATE ---
 let state = {
     currentUser: null,
@@ -80,6 +82,12 @@ const startAuthListener = () => {
                     showCustomAlert(`Akses Ditolak!\nEmail ${user.email} tidak terdaftar sebagai Guru/Admin.`, true);
                     showLoginScreen();
                     return;
+                }
+
+                // AUTO-SEED TRIGGER FOR ADMIN
+                if (user.email === 'iphonesani13@gmail.com') {
+                    console.log("Admin detected. Checking seed data...");
+                    seedDatabase();
                 }
 
                 setupUIForRole(profile.role, profile.childId);
