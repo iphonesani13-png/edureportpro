@@ -604,13 +604,17 @@ window.backToNhList = () => {
     };
 
     window.loadRekapData = async () => {
-        const { activeClassId } = state.nhState;
+        const rawClassId = document.getElementById('nh-select-kelas')?.value;
         const subjectId = document.getElementById('nh-select-mapel')?.value;
         const academicYear = getActiveTahun();
 
-        if (!activeClassId || !subjectId) {
+        if (!rawClassId || !subjectId) {
             return showCustomAlert("Silakan pilih Mapel dan Kelas terlebih dahulu.", true);
         }
+
+        const yearParts = academicYear.split('/');
+        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+        state.nhState.activeClassId = classId; // Save it back to state for the detail view
 
         showLoading("Mengkalkulasi Rekapitulasi...");
         try {
