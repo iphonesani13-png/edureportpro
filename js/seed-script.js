@@ -1,5 +1,7 @@
 import { db } from "./modules/firebase-config.js";
-import { doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { 
+    doc, setDoc, getDocs, collection, query, where 
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const SEED_DATA = {
     subjects: [
@@ -9,7 +11,7 @@ const SEED_DATA = {
     assessment_templates: [
         {
             id: "TPL_IPA_BAB1",
-            subjectId: "SUBJ_IPA", // FK to subjects.id
+            subjectId: "SUBJ_IPA",
             academicYear: "2025/2026",
             semester: 1,
             type: "formative",
@@ -20,108 +22,78 @@ const SEED_DATA = {
             weight: 1
         }
     ],
-    classes: [
-        {
-            id: "2526_7A",
-            name: "7A",
-            academicYear: "2025/2026",
-            homeroomTeacherId: "GURU_ADMIN_ID",
-            studentIds: ["252607001"]
-        }
-    ],
-    students: [
-        {
-            id: "252607001",
-            nama: "Ahmad Zaki",
-            base_kelas: "7A",
-            base_tahun: "2025/2026",
-            kelas: "7A",
-            poin: 100,
-            point_history: [],
-            subjects: []
-        }
-    ],
     users: [
         {
             uid: "GURU_ADMIN_ID",
             email: "iphonesani13@gmail.com",
             role: "guru",
             name: "Rizki Akhsani",
-            managedSubjects: ["SUBJ_IPA", "SUBJ_INDO"] // Using Master IDs
+            managedSubjects: ["SUBJ_IPA", "SUBJ_INDO"]
         }
     ]
 };
 
 export const seedDatabase = async (realUid) => {
-    console.log("🚀 Starting Seeding V1.0 (Relational IDs)...");
+    console.log("🚀 Starting Dynamic Sync V1.0...");
     
     try {
         const adminUid = realUid || "GURU_ADMIN_ID";
 
-        // Seed Subjects
-        console.log("📦 Seeding Subjects...");
+        // 1. Seed Subjects
+        console.log("📦 Syncing Subjects...");
         for (const sub of SEED_DATA.subjects) {
-            const { id, ...data } = sub;
-            try {
-                await setDoc(doc(db, "subjects", id), data);
-                console.log(`   ✅ Subject: ${id}`);
-            } catch (err) {
-                console.error(`   ❌ Failed Subject ${id}:`, err.message);
-            }
+            await setDoc(doc(db, "subjects", sub.id), sub);
         }
 
-        // Seed Templates
-        console.log("📦 Seeding Assessment Templates...");
+        // 2. Seed Templates
+        console.log("📦 Syncing Assessment Templates...");
         for (const tpl of SEED_DATA.assessment_templates) {
-            const { id, ...data } = tpl;
-            try {
-                await setDoc(doc(db, "assessment_templates", id), data);
-                console.log(`   ✅ Template: ${id}`);
-            } catch (err) {
-                console.error(`   ❌ Failed Template ${id}:`, err.message);
-            }
+            await setDoc(doc(db, "assessment_templates", tpl.id), tpl);
         }
 
-        // Seed Classes
-        console.log("📦 Seeding Classes...");
-        for (const cls of SEED_DATA.classes) {
-            const { id, ...data } = cls;
-            if (data.homeroomTeacherId === "GURU_ADMIN_ID") data.homeroomTeacherId = adminUid;
-            try {
-                await setDoc(doc(db, "classes", id), data);
-                console.log(`   ✅ Class: ${id}`);
-            } catch (err) {
-                console.error(`   ❌ Failed Class ${id}:`, err.message);
+        // 3. READ EXISTING STUDENTS & GROUP BY CLASS
+        console.log("🔍 Fetching existing students from Firestore...");
+        const studentsSnap = await getDocs(collection(db, "students"));
+        const classMap = {
+            "7A": [], "7B": [], "8": [], "9": []
+        };
+
+        studentsSnap.forEach(d => {
+            const data = d.data();
+            const kelas = data.base_kelas || data.kelas;
+            const tahun = data.base_tahun || "2025/2026";
+            
+            // Masukkan hanya yang tahun ajaran 2025/2026
+            if (tahun === "2025/2026" && classMap[kelas]) {
+                classMap[kelas].push(d.id);
             }
+        });
+
+        // 4. UPDATE CLASSES DYNAMICALLY
+        console.log("📦 Updating Class Member Lists...");
+        for (const [className, studentIds] of Object.entries(classMap)) {
+            const classId = `2526_${className}`;
+            const classData = {
+                id: classId,
+                name: className,
+                academicYear: "2025/2026",
+                homeroomTeacherId: adminUid,
+                studentIds: studentIds
+            };
+            await setDoc(doc(db, "classes", classId), classData);
+            console.log(`   ✅ Class ${classId}: Linked ${studentIds.length} students`);
         }
 
-        // Seed Students
-        console.log("📦 Seeding Students...");
-        for (const student of SEED_DATA.students) {
-            const { id, ...data } = student;
-            try {
-                await setDoc(doc(db, "students", id), data);
-                console.log(`   ✅ Student: ${id}`);
-            } catch (err) {
-                console.error(`   ❌ Failed Student ${id}:`, err.message);
-            }
-        }
-
-        // Seed User (Admin)
-        console.log("📦 Seeding Admin User Profile...");
+        // 5. Seed User (Admin)
+        console.log("📦 Syncing Admin User Profile...");
         const adminProfile = SEED_DATA.users[0];
-        try {
-            await setDoc(doc(db, "users", adminUid), {
-                ...adminProfile,
-                uid: adminUid
-            });
-            console.log(`   ✅ Admin Profile: ${adminUid}`);
-        } catch (err) {
-            console.error(`   ❌ Failed Admin Profile ${adminUid}:`, err.message);
-        }
+        await setDoc(doc(db, "users", adminUid), {
+            ...adminProfile,
+            uid: adminUid
+        });
         
-        console.log("🎉 Migration & Seeding Complete!");
+        console.log("🎉 Dynamic Sync Complete!");
     } catch (globalErr) {
-        console.error("⛔ Global Seeding Failure:", globalErr.message);
+        console.error("⛔ Sync Failure:", globalErr.message);
     }
 };
