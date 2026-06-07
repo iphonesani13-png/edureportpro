@@ -1939,19 +1939,48 @@ window.renderLeaderboard = async () => {
     const listBimbingan = document.getElementById('rank-list-bimbingan');
     if (!listUnggulan || !listBimbingan) return;
 
+    const user = state.currentUser;
+    const role = user?.role || 'GURU';
+    const managedSubjects = user?.managedSubjects || [];
+    const managedClasses = user?.managedClasses || [];
+    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
+
     showLoading("Mengkalkulasi Peringkat...");
 
     try {
-        // 1. FETCH ALL PUBLISHED ASSESSMENTS FOR THE YEAR
-        const q = query(
-            collection(db, "assessments"),
-            where("academicYear", "==", currentTahun),
-            where("status", "==", "published")
-        );
+        // 1. DATA LOCKDOWN: Build Secure Query
+        let q;
+        const assessmentsRef = collection(db, "assessments");
+
+        if (isAdmin) {
+            // ADMIN MODE: Full Global Query
+            q = query(
+                assessmentsRef,
+                where("academicYear", "==", currentTahun),
+                where("status", "==", "published")
+            );
+        } else {
+            // GURU MODE: Strict Isolation by Managed Subjects
+            // Note: If teacher has > 30 subjects, this will need chunking (standard K-12 is < 10)
+            if (managedSubjects.length === 0) {
+                hideLoading();
+                listUnggulan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Anda belum memiliki akses mata pelajaran.</p>';
+                listBimbingan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">-</p>';
+                return;
+            }
+
+            q = query(
+                assessmentsRef,
+                where("academicYear", "==", currentTahun),
+                where("status", "==", "published"),
+                where("subjectId", "in", managedSubjects)
+            );
+        }
+
         const snap = await getDocs(q);
         let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // 2. APPLY TIME FILTERS
+        // 2. APPLY ADDITIONAL FILTERS (Semester, Bulan, Class)
         if (selSemester !== 'ALL') {
             const semNum = parseInt(selSemester);
             assessments = assessments.filter(a => a.semester === semNum);
@@ -1964,28 +1993,38 @@ window.renderLeaderboard = async () => {
             });
         }
 
-        // 3. AGGREGATE PER STUDENT
-        const studentStats = {}; // { [studentId]: { totalScore: 0, totalWeight: 0, redMapel: Set } }
+        // 3. CLASS ISOLATION FOR GURU
+        if (!isAdmin && managedClasses.length > 0) {
+            // Only include assessments that belong to teacher's classes
+            // assessments doc has classId: '2526_7A'
+            assessments = assessments.filter(a => {
+                const pureClassName = a.classId.split('_')[1];
+                return managedClasses.includes(pureClassName);
+            });
+        }
+
+        // 4. AGGREGATE PER STUDENT
+        const studentStats = {}; 
         const kkm = 75;
 
         assessments.forEach(a => {
             const weight = a.assessmentWeight || 100;
             for (const [sid, score] of Object.entries(a.scores)) {
+                // IMPORTANT: Only process scores for students that exist in teacher's classes if restricted
                 if (!studentStats[sid]) {
                     studentStats[sid] = { totalScore: 0, totalWeight: 0, redMapel: new Set(), name: "" };
                 }
                 studentStats[sid].totalScore += (score * weight);
                 studentStats[sid].totalWeight += weight;
 
-                // Track failing subjects
                 if (score < kkm) {
                     studentStats[sid].redMapel.add(a.subjectId);
                 }
             }
         });
 
-        // 4. PREPARE FINAL LISTS
-        const students = state.studentsData; // Use pre-loaded students for names
+        // 5. PREPARE FINAL LISTS
+        const students = state.studentsData; 
         const finalData = Object.entries(studentStats).map(([id, stats]) => {
             const st = students.find(s => s.docId === id);
             return {
@@ -1996,7 +2035,13 @@ window.renderLeaderboard = async () => {
             };
         });
 
-        // 5. SORT & RENDER UNGGULAN (By Average DESC)
+        // 6. RENDER UI (Title change based on role)
+        const rankTitle = document.querySelector('#leaderboard-section h3');
+        if (rankTitle) {
+            rankTitle.innerText = isAdmin ? "Siswa Unggulan (Global)" : "Siswa Unggulan (Mapel Anda)";
+        }
+
+        // ... Sort & Render logic remains same, but data is now clean ...
         const unggulan = [...finalData].sort((a, b) => b.avg - a.avg).slice(0, 10);
         listUnggulan.innerHTML = '';
         if (unggulan.length === 0) listUnggulan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Belum ada data nilai.</p>';
@@ -2008,7 +2053,7 @@ window.renderLeaderboard = async () => {
                         <span class="w-8 h-8 flex items-center justify-center font-black text-xs ${idx < 3 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'} rounded-lg">${idx + 1}</span>
                         <div>
                             <p class="font-black text-slate-900 text-sm">${formatNama(s.name)}</p>
-                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Rata-Rata Kelas</p>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Rata-Rata ${isAdmin ? 'Sekolah' : 'Internal'}</p>
                         </div>
                     </div>
                     <span class="text-xl font-black text-indigo-600">${s.avg}</span>
@@ -2016,7 +2061,6 @@ window.renderLeaderboard = async () => {
             `);
         });
 
-        // 6. SORT & RENDER BIMBINGAN (By Red Mapel DESC, only if redCount > 0)
         const bimbingan = [...finalData].filter(s => s.redCount > 0).sort((a, b) => b.redCount - a.redCount).slice(0, 10);
         listBimbingan.innerHTML = '';
         if (bimbingan.length === 0) listBimbingan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Semua siswa tuntas KKM!</p>';
@@ -2028,7 +2072,7 @@ window.renderLeaderboard = async () => {
                         <div class="w-8 h-8 flex items-center justify-center bg-rose-100 text-rose-600 rounded-lg text-xs">⚠️</div>
                         <div>
                             <p class="font-black text-rose-900 text-sm">${formatNama(s.name)}</p>
-                            <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest">Mapel di Bawah KKM</p>
+                            <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest">Mapel Merah (${isAdmin ? 'Sekolah' : 'Internal'})</p>
                         </div>
                     </div>
                     <span class="text-xl font-black text-rose-600">${s.redCount}</span>
