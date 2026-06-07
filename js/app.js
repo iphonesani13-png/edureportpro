@@ -250,6 +250,8 @@ window.logout = () => {
     firebaseLogout();
 };
 
+window.toggleModal = toggleModal;
+
 window.switchTab = (mode) => {
     uiSwitchTab(mode);
     // Update Sidebar Active State
