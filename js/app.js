@@ -379,7 +379,8 @@ function renderUserRow(u) {
     const isPending = u.status === 'pending';
     const isBlocked = u.status === 'blocked';
     const subjects = u.managedSubjects || [];
-
+    const classes = u.managedClasses || [];
+    
     return `
         <tr class="hover:bg-slate-50/50 transition-all">
             <td class="py-4 px-6">
@@ -403,14 +404,29 @@ function renderUserRow(u) {
                 </span>
             </td>
             <td class="py-4 px-6">
-                <div class="flex flex-wrap gap-1 max-w-[200px]">
-                    ${subjects.length ? subjects.map(s => `
-                        <span class="bg-indigo-50 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
-                            ${s.replace('SUBJ_', '')}
-                            <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500">×</button>
-                        </span>
-                    `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
-                    <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                <div class="space-y-3">
+                    <!-- Managed Subjects -->
+                    <div class="flex flex-wrap gap-1 max-w-[200px]">
+                        <span class="text-[7px] font-black text-slate-300 uppercase block w-full mb-1">Mata Pelajaran:</span>
+                        ${subjects.length ? subjects.map(s => `
+                            <span class="bg-indigo-50 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                                ${s.replace('SUBJ_', '')}
+                                <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500">×</button>
+                            </span>
+                        `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
+                        <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                    </div>
+                    <!-- Managed Classes -->
+                    <div class="flex flex-wrap gap-1 max-w-[200px]">
+                        <span class="text-[7px] font-black text-slate-300 uppercase block w-full mb-1">Kelas Diampu:</span>
+                        ${classes.length ? classes.map(c => `
+                            <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                                ${c}
+                                <button onclick="window.removeUserClass('${u.uid}', '${c}')" class="hover:text-rose-500">×</button>
+                            </span>
+                        `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
+                        <button onclick="window.promptAddClass('${u.uid}')" class="text-emerald-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                    </div>
                 </div>
             </td>
             <td class="py-4 px-6 text-center">
@@ -428,6 +444,35 @@ function renderUserRow(u) {
         </tr>
     `;
 }
+
+window.promptAddClass = async (uid) => {
+    const name = prompt("Ketik Nama Kelas (Cth: 7A, 7B, 8, 9):");
+    if (!name) return;
+    const cleanName = name.trim().toUpperCase();
+    if (!['7A', '7B', '8', '9'].includes(cleanName)) return showCustomAlert("Nama kelas tidak valid!", true);
+
+    try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const user = userDoc.data();
+        const managed = user?.managedClasses || [];
+        if (!managed.includes(cleanName)) {
+            managed.push(cleanName);
+            await saveUserProfile(uid, { managedClasses: managed });
+            window.renderUsers();
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.removeUserClass = async (uid, className) => {
+    if (!confirm("Hapus akses kelas ini?")) return;
+    try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const user = userDoc.data();
+        const managed = (user?.managedClasses || []).filter(c => c !== className);
+        await saveUserProfile(uid, { managedClasses: managed });
+        window.renderUsers();
+    } catch (e) { console.error(e); }
+};
 
 window.updateUserRole = async (uid, role) => {
     try {
@@ -1862,6 +1907,16 @@ window.renderDashboard = () => {
     // ACCESS MATRIX V2: Filter students based on role
     let baseStudents = state.studentsData;
 
+    if (role === 'GURU') {
+        const managedClasses = user?.managedClasses || [];
+        baseStudents = baseStudents.filter(st => {
+            const baseK = st.base_kelas || st.kelas || '';
+            const baseT = st.base_tahun || '2025/2026';
+            const calculatedKelas = calculateCurrentKelas(baseK, baseT, currentTahun);
+            return managedClasses.includes(calculatedKelas);
+        });
+    }
+
     let filtered = baseStudents.map(st => ({
         ...st,
         calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun)
@@ -2082,12 +2137,21 @@ window.refreshBukuInduk = async () => {
         const studentAssessments = assessments.filter(a => a.scores[docId] !== undefined);
         const missingTasks = assessments.filter(a => a.scores[docId] === undefined || a.scores[docId] === 0);
 
+        // ACCESS MATRIX V2: Subject Isolation for GURU
+        const role = state.currentUser?.role || 'GURU';
+        const managed = state.currentUser?.managedSubjects || [];
+        const isRestricted = role === 'GURU';
+
         // Mapel Performance Tracking
         const mapelStats = {};
         const teacherNotes = [];
 
         studentAssessments.forEach(a => {
             const sid = a.subjectId;
+            
+            // Skip if GURU and not their subject
+            if (isRestricted && !managed.includes(sid)) return;
+
             if (!mapelStats[sid]) {
                 mapelStats[sid] = { totalScore: 0, totalWeight: 0, actCount: 0 };
             }
