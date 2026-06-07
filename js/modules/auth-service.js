@@ -7,7 +7,8 @@ export const AUTHORIZED_TEACHER_EMAILS = [
     "admin@gmail.com",
     "guru1@gmail.com",
     "kepsek@gmail.com",
-    "iphonesani13@gmail.com"
+    "iphonesani13@gmail.com",
+    "rizkialbatamy@gmail.com"
 ];
 
 export const AUTHORIZED_DOMAIN = "";

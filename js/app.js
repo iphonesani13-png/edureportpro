@@ -104,7 +104,7 @@ const startAuthListener = () => {
                 }
 
 // AUTO-SEED TRIGGER FOR ADMIN
-                if (user.email === 'iphonesani13@gmail.com') {
+                if (user.email === 'iphonesani13@gmail.com' || user.email === 'rizkialbatamy@gmail.com') {
                     console.log("🛠️ Admin detected. Running database seed/migration...");
                     try {
                         const { seedDatabase } = await import("./seed-script.js");

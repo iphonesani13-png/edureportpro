@@ -41,6 +41,12 @@ const SEED_DATA = {
             role: "guru",
             name: "Rizki Akhsani",
             managedSubjects: ALL_SUBJECTS.map(s => s.id) // Grant all 8 subjects to admin
+        },
+        {
+            email: "rizkialbatamy@gmail.com",
+            role: "guru",
+            name: "Rizki Albatamy",
+            managedSubjects: ALL_SUBJECTS.map(s => s.id)
         }
     ]
 };
