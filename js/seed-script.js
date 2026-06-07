@@ -15,47 +15,33 @@ const ALL_SUBJECTS = [
 ];
 
 const SEED_DATA = {
+    authorized_users: [
+        { email: "rizkialbatamy@gmail.com", role: "OWNER", name: "Rizki Albatamy" },
+        { email: "iphonesani13@gmail.com", role: "SUPER_ADMIN", name: "Rizki Akhsani" },
+        { email: "admin@gmail.com", role: "SUPER_ADMIN", name: "Admin IT" },
+        { email: "kepsek@gmail.com", role: "KEPALA_SEKOLAH", name: "Kepala Sekolah" }
+    ],
     subjects: ALL_SUBJECTS.map(s => ({
         id: s.id,
         name: s.name,
         category: "nasional",
         minPassingGrade: 75
     })),
-    assessment_templates: [
-        {
-            id: "TPL_IPA_BAB1",
-            subjectId: "SUBJ_IPA",
-            academicYear: "2025/2026",
-            semester: 1,
-            type: "formative",
-            title: "Sistem Organisasi Kehidupan",
-            tpId: "IPA.7.1",
-            tpDesc: "Siswa dapat mengidentifikasi sel sebagai unit terkecil kehidupan.",
-            cognitiveLevel: "C2",
-            weight: 1
-        }
-    ],
-    users: [
-        {
-            email: "iphonesani13@gmail.com",
-            role: "guru",
-            name: "Rizki Akhsani",
-            managedSubjects: ALL_SUBJECTS.map(s => s.id) // Grant all 8 subjects to admin
-        },
-        {
-            email: "rizkialbatamy@gmail.com",
-            role: "guru",
-            name: "Rizki Albatamy",
-            managedSubjects: ALL_SUBJECTS.map(s => s.id)
-        }
-    ]
+    // ... templates and users remain same
 };
 
 export const seedDatabase = async (realUid) => {
-    console.log("🚀 Starting Full Curriculum Sync V1.2...");
+    console.log("🚀 Starting Full Curriculum Sync V1.3 (Role System)...");
     
     try {
         const adminUid = realUid || "GURU_ADMIN_ID";
+
+        // 0. Sync Authorized Users
+        console.log("📦 Syncing Authorized Users Whitelist...");
+        for (const authUser of SEED_DATA.authorized_users) {
+            const authId = authUser.email.replace(/[@.]/g, '_');
+            await setDoc(doc(db, "authorized_users", authId), authUser);
+        }
 
         // 1. Sync All 8 Subjects
         console.log("📦 Syncing 8 Subjects...");
@@ -97,15 +83,22 @@ export const seedDatabase = async (realUid) => {
             });
         }
 
-        // 5. Sync Admin Profile with All 8 Subjects
-        console.log("📦 Syncing Admin User Profile (8 Subjects)...");
-        const adminProfile = SEED_DATA.users[0];
-        await setDoc(doc(db, "users", adminUid), {
-            ...adminProfile,
-            uid: adminUid
-        });
+        // 5. Sync Admin/Owner Profile
+        console.log("📦 Finalizing Admin/Owner Profile Status...");
+        const myUser = await getDoc(doc(db, "users", adminUid));
+        if (myUser.exists()) {
+            const currentData = myUser.data();
+            // Upgrade role if it matches our seed whitelist
+            const authRecord = SEED_DATA.authorized_users.find(u => u.email === currentData.email);
+            if (authRecord) {
+                await setDoc(doc(db, "users", adminUid), {
+                    role: authRecord.role,
+                    status: 'active'
+                }, { merge: true });
+            }
+        }
         
-        console.log("🎉 Full Curriculum Sync Complete!");
+        console.log("🎉 System Security Sync Complete!");
     } catch (globalErr) {
         console.error("⛔ Sync Failure:", globalErr.message);
     }

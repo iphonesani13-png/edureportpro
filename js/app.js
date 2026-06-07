@@ -16,7 +16,7 @@ import {
 } from "./modules/ui-manager.js";
 
 import { 
-    loginWithGoogle, logout as firebaseLogout, checkTeacherAuthorization, getUserProfile, saveUserProfile 
+    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser 
 } from "./modules/auth-service.js";
 
 import { 
@@ -72,49 +72,75 @@ let state = {
 const startAuthListener = () => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            showLoading("Menyiapkan Dashboard...");
+            showLoading("Menyiapkan Sesi...");
             try {
                 let intentRole = localStorage.getItem('login_intent_role');
                 let profile = await getUserProfile(user.uid);
-                const isTeacherAuthorized = checkTeacherAuthorization(user.email);
 
-                if (intentRole) {
-                    if (intentRole === 'guru' && !isTeacherAuthorized) {
-                        await firebaseLogout();
-                        localStorage.removeItem('login_intent_role');
-                        hideLoading();
-                        showCustomAlert(`Akses Ditolak!\nEmail ${user.email} tidak terdaftar sebagai Guru/Admin.`, true);
-                        showLoginScreen();
-                        return;
+                // 1. FIRST TIME LOGIN (REGISTRATION)
+                if (!profile) {
+                    if (intentRole === 'orangtua') {
+                        // Parents register with NIS later, save basic profile now
+                        profile = await registerPendingUser(user.uid, { 
+                            email: user.email, 
+                            name: user.displayName, 
+                            role: 'ORANG_TUA',
+                            status: 'active' // Parents are active by default once they login? 
+                        });
+                        // Or keep as active but stuck at NIS screen
+                    } else {
+                        // Teachers/Admins: Check database authorization
+                        const authCheck = await checkAuthorizedEmail(user.email);
+                        if (authCheck.authorized) {
+                            // Pre-approved in authorized_users collection
+                            profile = { 
+                                uid: user.uid, 
+                                email: user.email, 
+                                name: user.displayName, 
+                                role: authCheck.role || 'GURU', 
+                                status: 'active',
+                                managedSubjects: authCheck.managedSubjects || []
+                            };
+                            await saveUserProfile(user.uid, profile);
+                        } else {
+                            // Not pre-approved: Register as PENDING
+                            profile = await registerPendingUser(user.uid, { 
+                                email: user.email, 
+                                name: user.displayName, 
+                                role: 'GURU' 
+                            });
+                        }
                     }
-                    profile = { role: intentRole, email: user.email };
-                    await saveUserProfile(user.uid, profile);
                     localStorage.removeItem('login_intent_role');
-                } else if (!profile) {
-                    showLoginScreen();
-                    return;
                 }
 
-                if (profile.role === 'guru' && !isTeacherAuthorized) {
+                // 2. CHECK STATUS (PENDING/BLOCKED)
+                if (profile.status === 'pending') {
+                    hideLoading();
+                    return showPendingScreen();
+                }
+                if (profile.status === 'blocked') {
                     await firebaseLogout();
                     hideLoading();
-                    showCustomAlert(`Akses Ditolak!\nEmail ${user.email} tidak terdaftar sebagai Guru/Admin.`, true);
-                    showLoginScreen();
-                    return;
+                    showCustomAlert("Akses Anda telah ditangguhkan. Silakan hubungi Admin.", true);
+                    return showLoginScreen();
                 }
 
-// AUTO-SEED TRIGGER FOR ADMIN
-                if (user.email === 'iphonesani13@gmail.com' || user.email === 'rizkialbatamy@gmail.com') {
-                    console.log("🛠️ Admin detected. Running database seed/migration...");
+                // 3. OWNER/ADMIN SPECIAL TRIGGER (Migration/Seed)
+                const isOwner = user.email === 'rizkialbatamy@gmail.com';
+                const isAdmin = user.email === 'iphonesani13@gmail.com' || profile.role === 'SUPER_ADMIN' || profile.role === 'OWNER';
+
+                if (isOwner || isAdmin) {
+                    console.log("🛠️ Admin/Owner detected. Running database sync...");
                     try {
                         const { seedDatabase } = await import("./seed-script.js");
                         await seedDatabase(user.uid);
-                        console.log("✨ Seeding process finished.");
                     } catch (e) {
-                        console.error("⚠️ Seeding crashed in orchestrator:", e);
+                        console.error("⚠️ Sync failed:", e);
                     }
                 }
 
+                state.currentUser = profile;
                 setupUIForRole(profile.role, profile.childId);
             } catch (err) {
                 console.error("Auth Error:", err);
@@ -126,6 +152,20 @@ const startAuthListener = () => {
         }
     });
 };
+
+function showPendingScreen() {
+    // We'll use a simple alert-style screen or modal for now
+    document.getElementById('app-root').innerHTML = `
+        <div class="min-h-screen flex items-center justify-center bg-slate-50 p-6 text-center">
+            <div class="max-w-md w-full glass-card p-10 bg-white space-y-6">
+                <div class="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-4xl mx-auto">⏳</div>
+                <h2 class="text-2xl font-black text-slate-900">Pendaftaran Diproses</h2>
+                <p class="text-sm text-slate-500 leading-relaxed">Akun Anda sedang dalam antrian persetujuan Admin. Silakan hubungi <b>Rizki Albatamy</b> untuk aktivasi akses Anda.</p>
+                <button onclick="window.logout()" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">Keluar</button>
+            </div>
+        </div>
+    `;
+}
 
 // --- NAVIGATION & UI FLOW ---
 function showLoginScreen() {
@@ -143,17 +183,27 @@ function setupUIForRole(role, childId) {
     document.getElementById('main-app')?.classList.remove('hidden');
 
     const badge = document.getElementById('user-role-badge');
-    if (badge) badge.innerText = role === 'guru' ? 'GURU / ADMIN' : 'ORANG TUA';
+    const roleLabel = role.replace('_', ' ');
+    if (badge) badge.innerText = roleLabel;
 
-    if (role === 'guru') {
+    // --- SIDEBAR VISIBILITY (ACCESS MATRIX V2) ---
+    const isTeacher = ['OWNER', 'SUPER_ADMIN', 'KEPALA_SEKOLAH', 'KURIKULUM', 'GURU'].includes(role);
+    const isAdmin = ['OWNER', 'SUPER_ADMIN'].includes(role);
+
+    if (isTeacher) {
         document.getElementById('nav-guru')?.classList.remove('hidden');
         document.getElementById('nav-ortu')?.classList.add('hidden');
+        
+        // Toggle specific buttons
+        document.getElementById('btn-users')?.classList.toggle('hidden', !isAdmin);
+        document.getElementById('btn-kurikulum')?.classList.remove('hidden');
+        
         window.switchTab('dashboard');
         initRealtimeSync('guru');
-    } else {
+    } else if (role === 'ORANG_TUA') {
+        document.getElementById('nav-guru')?.classList.add('hidden');
+        document.getElementById('nav-ortu')?.classList.remove('hidden');
         if (childId) {
-            document.getElementById('nav-guru')?.classList.add('hidden');
-            document.getElementById('nav-ortu')?.classList.remove('hidden');
             state.currentStudentId = childId;
             window.switchTab('viewer');
             initRealtimeSync('orangtua', childId);
@@ -161,6 +211,26 @@ function setupUIForRole(role, childId) {
             document.getElementById('main-app')?.classList.add('hidden');
             document.getElementById('ortu-setup-screen')?.classList.remove('hidden');
         }
+    }
+
+    // --- BUTTON PROTECTION (READ-ONLY FOR KEPSEK) ---
+    const isReadOnly = role === 'KEPALA_SEKOLAH';
+    if (isReadOnly) {
+        // Inject global CSS to hide action buttons for Kepsek
+        const style = document.createElement('style');
+        style.id = 'readonly-protection';
+        style.innerHTML = `
+            button[onclick*="toggleModal"], 
+            button[onclick*="tambah"], 
+            button[onclick*="handlePublish"], 
+            button[onclick*="handleSaveDraft"],
+            button[onclick*="save"],
+            button[onclick*="hapus"],
+            button[onclick*="confirmCreate"] { display: none !important; }
+        `;
+        document.head.appendChild(style);
+    } else {
+        document.getElementById('readonly-protection')?.remove();
     }
 }
 
@@ -264,7 +334,147 @@ window.switchTab = (mode) => {
     if (mode === 'tugas') window.renderTugasGuru();
     if (mode === 'kurikulum') window.renderKurikulum();
     if (mode === 'nilai-harian') window.initNilaiHarian();
-    };
+    if (mode === 'users') window.renderUsers();
+};
+
+// --- USER MANAGEMENT (ACCESS MATRIX V2) ---
+
+window.renderUsers = async () => {
+    const container = document.getElementById('users-content');
+    if (!container) return;
+
+    showLoading("Memuat Daftar User...");
+    try {
+        // 1. Fetch all registered users
+        const usersSnap = await getDocs(collection(db, "users"));
+        const allUsers = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+        // 2. Render Table
+        container.innerHTML = `
+            <div class="glass-card overflow-hidden bg-white border border-slate-100 shadow-sm">
+                <table class="w-full text-left whitespace-nowrap">
+                    <thead>
+                        <tr class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50 border-b border-slate-100">
+                            <th class="py-4 px-6">User</th>
+                            <th class="py-4 px-6 text-center">Role</th>
+                            <th class="py-4 px-6 text-center">Status</th>
+                            <th class="py-4 px-6">Akses Mapel</th>
+                            <th class="py-4 px-6 text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        ${allUsers.map(u => renderUserRow(u)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal memuat manajemen user.", true);
+    }
+    hideLoading();
+};
+
+function renderUserRow(u) {
+    const isPending = u.status === 'pending';
+    const isBlocked = u.status === 'blocked';
+    const subjects = u.managedSubjects || [];
+
+    return `
+        <tr class="hover:bg-slate-50/50 transition-all">
+            <td class="py-4 px-6">
+                <p class="font-black text-slate-900 text-sm">${u.name || 'User Baru'}</p>
+                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${u.email}</p>
+            </td>
+            <td class="py-4 px-6 text-center">
+                <select onchange="window.updateUserRole('${u.uid}', this.value)" class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500">
+                    <option value="GURU" ${u.role === 'GURU' ? 'selected' : ''}>GURU</option>
+                    <option value="KURIKULUM" ${u.role === 'KURIKULUM' ? 'selected' : ''}>KURIKULUM</option>
+                    <option value="KEPALA_SEKOLAH" ${u.role === 'KEPALA_SEKOLAH' ? 'selected' : ''}>KEPSEK</option>
+                    <option value="SUPER_ADMIN" ${u.role === 'SUPER_ADMIN' ? 'selected' : ''}>ADMIN</option>
+                    <option value="OWNER" ${u.role === 'OWNER' ? 'selected' : ''}>OWNER</option>
+                    <option value="ORANG_TUA" ${u.role === 'ORANG_TUA' ? 'selected' : ''}>ORTU</option>
+                </select>
+            </td>
+            <td class="py-4 px-6 text-center">
+                <span class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest 
+                    ${isPending ? 'bg-amber-50 text-amber-600' : isBlocked ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}">
+                    ${u.status || 'active'}
+                </span>
+            </td>
+            <td class="py-4 px-6">
+                <div class="flex flex-wrap gap-1 max-w-[200px]">
+                    ${subjects.length ? subjects.map(s => `
+                        <span class="bg-indigo-50 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
+                            ${s.replace('SUBJ_', '')}
+                            <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500">×</button>
+                        </span>
+                    `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
+                    <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                </div>
+            </td>
+            <td class="py-4 px-6 text-center">
+                <div class="flex justify-center gap-2">
+                    ${isPending ? `
+                        <button onclick="window.setUserStatus('${u.uid}', 'active')" class="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase shadow-sm">Setujui</button>
+                    ` : `
+                        <button onclick="window.setUserStatus('${u.uid}', '${isBlocked ? 'active' : 'blocked'}')" 
+                                class="px-3 py-1 ${isBlocked ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-rose-600'} text-[9px] font-black rounded-lg uppercase">
+                            ${isBlocked ? 'Aktifkan' : 'Blokir'}
+                        </button>
+                    `}
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+window.updateUserRole = async (uid, role) => {
+    try {
+        await saveUserProfile(uid, { role });
+        showCustomAlert("Role berhasil diperbarui.");
+        window.renderUsers();
+    } catch (e) { showCustomAlert(e.message, true); }
+};
+
+window.setUserStatus = async (uid, status) => {
+    try {
+        await saveUserProfile(uid, { status });
+        showCustomAlert(`Status user diubah menjadi ${status.toUpperCase()}.`);
+        window.renderUsers();
+    } catch (e) { showCustomAlert(e.message, true); }
+};
+
+window.promptAddSubject = async (uid) => {
+    const list = state.subjectsList.join(", ");
+    const name = prompt("Ketik Nama Mapel persis (Cth: IPA, Matematika, dkk):\n\nOpsi: " + list);
+    if (!name) return;
+
+    const sid = "SUBJ_" + name.trim().toUpperCase().replace(/\s+/g, '_');
+    if (!state.subjectsList.includes(name.trim())) return showCustomAlert("Mapel tidak terdaftar di Katalog!", true);
+
+    try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const user = userDoc.data();
+        const managed = user?.managedSubjects || [];
+        if (!managed.includes(sid)) {
+            managed.push(sid);
+            await saveUserProfile(uid, { managedSubjects: managed });
+            window.renderUsers();
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.removeUserSubject = async (uid, sid) => {
+    if (!confirm("Hapus akses mapel ini?")) return;
+    try {
+        const userDoc = await getDoc(doc(db, "users", uid));
+        const user = userDoc.data();
+        const managed = (user?.managedSubjects || []).filter(s => s !== sid);
+        await saveUserProfile(uid, { managedSubjects: managed });
+        window.renderUsers();
+    } catch (e) { console.error(e); }
+};
 
     // --- NILAI HARIAN ORCHESTRATION ---
     window.tambahMapelCepat = async () => {
@@ -307,24 +517,36 @@ window.initNilaiHarian = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // Load Mapel (managedSubjects)
+    // 1. Determine which subjects this user can see
     const profile = await getUserProfile(user.uid);
-    const managedSubjects = profile?.managedSubjects || ['IPA']; // Default if empty for now
+    const role = profile?.role || 'GURU';
+    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM'].includes(role);
+    
+    let subjectsToShow = [];
+    if (isAdmin) {
+        // Admins/Kurikulum see everything
+        const subSnap = await getDocs(collection(db, "subjects"));
+        subjectsToShow = subSnap.docs.map(d => d.id);
+    } else {
+        // Teachers only see their managed subjects
+        subjectsToShow = profile?.managedSubjects || [];
+    }
 
     const selectMapel = document.getElementById('nh-select-mapel');
     if (selectMapel) {
         selectMapel.innerHTML = '<option value="">Pilih Mapel...</option>';
-        managedSubjects.forEach(s => {
-            selectMapel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`);
+        subjectsToShow.forEach(sid => {
+            const label = sid.replace('SUBJ_', '').replace('_', ' ');
+            selectMapel.insertAdjacentHTML('beforeend', `<option value="${sid}">${label}</option>`);
         });
 
-        // UX: Auto-select last used subject from localStorage
+        // UX: Auto-select last used
         const lastSubject = localStorage.getItem('nh_last_subject');
-        if (lastSubject && managedSubjects.includes(lastSubject)) {
+        if (lastSubject && subjectsToShow.includes(lastSubject)) {
             selectMapel.value = lastSubject;
-            window.onNhMapelChange(); // Auto-load TP list
-        } else if (managedSubjects.length === 1) {
-            selectMapel.value = managedSubjects[0];
+            window.onNhMapelChange();
+        } else if (subjectsToShow.length === 1) {
+            selectMapel.value = subjectsToShow[0];
             window.onNhMapelChange();
         }
     }
@@ -1002,22 +1224,39 @@ window.renderKatalog = async () => {
     const headerActions = document.getElementById('kurikulum-global-actions');
     const workspaceActions = document.getElementById('workspace-actions');
 
-    if (headerActions) headerActions.classList.remove('hidden');
+    const profile = state.currentUser;
+    const role = profile?.role || 'GURU';
+    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM'].includes(role);
+
+    if (headerActions) headerActions.classList.toggle('hidden', role === 'KEPALA_SEKOLAH');
     if (workspaceActions) workspaceActions.classList.add('hidden');
 
     showLoading("Memuat Katalog...");
     try {
+        const year = getActiveTahun();
         // Fetch all templates for readiness check
-        const q = query(
-            collection(db, "assessment_templates"),
-            where("academicYear", "==", getActiveTahun())
-        );
+        const q = query(collection(db, "assessment_templates"), where("academicYear", "==", year));
         const snap = await getDocs(q);
         state.nhState.allTemplates = snap.docs.map(d => d.data());
 
+        // Get subjects based on role
+        let subjectsToRender = [];
+        if (isAdmin || role === 'KEPALA_SEKOLAH') {
+            subjectsToRender = state.subjectsList; // Show all names
+        } else {
+            // regular Guru sees only managed names
+            const managed = profile?.managedSubjects || [];
+            subjectsToRender = state.subjectsList.filter(name => {
+                const sid = "SUB_J" + name.toUpperCase().replace(/\s+/g, '_'); // Fix typo potential
+                // Actually use our SID standard: SUBJ_
+                const sidStd = "SUBJ_" + name.toUpperCase().replace(/\s+/g, '_');
+                return managed.includes(sidStd);
+            });
+        }
+
         container.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                ${state.subjectsList.map(sub => {
+                ${subjectsToRender.map(sub => {
                     const sid = "SUBJ_" + sub.toUpperCase().replace(/\s+/g, '_');
                     const readiness = calculateSubjectReadiness(sid);
                     
@@ -1040,6 +1279,7 @@ window.renderKatalog = async () => {
                         </div>
                     `;
                 }).join('')}
+                ${subjectsToRender.length === 0 ? `<div class="col-span-full py-20 text-center text-slate-400 font-bold italic">Anda belum diberikan akses ke mata pelajaran manapun. Silakan hubungi Admin.</div>` : ''}
             </div>
         `;
     } catch (e) {
@@ -1499,23 +1739,24 @@ window.saveTP = async () => {
 
     if (!tpId || !title) return showCustomAlert("Lengkapi Kode dan Judul TP!", true);
 
-    showLoading("Menyimpan TP...");
+    const teacherId = auth.currentUser.uid;
+    showLoading("Menyiapkan TP...");
     try {
         const data = {
             subjectId: state.nhState.currentSubjectId,
             academicYear: getActiveTahun(),
-            semester: 1, // Default to smt 1, can be changed in ATP
+            semester: 1, 
             tpId, title, cognitiveLevel, tpDesc
         };
 
         if (id) {
-            await AssessmentService.updateTemplate(id, data);
+            await AssessmentService.updateTemplate(id, data, teacherId);
         } else {
-            await AssessmentService.addTemplate(data);
+            await AssessmentService.addTemplate(data, teacherId);
         }
 
         toggleModal('tp-modal', false);
-        await window.renderWorkspace(); // Refresh
+        await window.renderWorkspace(); 
         showCustomAlert("Tujuan Pembelajaran berhasil disimpan.");
     } catch (e) {
         showCustomAlert("Gagal menyimpan TP: " + e.message, true);
@@ -1524,13 +1765,24 @@ window.saveTP = async () => {
 };
 
 window.hapusTP = async (id) => {
-    if (!confirm("Hapus materi ini? Data tidak bisa dikembalikan jika belum ada nilai.")) return;
+    const role = state.currentUser?.role;
+    const isOwner = role === 'OWNER';
     
-    showLoading("Menghapus TP...");
+    const msg = isOwner 
+        ? "Anda adalah OWNER. Hapus permanen materi ini?" 
+        : "Arsip materi ini? Materi tidak akan muncul lagi di daftar aktif namun histori nilai tetap aman.";
+
+    if (!confirm(msg)) return;
+    
+    showLoading("Memproses...");
     try {
-        await AssessmentService.deleteTemplate(id);
+        if (isOwner) {
+            await AssessmentService.deleteTemplatePermanently(id);
+        } else {
+            await AssessmentService.archiveTemplate(id, auth.currentUser.uid);
+        }
         await window.renderWorkspace();
-        showCustomAlert("TP berhasil dihapus.");
+        showCustomAlert(isOwner ? "TP dihapus permanen." : "TP berhasil diarsip.");
     } catch (e) {
         showCustomAlert(e.message, true);
     }
@@ -1540,7 +1792,7 @@ window.hapusTP = async (id) => {
 window.moveTpSemester = async (id, newSemester) => {
     showLoading("Memindahkan...");
     try {
-        await AssessmentService.updateTemplate(id, { semester: newSemester });
+        await AssessmentService.updateTemplate(id, { semester: newSemester }, auth.currentUser.uid);
         await window.renderWorkspace();
     } catch (e) {
         showCustomAlert("Gagal memindah semester.", true);
@@ -1554,7 +1806,7 @@ window.saveKKM = async () => {
 
     showLoading("Menyimpan KKM...");
     try {
-        await AssessmentService.updateSubjectConfig(state.nhState.currentSubjectId, { minPassingGrade: val });
+        await AssessmentService.updateSubjectConfig(state.nhState.currentSubjectId, { minPassingGrade: val }, auth.currentUser.uid);
         showCustomAlert("Standar KKM berhasil diperbarui.");
     } catch (e) {
         showCustomAlert("Gagal menyimpan KKM.", true);
@@ -1604,7 +1856,13 @@ window.renderDashboard = () => {
     const filterKelas = document.getElementById('filter-kelas')?.value || 'ALL';
     const query = document.getElementById('filter-siswa-query')?.value?.toLowerCase() || '';
 
-    let filtered = state.studentsData.map(st => ({
+    const user = state.currentUser;
+    const role = user?.role || 'GURU';
+
+    // ACCESS MATRIX V2: Filter students based on role
+    let baseStudents = state.studentsData;
+
+    let filtered = baseStudents.map(st => ({
         ...st,
         calculatedKelas: calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun)
     })).filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');

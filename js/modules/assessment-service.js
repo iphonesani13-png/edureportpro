@@ -170,51 +170,58 @@ export const getStudentsInClass = async (classId) => {
 };
 
 /**
- * KURIKULUM V2: Menambah TP baru
+ * KURIKULUM V2: Menambah TP baru dengan Audit Log
  */
-export const addTemplate = async (templateData) => {
+export const addTemplate = async (templateData, teacherId) => {
     const docRef = await addDoc(collection(db, "assessment_templates"), {
         ...templateData,
+        createdBy: teacherId,
         createdAt: serverTimestamp(),
-        status: "aktif"
+        status: "active"
     });
     return docRef.id;
 };
 
 /**
- * KURIKULUM V2: Update TP
+ * KURIKULUM V2: Update TP dengan Audit Log
  */
-export const updateTemplate = async (id, data) => {
+export const updateTemplate = async (id, data, teacherId) => {
     const docRef = doc(db, "assessment_templates", id);
     await updateDoc(docRef, {
         ...data,
+        updatedBy: teacherId,
         updatedAt: serverTimestamp()
     });
 };
 
 /**
- * KURIKULUM V2: Hapus TP (Hanya jika belum ada nilai)
+ * KURIKULUM V2: Archive TP (Soft Delete sesuai Matrix V2)
  */
-export const deleteTemplate = async (id) => {
-    // Check if any assessments exist for this template
-    const q = query(collection(db, "assessments"), where("templateId", "==", id));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-        throw new Error("Gagal Hapus: Materi ini sudah memiliki data nilai siswa. Silakan hapus nilai terlebih dahulu atau ubah status menjadi arsip.");
-    }
+export const archiveTemplate = async (id, teacherId) => {
     const docRef = doc(db, "assessment_templates", id);
-    // Hard delete for templates is allowed if no assessments exist
-    // In the future, we might prefer soft-delete (status: archived)
-    await updateDoc(docRef, { status: "deleted", deletedAt: serverTimestamp() });
+    await updateDoc(docRef, { 
+        status: "archived", 
+        updatedBy: teacherId,
+        updatedAt: serverTimestamp() 
+    });
 };
 
 /**
- * KURIKULUM V2: Update Konfigurasi Mapel (CP & KKM)
+ * KURIKULUM V2: Hapus TP (Hanya OWNER yang boleh hard delete)
  */
-export const updateSubjectConfig = async (subjectId, config) => {
+export const deleteTemplatePermanently = async (id) => {
+    const docRef = doc(db, "assessment_templates", id);
+    await deleteDoc(docRef);
+};
+
+/**
+ * KURIKULUM V2: Update Konfigurasi Mapel dengan Audit Log
+ */
+export const updateSubjectConfig = async (subjectId, config, teacherId) => {
     const docRef = doc(db, "subjects", subjectId);
     await updateDoc(docRef, {
         ...config,
+        updatedBy: teacherId,
         updatedAt: serverTimestamp()
     });
 };

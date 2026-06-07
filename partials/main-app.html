@@ -26,6 +26,9 @@
                 <button id="btn-kurikulum" onclick="switchTab('kurikulum')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>⚙️</span> Administrasi Kurikulum
                 </button>
+                <button id="btn-users" onclick="switchTab('users')" class="sidebar-item hidden w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
+                    <span>👥</span> Manajemen User
+                </button>
                 <button id="btn-editor" onclick="switchTab('editor')" class="sidebar-item hidden w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>👤</span> Profil Siswa
                 </button>
@@ -560,6 +563,21 @@
                 </div>
             </section>
 
+            <!-- USERS SECTION (USER MANAGEMENT V1) -->
+            <section id="users-section" class="hidden animate-fade-in space-y-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Manajemen User</h2>
+                        <p class="text-slate-400 text-sm font-medium mt-0.5">Kelola akses guru, staf kurikulum, dan wali murid.</p>
+                    </div>
+                </div>
+
+                <div id="users-content" class="min-h-[400px]">
+                    <div class="flex items-center justify-center py-20">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    </div>
+                </div>
+            </section>
 
             <section id="viewer-section" class="hidden animate-fade-in space-y-8">
                 <div id="ortu-content-box" class="space-y-6">
