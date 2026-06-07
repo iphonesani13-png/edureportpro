@@ -1084,6 +1084,8 @@ window.renderWorkspace = async () => {
     const headerActions = document.getElementById('kurikulum-global-actions');
     const workspaceActions = document.getElementById('workspace-actions');
     const subjectId = state.nhState.currentSubjectId;
+    const currentTab = state.nhState.currentWorkspaceTab || 'tp';
+    
     const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
 
     if (headerActions) headerActions.classList.add('hidden');
@@ -1096,38 +1098,344 @@ window.renderWorkspace = async () => {
                 <div class="flex items-center gap-6">
                     <h3 class="text-sm font-black text-slate-900 uppercase tracking-widest border-r border-slate-200 pr-6">${subjectName}</h3>
                     <div class="flex gap-4">
-                        <button onclick="window.switchWorkspaceTab('cp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'cp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">CP</button>
-                        <button onclick="window.switchWorkspaceTab('tp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'tp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">TP & Materi</button>
-                        <button onclick="window.switchWorkspaceTab('atp')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'atp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">ATP</button>
-                        <button onclick="window.switchWorkspaceTab('kkm')" class="workspace-tab ${state.nhState.currentWorkspaceTab === 'kkm' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">KKM</button>
+                        <button onclick="window.switchWorkspaceTab('tp')" class="workspace-tab ${currentTab === 'tp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">TP & Materi</button>
+                        <button onclick="window.switchWorkspaceTab('atp')" class="workspace-tab ${currentTab === 'atp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">ATP</button>
+                        <button onclick="window.switchWorkspaceTab('kkm')" class="workspace-tab ${currentTab === 'kkm' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">KKM</button>
+                        <button onclick="window.switchWorkspaceTab('cp')" class="workspace-tab ${currentTab === 'cp' ? 'active' : ''} text-[10px] font-black uppercase tracking-widest py-2 border-b-2 border-transparent transition-all">CP</button>
                     </div>
                 </div>
             </div>
 
             <!-- Tab Content -->
-            <div id="workspace-tab-content" class="py-4">
-                <div class="flex flex-col items-center justify-center py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-2xl mb-4 shadow-sm">🛠️</div>
-                    <h3 class="text-lg font-bold text-slate-900">Workspace ${state.nhState.currentWorkspaceTab.toUpperCase()}</h3>
-                    <p class="text-slate-400 text-sm max-w-xs">Fitur ${state.nhState.currentWorkspaceTab} sedang dalam pengembangan Fase 2.</p>
+            <div id="workspace-tab-content" class="py-4 min-h-[300px]">
+                <div class="flex items-center justify-center py-20">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                 </div>
             </div>
         </div>
     `;
 
-    // Add Workspace Active Styles
-    const style = document.createElement('style');
-    style.innerHTML = `
-        .workspace-tab { color: #94a3b8; }
-        .workspace-tab.active { color: #4f46e5; border-color: #4f46e5; }
-    `;
-    document.head.appendChild(style);
+    // Dispatch to Tab Renderers
+    if (currentTab === 'tp') await window.renderTpTab(subjectId);
+    if (currentTab === 'atp') await window.renderAtpTab(subjectId);
+    if (currentTab === 'kkm') await window.renderKkmTab(subjectId);
+    if (currentTab === 'cp') await window.renderCpTab(subjectId);
+};
+
+// --- WORKSPACE TAB RENDERERS ---
+
+window.renderTpTab = async (subjectId) => {
+    const content = document.getElementById('workspace-tab-content');
+    const year = getActiveTahun();
+    
+    try {
+        const templates = await AssessmentService.getTemplatesBySubject(subjectId, year);
+        const sortedTemplates = templates.filter(t => t.status !== 'deleted').sort((a, b) => (a.tpId || "").localeCompare(b.tpId || ""));
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Daftar Tujuan Pembelajaran</h4>
+                    <button onclick="window.openAddTpForm()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">+ Tambah TP</button>
+                </div>
+                
+                <div id="tp-list" class="grid grid-cols-1 gap-4">
+                    ${sortedTemplates.length === 0 ? `
+                        <div class="py-20 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                            <p class="text-xs font-bold text-slate-400">Belum ada TP untuk mata pelajaran ini.</p>
+                        </div>
+                    ` : sortedTemplates.map(t => `
+                        <div class="glass-card p-5 bg-white border border-slate-100 flex justify-between items-start group">
+                            <div class="space-y-2">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase">${t.tpId || 'NO-ID'}</span>
+                                    <span class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md uppercase">${t.cognitiveLevel || 'C2'}</span>
+                                </div>
+                                <h5 class="font-black text-slate-900 text-sm">${t.title}</h5>
+                                <p class="text-xs text-slate-500 leading-relaxed max-w-2xl">${t.tpDesc || '-'}</p>
+                            </div>
+                            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onclick="window.openEditTpForm('${t.id}')" class="p-2 hover:bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-lg">✏️</button>
+                                <button onclick="window.hapusTP('${t.id}')" class="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- MODAL TAMBAH/EDIT TP -->
+            <div id="tp-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden animate-slide-up">
+                    <div class="p-8 space-y-6">
+                        <div class="text-center">
+                            <h3 id="tp-modal-title" class="text-xl font-black text-slate-900 uppercase tracking-tight">Tambah Tujuan Pembelajaran</h3>
+                            <p class="text-slate-400 text-xs font-medium mt-1">Rumuskan target kompetensi siswa di sini.</p>
+                        </div>
+                        
+                        <input type="hidden" id="tp-input-id">
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="col-span-1">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Kode TP</label>
+                                <input type="text" id="tp-input-code" placeholder="Cth: IPA.7.1" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Judul Ringkas</label>
+                                <input type="text" id="tp-input-title" placeholder="Cth: Klasifikasi Sel" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Level Kognitif (Bloom)</label>
+                            <select id="tp-input-bloom" class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="C1">C1 - Mengingat</option>
+                                <option value="C2" selected>C2 - Memahami</option>
+                                <option value="C3">C3 - Mengaplikasikan</option>
+                                <option value="C4">C4 - Menganalisis</option>
+                                <option value="C5">C5 - Mengevaluasi</option>
+                                <option value="C6">C6 - Mencipta</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Deskripsi Narasi (Akan muncul di Rapor)</label>
+                            <textarea id="tp-input-desc" placeholder="Cth: Siswa mampu mengidentifikasi bagian-bagian mikroskop..." class="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 h-28"></textarea>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="toggleModal('tp-modal', false)" class="flex-1 py-4 bg-slate-100 text-slate-600 font-black uppercase text-[10px] rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
+                            <button onclick="window.saveTP()" class="flex-1 py-4 bg-indigo-600 text-white font-black uppercase text-[10px] rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Simpan Perubahan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = `<p class="text-rose-500 text-xs font-bold">Gagal memuat daftar TP.</p>`;
+    }
+};
+
+window.renderAtpTab = async (subjectId) => {
+    const content = document.getElementById('workspace-tab-content');
+    const year = getActiveTahun();
+    
+    try {
+        const templates = await AssessmentService.getTemplatesBySubject(subjectId, year);
+        const activeTemplates = templates.filter(t => t.status !== 'deleted');
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 items-start">
+                    <span class="text-lg">🗺️</span>
+                    <p class="text-[10px] text-amber-700 font-medium leading-relaxed">
+                        Susun urutan mengajar dengan mengatur <b>Semester</b> dan <b>Nomor Urut</b>. 
+                        Data ini menentukan urutan materi di menu Penilaian dan urutan deskripsi di Rapor Akhir.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- SEMESTER 1 -->
+                    <div class="space-y-4">
+                        <h4 class="text-[10px] font-black text-slate-900 uppercase tracking-widest pl-2">Semester 1 (Ganjil)</h4>
+                        <div id="atp-list-1" class="space-y-3 p-4 bg-slate-50 rounded-3xl border border-slate-100 min-h-[200px]">
+                            ${renderAtpList(activeTemplates, 1)}
+                        </div>
+                    </div>
+                    <!-- SEMESTER 2 -->
+                    <div class="space-y-4">
+                        <h4 class="text-[10px] font-black text-slate-900 uppercase tracking-widest pl-2">Semester 2 (Genap)</h4>
+                        <div id="atp-list-2" class="space-y-3 p-4 bg-slate-50 rounded-3xl border border-slate-100 min-h-[200px]">
+                            ${renderAtpList(activeTemplates, 2)}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = `<p class="text-rose-500 text-xs font-bold">Gagal memuat ATP.</p>`;
+    }
+};
+
+function renderAtpList(templates, semester) {
+    const filtered = templates.filter(t => t.semester == semester).sort((a, b) => (a.order || 0) - (b.order || 0));
+    if (filtered.length === 0) return `<p class="text-[10px] text-slate-400 italic text-center py-10">Belum ada materi di semester ini.</p>`;
+    
+    return filtered.map((t, idx) => `
+        <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center gap-4 shadow-sm">
+            <span class="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg">${t.order || (idx + 1)}</span>
+            <div class="flex-grow">
+                <p class="font-black text-slate-900 text-[11px] leading-tight">${t.title}</p>
+                <p class="text-[9px] text-slate-400 font-bold uppercase mt-1">${t.tpId}</p>
+            </div>
+            <div class="flex gap-1">
+                <button onclick="window.moveTpSemester('${t.id}', ${semester === 1 ? 2 : 1})" class="p-1.5 hover:bg-slate-50 text-slate-300 hover:text-indigo-600 rounded-lg text-xs" title="Pindah Semester">⇄</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+window.renderKkmTab = async (subjectId) => {
+    const content = document.getElementById('workspace-tab-content');
+    
+    try {
+        const subject = await AssessmentService.getSubjectDetails(subjectId);
+        const kkm = subject?.minPassingGrade || 75;
+
+        content.innerHTML = `
+            <div class="max-w-md mx-auto py-10 space-y-8">
+                <div class="text-center">
+                    <div class="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">⚙️</div>
+                    <h4 class="text-lg font-black text-slate-900 uppercase tracking-tight">Standar Kelulusan (KKM)</h4>
+                    <p class="text-slate-400 text-xs font-medium mt-1">Tentukan nilai ambang batas minimal untuk mapel ini.</p>
+                </div>
+
+                <div class="glass-card p-8 bg-white border border-slate-100 space-y-6">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block text-center">Angka KKM Saat Ini</label>
+                        <input type="number" id="kkm-input-value" value="${kkm}" class="w-full text-5xl font-black text-center text-indigo-600 bg-transparent border-none focus:ring-0">
+                    </div>
+                    <p class="text-[10px] text-slate-400 text-center font-medium leading-relaxed">
+                        Siswa dengan nilai di bawah angka ini akan otomatis ditandai sebagai <b>Belum Tuntas</b> di seluruh dashboard monitoring.
+                    </p>
+                    <button onclick="window.saveKKM()" class="w-full py-4 bg-indigo-600 text-white font-black uppercase text-[10px] rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">Simpan Perubahan</button>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+window.renderCpTab = async (subjectId) => {
+    const content = document.getElementById('workspace-tab-content');
+    
+    try {
+        const subject = await AssessmentService.getSubjectDetails(subjectId);
+        const cp = subject?.cpText || "Belum ada dokumen Capaian Pembelajaran untuk mata pelajaran ini. Silakan hubungi admin kurikulum.";
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Capaian Pembelajaran (CP) Resmi</h4>
+                </div>
+                <div class="glass-card p-8 bg-white border border-slate-100 leading-relaxed text-slate-700 text-sm italic font-serif">
+                    "${cp}"
+                </div>
+                <p class="text-[10px] text-slate-400 font-medium">
+                    * CP digunakan sebagai acuan utama dalam merumuskan Tujuan Pembelajaran (TP) di tab sebelah.
+                </p>
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+// --- WORKSPACE ACTIONS ---
+
+window.openAddTpForm = () => {
+    document.getElementById('tp-modal-title').innerText = "Tambah Tujuan Pembelajaran";
+    document.getElementById('tp-input-id').value = "";
+    document.getElementById('tp-input-code').value = "";
+    document.getElementById('tp-input-title').value = "";
+    document.getElementById('tp-input-bloom').value = "C2";
+    document.getElementById('tp-input-desc').value = "";
+    toggleModal('tp-modal', true);
+};
+
+window.openEditTpForm = async (id) => {
+    const year = getActiveTahun();
+    const templates = await AssessmentService.getTemplatesBySubject(state.nhState.currentSubjectId, year);
+    const t = templates.find(item => item.id === id);
+    if (!t) return;
+
+    document.getElementById('tp-modal-title').innerText = "Edit Tujuan Pembelajaran";
+    document.getElementById('tp-input-id').value = id;
+    document.getElementById('tp-input-code').value = t.tpId || "";
+    document.getElementById('tp-input-title').value = t.title || "";
+    document.getElementById('tp-input-bloom').value = t.cognitiveLevel || "C2";
+    document.getElementById('tp-input-desc').value = t.tpDesc || "";
+    toggleModal('tp-modal', true);
+};
+
+window.saveTP = async () => {
+    const id = document.getElementById('tp-input-id').value;
+    const tpId = document.getElementById('tp-input-code').value.trim();
+    const title = document.getElementById('tp-input-title').value.trim();
+    const cognitiveLevel = document.getElementById('tp-input-bloom').value;
+    const tpDesc = document.getElementById('tp-input-desc').value.trim();
+
+    if (!tpId || !title) return showCustomAlert("Lengkapi Kode dan Judul TP!", true);
+
+    showLoading("Menyimpan TP...");
+    try {
+        const data = {
+            subjectId: state.nhState.currentSubjectId,
+            academicYear: getActiveTahun(),
+            semester: 1, // Default to smt 1, can be changed in ATP
+            tpId, title, cognitiveLevel, tpDesc
+        };
+
+        if (id) {
+            await AssessmentService.updateTemplate(id, data);
+        } else {
+            await AssessmentService.addTemplate(data);
+        }
+
+        toggleModal('tp-modal', false);
+        await window.renderWorkspace(); // Refresh
+        showCustomAlert("Tujuan Pembelajaran berhasil disimpan.");
+    } catch (e) {
+        showCustomAlert("Gagal menyimpan TP: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.hapusTP = async (id) => {
+    if (!confirm("Hapus materi ini? Data tidak bisa dikembalikan jika belum ada nilai.")) return;
+    
+    showLoading("Menghapus TP...");
+    try {
+        await AssessmentService.deleteTemplate(id);
+        await window.renderWorkspace();
+        showCustomAlert("TP berhasil dihapus.");
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+};
+
+window.moveTpSemester = async (id, newSemester) => {
+    showLoading("Memindahkan...");
+    try {
+        await AssessmentService.updateTemplate(id, { semester: newSemester });
+        await window.renderWorkspace();
+    } catch (e) {
+        showCustomAlert("Gagal memindah semester.", true);
+    }
+    hideLoading();
+};
+
+window.saveKKM = async () => {
+    const val = parseInt(document.getElementById('kkm-input-value').value);
+    if (isNaN(val) || val < 0 || val > 100) return showCustomAlert("KKM harus angka 0-100", true);
+
+    showLoading("Menyimpan KKM...");
+    try {
+        await AssessmentService.updateSubjectConfig(state.nhState.currentSubjectId, { minPassingGrade: val });
+        showCustomAlert("Standar KKM berhasil diperbarui.");
+    } catch (e) {
+        showCustomAlert("Gagal menyimpan KKM.", true);
+    }
+    hideLoading();
 };
 
 window.switchWorkspaceTab = (tab) => {
     state.nhState.currentWorkspaceTab = tab;
     window.renderWorkspace();
 };
+
 
 function renderKurikulumContent(tab) {
     // This function is now legacy and handled by window.renderKurikulum

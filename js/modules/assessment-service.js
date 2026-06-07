@@ -168,3 +168,53 @@ export const getStudentsInClass = async (classId) => {
 
     return students.sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
 };
+
+/**
+ * KURIKULUM V2: Menambah TP baru
+ */
+export const addTemplate = async (templateData) => {
+    const docRef = await addDoc(collection(db, "assessment_templates"), {
+        ...templateData,
+        createdAt: serverTimestamp(),
+        status: "aktif"
+    });
+    return docRef.id;
+};
+
+/**
+ * KURIKULUM V2: Update TP
+ */
+export const updateTemplate = async (id, data) => {
+    const docRef = doc(db, "assessment_templates", id);
+    await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+    });
+};
+
+/**
+ * KURIKULUM V2: Hapus TP (Hanya jika belum ada nilai)
+ */
+export const deleteTemplate = async (id) => {
+    // Check if any assessments exist for this template
+    const q = query(collection(db, "assessments"), where("templateId", "==", id));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        throw new Error("Gagal Hapus: Materi ini sudah memiliki data nilai siswa. Silakan hapus nilai terlebih dahulu atau ubah status menjadi arsip.");
+    }
+    const docRef = doc(db, "assessment_templates", id);
+    // Hard delete for templates is allowed if no assessments exist
+    // In the future, we might prefer soft-delete (status: archived)
+    await updateDoc(docRef, { status: "deleted", deletedAt: serverTimestamp() });
+};
+
+/**
+ * KURIKULUM V2: Update Konfigurasi Mapel (CP & KKM)
+ */
+export const updateSubjectConfig = async (subjectId, config) => {
+    const docRef = doc(db, "subjects", subjectId);
+    await updateDoc(docRef, {
+        ...config,
+        updatedAt: serverTimestamp()
+    });
+};
