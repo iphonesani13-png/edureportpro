@@ -117,7 +117,44 @@ export const seedDatabase = async (realUid) => {
                 }, { merge: true });
             }
         }
-        
+
+        // 6. MIGRATION PATCH: Ensure all users follow Access Matrix V2 schema
+        console.log("🛠️ Starting User Schema Migration Patch...");
+        const allUsersSnap = await getDocs(collection(db, "users"));
+        let totalUsers = 0;
+        let patchedCount = 0;
+        let validCount = 0;
+
+        for (const userDoc of allUsersSnap.docs) {
+            totalUsers++;
+            const userData = userDoc.data();
+            const updates = {};
+            let needsPatch = false;
+
+            if (!userData.role) { updates.role = 'GURU'; needsPatch = true; }
+            if (!userData.status) { updates.status = 'pending'; needsPatch = true; }
+            if (!userData.managedSubjects || !Array.isArray(userData.managedSubjects)) { 
+                updates.managedSubjects = []; needsPatch = true; 
+            }
+            if (!userData.managedClasses || !Array.isArray(userData.managedClasses)) { 
+                updates.managedClasses = []; needsPatch = true; 
+            }
+
+            if (needsPatch) {
+                await setDoc(doc(db, "users", userDoc.id), updates, { merge: true });
+                patchedCount++;
+                console.log(`✅ Patched user: ${userData.email || userDoc.id}`);
+            } else {
+                validCount++;
+            }
+        }
+
+        console.log("--- MIGRATION REPORT ---");
+        console.log(`Total Users: ${totalUsers}`);
+        console.log(`Patched Users: ${patchedCount}`);
+        console.log(`Valid Users: ${validCount}`);
+        console.log("------------------------");
+
         console.log("🎉 System Security Sync Complete!");
     } catch (globalErr) {
         console.error("⛔ Sync Failure:", globalErr.message);
