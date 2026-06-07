@@ -2495,12 +2495,17 @@ window.verifyAndLinkStudent = async () => {
     const nis = document.getElementById('ortu-input-nis')?.value.trim();
     if (!nis) return showCustomAlert("Masukkan NIS!", true);
     showLoading("Mencari...");
-    const snap = await getStudentByNis(nis);
-    if (snap.exists()) {
-        await linkChildToParent(auth.currentUser.uid, nis);
-        setupUIForRole('orangtua', nis);
-    } else {
-        showCustomAlert("NIS tidak ditemukan.", true);
+    try {
+        const snap = await getStudentByNis(nis);
+        if (snap.exists()) {
+            await linkChildToParent(auth.currentUser.uid, nis);
+            setupUIForRole(ROLES.ORANG_TUA, nis);
+        } else {
+            showCustomAlert("NIS tidak ditemukan.", true);
+        }
+    } catch (e) {
+        console.error("Error linking student:", e);
+        showCustomAlert("Terjadi kesalahan saat memverifikasi NIS.", true);
     }
     hideLoading();
 };
