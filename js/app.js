@@ -74,7 +74,9 @@ const startAuthListener = () => {
         if (user) {
             showLoading("Menyiapkan Sesi...");
             try {
-                let intentRole = localStorage.getItem('login_intent_role');
+                let intentRole = (localStorage.getItem('login_intent_role') || '').toUpperCase();
+                if (intentRole === 'ORANGTUA') intentRole = ROLES.ORANG_TUA; // Map legacy cached intent
+
                 let profile = await getUserProfile(user.uid);
 
                 // 1. FIRST TIME LOGIN (REGISTRATION)

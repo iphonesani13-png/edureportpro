@@ -32,9 +32,12 @@ export const getUserProfile = async (uid) => {
     const userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
         const data = userDoc.data();
+        let normalizedRole = (data.role || '').toUpperCase();
+        if (normalizedRole === 'ORANGTUA') normalizedRole = 'ORANG_TUA'; // Map legacy format
+
         return {
             ...data,
-            role: (data.role || '').toUpperCase() // Extra safety normalization on read
+            role: normalizedRole
         };
     }
     return null;
