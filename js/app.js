@@ -1903,12 +1903,36 @@ window.renderDashboard = () => {
 
     const user = state.currentUser;
     const role = user?.role || 'GURU';
+    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
 
     // ACCESS MATRIX V2: Filter students based on role
     let baseStudents = state.studentsData;
 
-    if (role === 'GURU') {
+    if (!isAdmin) {
         const managedClasses = user?.managedClasses || [];
+        
+        // If teacher has no assigned classes, show informative empty state
+        if (managedClasses.length === 0) {
+            const tableBody = document.getElementById('student-table-body');
+            if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-20 text-center bg-white">
+                            <div class="max-w-xs mx-auto">
+                                <div class="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">🏠</div>
+                                <h3 class="text-sm font-black text-slate-900 uppercase">Akses Kelas Belum Tersedia</h3>
+                                <p class="text-[10px] text-slate-400 font-medium mt-2 leading-relaxed">
+                                    Anda belum ditugaskan mengampu kelas manapun. Silakan hubungi <b>Admin</b> untuk pengaturan kelas di menu Manajemen User.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+            updateDashboardSummary([]);
+            return;
+        }
+
         baseStudents = baseStudents.filter(st => {
             const baseK = st.base_kelas || st.kelas || '';
             const baseT = st.base_tahun || '2025/2026';
