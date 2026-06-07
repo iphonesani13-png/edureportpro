@@ -1136,9 +1136,12 @@ window.renderTpTab = async (subjectId) => {
 
         content.innerHTML = `
             <div class="space-y-6">
-                <div class="flex justify-between items-center">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest">Daftar Tujuan Pembelajaran</h4>
-                    <button onclick="window.openAddTpForm()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">+ Tambah TP</button>
+                    <div class="flex gap-2 w-full sm:w-auto">
+                        <button onclick="window.openImportTpModal()" class="flex-1 sm:flex-none px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-100 transition-all border border-emerald-100">📂 Import Excel</button>
+                        <button onclick="window.openAddTpForm()" class="flex-1 sm:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">+ Tambah TP</button>
+                    </div>
                 </div>
                 
                 <div id="tp-list" class="grid grid-cols-1 gap-4">
@@ -1215,6 +1218,132 @@ window.renderTpTab = async (subjectId) => {
         console.error(e);
         content.innerHTML = `<p class="text-rose-500 text-xs font-bold">Gagal memuat daftar TP.</p>`;
     }
+};
+
+// --- EXCEL IMPORT LOGIC ---
+let tempImportData = [];
+
+window.openImportTpModal = () => {
+    tempImportData = [];
+    document.getElementById('tp-excel-input').value = '';
+    document.getElementById('import-tp-preview').classList.add('hidden');
+    document.getElementById('import-tp-dropzone').classList.remove('hidden');
+    document.getElementById('btn-confirm-import-tp').disabled = true;
+    toggleModal('import-tp-modal', true);
+    
+    // Wire up dropzone
+    const dropzone = document.getElementById('import-tp-dropzone');
+    const input = document.getElementById('tp-excel-input');
+    
+    dropzone.onclick = () => input.click();
+    input.onchange = (e) => window.handleTpExcelFile(e.target.files[0]);
+};
+
+window.handleTpExcelFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        
+        window.previewTpImport(json, file.name);
+    };
+    reader.readAsArrayBuffer(file);
+};
+
+window.previewTpImport = (data, filename) => {
+    const previewBody = document.getElementById('tp-preview-body');
+    const validCountEl = document.getElementById('tp-valid-count');
+    const errorCountEl = document.getElementById('tp-error-count');
+    const filenameEl = document.getElementById('tp-filename');
+    
+    previewBody.innerHTML = '';
+    tempImportData = [];
+    let valid = 0, error = 0;
+
+    data.forEach(row => {
+        // Map columns (Case insensitive check could be better, but sticking to standard)
+        const code = row['Kode TP'] || row['KODE'] || '';
+        const title = row['Judul TP'] || row['JUDUL'] || '';
+        const desc = row['Deskripsi TP'] || row['DESKRIPSI'] || '';
+        const bloom = row['Level Bloom'] || row['BLOOM'] || 'C2';
+        
+        const isValid = code && title;
+        if (isValid) {
+            valid++;
+            tempImportData.push({ tpId: code, title, tpDesc: desc, cognitiveLevel: bloom });
+        } else {
+            error++;
+        }
+
+        previewBody.insertAdjacentHTML('beforeend', `
+            <tr class="${isValid ? '' : 'bg-rose-50'}">
+                <td class="p-3 font-bold ${isValid ? 'text-slate-700' : 'text-rose-600'}">${code || 'KOSONG'}</td>
+                <td class="p-3 text-slate-500">${title || 'KOSONG'}</td>
+                <td class="p-3 text-slate-500">${bloom}</td>
+                <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase ${isValid ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-100 text-rose-700'}">
+                        ${isValid ? 'Valid' : 'Error'}
+                    </span>
+                </td>
+            </tr>
+        `);
+    });
+
+    validCountEl.innerText = valid;
+    errorCountEl.innerText = error;
+    filenameEl.innerText = filename;
+    
+    document.getElementById('import-tp-dropzone').classList.add('hidden');
+    document.getElementById('import-tp-preview').classList.remove('hidden');
+    document.getElementById('btn-confirm-import-tp').disabled = valid === 0;
+};
+
+window.cancelImportTP = () => {
+    tempImportData = [];
+    toggleModal('import-tp-modal', false);
+};
+
+window.processImportTP = async () => {
+    if (tempImportData.length === 0) return;
+    
+    showLoading(`Mengimport ${tempImportData.length} data...`);
+    try {
+        const subjectId = state.nhState.currentSubjectId;
+        const year = getActiveTahun();
+
+        // Batch additions (sequential for simplicity in V1)
+        for (const tp of tempImportData) {
+            await AssessmentService.addTemplate({
+                ...tp,
+                subjectId,
+                academicYear: year,
+                semester: 1 // Default
+            });
+        }
+
+        toggleModal('import-tp-modal', false);
+        await window.renderWorkspace();
+        showCustomAlert(`${tempImportData.length} Tujuan Pembelajaran berhasil diimport.`);
+    } catch (e) {
+        showCustomAlert("Gagal import: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.downloadTpTemplate = () => {
+    const data = [
+        ['Kode TP', 'Judul TP', 'Deskripsi TP', 'Level Bloom'],
+        ['IPA.7.1', 'Sel dan Mikroskop', 'Siswa mampu mengidentifikasi bagian-bagian sel melalui pengamatan mikroskop.', 'C2'],
+        ['IPA.7.2', 'Organisasi Kehidupan', 'Siswa mampu mendeskripsikan hierarki organisasi kehidupan.', 'C3']
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template_TP");
+    XLSX.writeFile(wb, "Template_Import_TP.xlsx");
 };
 
 window.renderAtpTab = async (subjectId) => {
