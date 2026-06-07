@@ -1,6 +1,6 @@
 import { db } from "./modules/firebase-config.js";
 import { 
-    doc, setDoc, getDocs, collection 
+    doc, setDoc, getDocs, getDoc, collection 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 const ALL_SUBJECTS = [
