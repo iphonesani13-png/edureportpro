@@ -8,7 +8,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- HELPER FUNCTIONS ---
+    // --- 🛡️ HELPER FUNCTIONS ---
     
     function isSignedIn() {
       return request.auth != null;
@@ -28,61 +28,76 @@ service cloud.firestore {
     function isKepsek() { return hasRole('KEPALA_SEKOLAH'); }
     function isGuru() { return hasRole('GURU'); }
     
-    function isStaff() {
-      return isOwner() || isSuperAdmin() || isKurikulum() || isKepsek() || isGuru();
+    function isAdmin() { return isOwner() || isSuperAdmin(); }
+    function isStaff() { return isOwner() || isSuperAdmin() || isKurikulum() || isKepsek() || isGuru(); }
+    
+    // Guru hanya bisa akses jika subjectId ada di daftar pengampu
+    function managesSubject(subjectId) {
+      return (isAdmin() || isKurikulum() || (isGuru() && subjectId in getUserData().managedSubjects));
     }
     
-    function managesSubject(subjectId) {
-      return isStaff() && (isOwner() || isSuperAdmin() || isKurikulum() || subjectId in getUserData().managedSubjects);
+    // Guru hanya bisa akses jika kelas siswa ada di daftar kelas yang diajar
+    function managesClass(className) {
+      return (isAdmin() || isKurikulum() || isKepsek() || (isGuru() && className in getUserData().managedClasses));
     }
 
-    // --- COLLECTION RULES ---
+    // --- 📂 COLLECTION RULES ---
 
     // 1. USERS COLLECTION
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.status == 'pending';
-      allow update: if isOwner() || isSuperAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects']));
+      allow update: if isAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']));
+      allow delete: if isOwner();
     }
 
     // 2. AUTHORIZED USERS (WHITELIST)
     match /authorized_users/{docId} {
       allow read: if isSignedIn();
-      allow write: if isOwner() || isSuperAdmin();
+      allow write: if isAdmin();
     }
 
     // 3. STUDENTS COLLECTION
     match /students/{studentId} {
-      allow read: if isStaff() || (isSignedIn() && getUserData().childId == studentId);
-      allow write: if isOwner() || isSuperAdmin();
+      allow read: if isStaff() && managesClass(resource.data.kelas) || (isSignedIn() && getUserData().childId == studentId);
+      allow write: if isAdmin();
+      allow delete: if isOwner();
     }
 
     // 4. ASSESSMENT TEMPLATES (TP/ATP)
     match /assessment_templates/{templateId} {
       allow read: if isStaff();
-      allow create: if isStaff() && managesSubject(request.resource.data.subjectId);
-      allow update: if isStaff() && managesSubject(resource.data.subjectId) && request.resource.data.status != 'deleted';
+      allow create: if (isKurikulum() || isGuru()) && managesSubject(request.resource.data.subjectId);
+      allow update: if (isKurikulum() || isGuru()) && managesSubject(resource.data.subjectId) && request.resource.data.status != 'deleted';
       allow delete: if isOwner();
     }
 
     // 5. ASSESSMENTS (GRADES)
     match /assessments/{assessmentId} {
-      allow read: if isStaff() || (isSignedIn() && assessmentId.split('_')[0] == getUserData().childId);
+      allow read: if (isStaff() && managesSubject(resource.data.subjectId)) || (isSignedIn() && assessmentId.split('_')[0] == getUserData().childId);
       allow create: if isGuru() && managesSubject(request.resource.data.subjectId);
-      allow update: if (isGuru() && managesSubject(resource.data.subjectId)) || isOwner() || isSuperAdmin();
+      allow update: if isGuru() && managesSubject(resource.data.subjectId);
       allow delete: if isOwner();
     }
 
     // 6. SUBJECTS (CP/KKM)
     match /subjects/{subjectId} {
       allow read: if isSignedIn();
-      allow write: if isOwner() || isSuperAdmin() || isKurikulum() || managesSubject(subjectId);
+      allow write: if isAdmin() || isKurikulum() || managesSubject(subjectId);
     }
     
     // 7. CLASSES
     match /classes/{classId} {
       allow read: if isStaff();
-      allow write: if isOwner() || isSuperAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // 8. ASSIGNMENTS
+    match /assignments/{taskId} {
+      allow read: if isSignedIn();
+      allow create: if isGuru() && managesSubject(request.resource.data.subjectId);
+      allow update: if isGuru() && managesSubject(resource.data.subjectId);
+      allow delete: if isOwner();
     }
   }
 }

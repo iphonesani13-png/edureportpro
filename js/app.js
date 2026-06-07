@@ -1279,8 +1279,26 @@ window.renderKatalog = async () => {
     showLoading("Memuat Katalog...");
     try {
         const year = getActiveTahun();
-        // Fetch all templates for readiness check
-        const q = query(collection(db, "assessment_templates"), where("academicYear", "==", year));
+        const managed = profile?.managedSubjects || [];
+        
+        // 1. DATA LOCKDOWN: Fetch only relevant templates
+        let q;
+        if (isAdmin || role === 'KEPALA_SEKOLAH') {
+            q = query(collection(db, "assessment_templates"), where("academicYear", "==", year));
+        } else {
+            if (managed.length === 0) {
+                state.nhState.allTemplates = [];
+                container.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 font-bold italic">Anda belum diberikan akses ke mata pelajaran manapun. Silakan hubungi Admin.</div>`;
+                hideLoading();
+                return;
+            }
+            q = query(
+                collection(db, "assessment_templates"), 
+                where("academicYear", "==", year),
+                where("subjectId", "in", managed)
+            );
+        }
+        
         const snap = await getDocs(q);
         state.nhState.allTemplates = snap.docs.map(d => d.data());
 
@@ -1289,11 +1307,7 @@ window.renderKatalog = async () => {
         if (isAdmin || role === 'KEPALA_SEKOLAH') {
             subjectsToRender = state.subjectsList; // Show all names
         } else {
-            // regular Guru sees only managed names
-            const managed = profile?.managedSubjects || [];
             subjectsToRender = state.subjectsList.filter(name => {
-                const sid = "SUB_J" + name.toUpperCase().replace(/\s+/g, '_'); // Fix typo potential
-                // Actually use our SID standard: SUBJ_
                 const sidStd = "SUBJ_" + name.toUpperCase().replace(/\s+/g, '_');
                 return managed.includes(sidStd);
             });
@@ -2180,12 +2194,39 @@ window.refreshBukuInduk = async () => {
         document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
         document.getElementById('guru-view-poin').innerText = st.poin || 0;
 
-        // 2. FETCH ALL PUBLISHED ASSESSMENTS (YEAR SPECIFIC)
-        const q = query(
-            collection(db, "assessments"),
-            where("academicYear", "==", currentTahun),
-            where("status", "==", "published")
-        );
+        // 2. DATA LOCKDOWN: Fetch only relevant assessments
+        const role = state.currentUser?.role || 'GURU';
+        const managed = state.currentUser?.managedSubjects || [];
+        const isRestricted = role === 'GURU';
+        
+        let q;
+        const assessmentsRef = collection(db, "assessments");
+
+        if (!isRestricted || ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role)) {
+            // Full access
+            q = query(
+                assessmentsRef,
+                where("academicYear", "==", currentTahun),
+                where("status", "==", "published")
+            );
+        } else {
+            // Restricted access
+            if (managed.length === 0) {
+                // Render empty and return
+                document.getElementById('buku-induk-mapel-list').innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Anda belum memiliki akses ke mata pelajaran.</p></div>`;
+                document.getElementById('buku-induk-missing-tasks').innerHTML = '';
+                document.getElementById('buku-induk-teacher-notes').innerHTML = '';
+                hideLoading();
+                return;
+            }
+            q = query(
+                assessmentsRef,
+                where("academicYear", "==", currentTahun),
+                where("status", "==", "published"),
+                where("subjectId", "in", managed)
+            );
+        }
+
         const snap = await getDocs(q);
         let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -2205,11 +2246,6 @@ window.refreshBukuInduk = async () => {
         const studentAssessments = assessments.filter(a => a.scores[docId] !== undefined);
         const missingTasks = assessments.filter(a => a.scores[docId] === undefined || a.scores[docId] === 0);
 
-        // ACCESS MATRIX V2: Subject Isolation for GURU
-        const role = state.currentUser?.role || 'GURU';
-        const managed = state.currentUser?.managedSubjects || [];
-        const isRestricted = role === 'GURU';
-
         // Mapel Performance Tracking
         const mapelStats = {};
         const teacherNotes = [];
@@ -2217,7 +2253,7 @@ window.refreshBukuInduk = async () => {
         studentAssessments.forEach(a => {
             const sid = a.subjectId;
             
-            // Skip if GURU and not their subject
+            // Double check isolation in memory (extra safety)
             if (isRestricted && !managed.includes(sid)) return;
 
             if (!mapelStats[sid]) {
