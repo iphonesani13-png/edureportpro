@@ -1,11 +1,12 @@
 import { db, auth } from "./firebase-config.js";
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, runTransaction, addDoc 
+    doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, serverTimestamp, runTransaction, addDoc, deleteDoc 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+import { ROLES } from "./auth-service.js";
+
 /**
- * AssessmentService V1.1 (Multi-Assessment Model)
- * Academic Engine for SMPIT Tracker
+ * AssessmentService V2.0 (Access Matrix V2 Standard)
  */
 
 /**
@@ -130,7 +131,7 @@ export const saveAssessment = async (assessmentId, assessmentData, isPublish = f
             const existing = snap.data();
             if (existing.status === "published" && !isPublish) {
                 // Principal/Admin can override this via rules, but logic prevents it for teachers
-                if (user.role !== 'admin' && user.role !== 'principal') {
+                if (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.KEPALA_SEKOLAH && user.role !== ROLES.OWNER) {
                     throw new Error("Dokumen sudah dipublish dan terkunci.");
                 }
             }

@@ -40,7 +40,7 @@ import * as AssessmentService from "./modules/assessment-service.js";
 // --- GLOBAL STATE ---
 let state = {
     currentUser: null,
-    currentRole: 'guru',
+    currentRole: ROLES.GURU,
     studentsData: [],
     assignmentsData: [],
     currentStudentId: null,
@@ -79,12 +79,12 @@ const startAuthListener = () => {
 
                 // 1. FIRST TIME LOGIN (REGISTRATION)
                 if (!profile) {
-                    if (intentRole === 'orangtua') {
+                    if (intentRole === ROLES.ORANG_TUA) {
                         // Parents register with NIS later, save basic profile now
                         profile = await registerPendingUser(user.uid, { 
                             email: user.email, 
                             name: user.displayName, 
-                            role: 'ORANG_TUA',
+                            role: ROLES.ORANG_TUA,
                             status: 'active' // Parents are active by default once they login? 
                         });
                         // Or keep as active but stuck at NIS screen
@@ -199,14 +199,14 @@ function setupUIForRole(role, childId) {
         document.getElementById('btn-kurikulum')?.classList.remove('hidden');
         
         window.switchTab('dashboard');
-        initRealtimeSync('guru');
-    } else if (role === 'ORANG_TUA') {
+        initRealtimeSync(ROLES.GURU);
+    } else if (role === ROLES.ORANG_TUA) {
         document.getElementById('nav-guru')?.classList.add('hidden');
         document.getElementById('nav-ortu')?.classList.remove('hidden');
         if (childId) {
             state.currentStudentId = childId;
             window.switchTab('viewer');
-            initRealtimeSync('orangtua', childId);
+            initRealtimeSync(ROLES.ORANG_TUA, childId);
         } else {
             document.getElementById('main-app')?.classList.add('hidden');
             document.getElementById('ortu-setup-screen')?.classList.remove('hidden');
@@ -239,7 +239,7 @@ function initRealtimeSync(role, childId = null) {
     if (state.unsubscribeStudents) state.unsubscribeStudents();
     if (state.unsubscribeAssignments) state.unsubscribeAssignments();
 
-    if (role === 'guru') {
+    if (role === ROLES.GURU) {
         state.unsubscribeStudents = streamStudents((data) => {
             state.studentsData = data;
             syncSubjectsList();
@@ -300,7 +300,7 @@ window.setLoginRole = (role) => {
     const activeClasses = ['active', 'border-indigo-600', 'bg-indigo-50/30', 'text-indigo-600'];
     const inactiveClasses = ['text-slate-400', 'border-slate-100'];
 
-    if (role === 'guru') {
+    if (role === ROLES.GURU) {
         btnGuru.classList.add(...activeClasses);
         btnGuru.classList.remove(...inactiveClasses);
         btnOrtu.classList.remove(...activeClasses);
@@ -2195,9 +2195,9 @@ window.refreshBukuInduk = async () => {
         document.getElementById('guru-view-poin').innerText = st.poin || 0;
 
         // 2. DATA LOCKDOWN: Fetch only relevant assessments
-        const role = state.currentUser?.role || 'GURU';
+        const role = state.currentUser?.role || ROLES.GURU;
         const managed = state.currentUser?.managedSubjects || [];
-        const isRestricted = role === 'GURU';
+        const isRestricted = role === ROLES.GURU;
         
         let q;
         const assessmentsRef = collection(db, "assessments");
@@ -2367,7 +2367,7 @@ window.refreshBukuInduk = async () => {
             });
         }
         
-        window.applyTimelineFilter('guru');
+        window.applyTimelineFilter(ROLES.GURU);
     } catch (e) {
         console.error("Gagal refresh Buku Induk:", e);
         showCustomAlert("Gagal memproses data periode.", true);
@@ -2504,9 +2504,9 @@ window.verifyAndLinkStudent = async () => {
 };
 
 window.applyTimelineFilter = (role) => {
-    const st = role === 'guru' ? state.studentsData.find(s => s.docId === state.currentStudentId) : window.currentParentData;
+    const st = role === ROLES.GURU ? state.studentsData.find(s => s.docId === state.currentStudentId) : window.currentParentData;
     if (!st) return;
-    renderTimeline(st.point_history || [], role === 'guru' ? 'guru-timeline' : 'parent-timeline');
+    renderTimeline(st.point_history || [], role === ROLES.GURU ? 'guru-timeline' : 'parent-timeline');
 };
 
 window.closeGlobalAlert = closeGlobalAlert;
