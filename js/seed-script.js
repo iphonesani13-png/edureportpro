@@ -27,7 +27,21 @@ const SEED_DATA = {
         category: "nasional",
         minPassingGrade: 75
     })),
-    // ... templates and users remain same
+    assessment_templates: [
+        {
+            id: "TPL_IPA_BAB1",
+            subjectId: "SUBJ_IPA",
+            academicYear: "2025/2026",
+            semester: 1,
+            type: "formative",
+            title: "Sistem Organisasi Kehidupan",
+            tpId: "IPA.7.1",
+            tpDesc: "Siswa dapat mengidentifikasi sel sebagai unit terkecil kehidupan.",
+            cognitiveLevel: "C2",
+            weight: 1
+        }
+    ],
+    users: []
 };
 
 export const seedDatabase = async (realUid) => {
@@ -37,22 +51,28 @@ export const seedDatabase = async (realUid) => {
         const adminUid = realUid || "GURU_ADMIN_ID";
 
         // 0. Sync Authorized Users
-        console.log("📦 Syncing Authorized Users Whitelist...");
-        for (const authUser of SEED_DATA.authorized_users) {
-            const authId = authUser.email.replace(/[@.]/g, '_');
-            await setDoc(doc(db, "authorized_users", authId), authUser);
+        if (Array.isArray(SEED_DATA.authorized_users)) {
+            console.log("📦 Syncing Authorized Users Whitelist...");
+            for (const authUser of SEED_DATA.authorized_users) {
+                const authId = authUser.email.replace(/[@.]/g, '_');
+                await setDoc(doc(db, "authorized_users", authId), authUser);
+            }
         }
 
         // 1. Sync All 8 Subjects
-        console.log("📦 Syncing 8 Subjects...");
-        for (const sub of SEED_DATA.subjects) {
-            await setDoc(doc(db, "subjects", sub.id), sub);
+        if (Array.isArray(SEED_DATA.subjects)) {
+            console.log("📦 Syncing 8 Subjects...");
+            for (const sub of SEED_DATA.subjects) {
+                await setDoc(doc(db, "subjects", sub.id), sub);
+            }
         }
 
         // 2. Sync Templates
-        console.log("📦 Syncing Assessment Templates...");
-        for (const tpl of SEED_DATA.assessment_templates) {
-            await setDoc(doc(db, "assessment_templates", tpl.id), tpl);
+        if (Array.isArray(SEED_DATA.assessment_templates)) {
+            console.log("📦 Syncing Assessment Templates...");
+            for (const tpl of SEED_DATA.assessment_templates) {
+                await setDoc(doc(db, "assessment_templates", tpl.id), tpl);
+            }
         }
 
         // 3. READ ALL EXISTING STUDENTS FROM YOUR DATABASE
