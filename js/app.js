@@ -16,7 +16,7 @@ import {
 } from "./modules/ui-manager.js";
 
 import { 
-    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser 
+    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser, ROLES 
 } from "./modules/auth-service.js";
 
 import { 
