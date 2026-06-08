@@ -387,7 +387,7 @@ function renderUserRow(u) {
         <tr class="hover:bg-slate-50/50 transition-all">
             <td class="py-4 px-6">
                 <p class="font-black text-slate-900 text-sm">${u.name || 'User Baru'}</p>
-                <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${u.email}</p>
+                <p class="text-[10px] font-medium text-slate-500">${u.email}</p>
             </td>
             <td class="py-4 px-6 text-center">
                 <select onchange="window.updateUserRole('${u.uid}', this.value)" class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500">
