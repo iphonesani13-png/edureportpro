@@ -479,12 +479,45 @@ window.removeUserClass = async (uid, className) => {
     } catch (e) { console.error(e); }
 };
 
-window.updateUserRole = async (uid, role) => {
+window.updateUserRole = async (uid, newRole) => {
     try {
-        await saveUserProfile(uid, { role });
+        const userDocRef = doc(db, "users", uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
+        
+        const currentUserData = userDoc.data();
+        const oldRole = (currentUserData.role || '').toUpperCase();
+        const formattedNewRole = newRole.toUpperCase();
+
+        let updates = { role: formattedNewRole };
+
+        // DATA HYGIENE POLICY: GURU -> NON-GURU Transition
+        if (oldRole === ROLES.GURU && formattedNewRole !== ROLES.GURU) {
+            const hasPermissions = (currentUserData.managedSubjects && currentUserData.managedSubjects.length > 0) || 
+                                   (currentUserData.managedClasses && currentUserData.managedClasses.length > 0);
+            
+            if (hasPermissions) {
+                if (!confirm("Perubahan role akan menghapus seluruh akses kelas dan mata pelajaran yang dimiliki user ini. Lanjutkan?")) {
+                    // Revert select UI if user cancels
+                    window.renderUsers(); 
+                    return;
+                }
+            }
+            // Clear orphan permissions
+            updates.managedSubjects = [];
+            updates.managedClasses = [];
+        }
+
+        // Note: We use saveUserProfile which merges. 
+        // By explicitly sending [], we overwrite the existing arrays.
+        // childId is not in 'updates', so merge:true will preserve it.
+        await saveUserProfile(uid, updates);
         showCustomAlert("Role berhasil diperbarui.");
         window.renderUsers();
-    } catch (e) { showCustomAlert(e.message, true); }
+    } catch (e) { 
+        showCustomAlert(e.message, true); 
+        window.renderUsers(); // Reset UI on error
+    }
 };
 
 window.setUserStatus = async (uid, status) => {
