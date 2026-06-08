@@ -129,18 +129,21 @@ const startAuthListener = () => {
                 }
 
                 // 3. OWNER/ADMIN SPECIAL TRIGGER (Migration/Seed)
+                // DISABLED: Migration is complete. Re-enable only if a new global schema change is needed.
+                /*
                 const isOwner = user.email === 'rizkialbatamy@gmail.com';
                 const isAdmin = user.email === 'iphonesani13@gmail.com' || profile.role === 'SUPER_ADMIN' || profile.role === 'OWNER';
 
                 if (isOwner || isAdmin) {
-                    console.log("🛠️ Admin/Owner detected. Running database sync...");
-                    try {
-                        const { seedDatabase } = await import("./seed-script.js");
-                        await seedDatabase(user.uid);
-                    } catch (e) {
-                        console.error("⚠️ Sync failed:", e);
-                    }
+                    console.log("🛠️ Admin/Owner detected. Skipping database sync to maintain clean console...");
+                    // try {
+                    //     const { seedDatabase } = await import("./seed-script.js");
+                    //     await seedDatabase(user.uid);
+                    // } catch (e) {
+                    //     console.error("⚠️ Sync failed:", e);
+                    // }
                 }
+                */
 
                 state.currentUser = profile;
                 setupUIForRole(profile.role, profile.childId);
