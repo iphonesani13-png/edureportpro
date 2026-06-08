@@ -5,7 +5,7 @@
 
 import { auth, db } from "./modules/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { doc, setDoc, collection, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { doc, setDoc, collection, query, where, getDocs, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import { 
     parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun 
@@ -386,14 +386,22 @@ function renderUserRow(u) {
     const subjects = u.managedSubjects || [];
     const classes = u.managedClasses || [];
     
+    // Layer 1: Self-Protection UI
+    const isSelf = u.uid === state.currentUser.uid;
+    const isTargetOwner = u.role === 'OWNER';
+    const amIOwner = state.currentUser.role === 'OWNER';
+    const disableActions = isSelf || (isTargetOwner && !amIOwner);
+    
     return `
-        <tr class="hover:bg-slate-50/50 transition-all">
+        <tr class="hover:bg-slate-50/50 transition-all ${disableActions ? 'opacity-80' : ''}">
             <td class="py-4 px-6">
-                <p class="font-black text-slate-900 text-sm">${u.name || 'User Baru'}</p>
+                <p class="font-black text-slate-900 text-sm">${u.name || 'User Baru'} ${isSelf ? '<span class="text-indigo-500 ml-1 text-[10px]">(Anda)</span>' : ''}</p>
                 <p class="text-[10px] font-medium text-slate-500">${u.email}</p>
             </td>
             <td class="py-4 px-6 text-center">
-                <select onchange="window.updateUserRole('${u.uid}', this.value)" class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500">
+                <select onchange="window.updateUserRole('${u.uid}', this.value)" 
+                        class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500 ${disableActions ? 'cursor-not-allowed opacity-50' : ''}" 
+                        ${disableActions ? 'disabled' : ''}>
                     <option value="GURU" ${u.role === 'GURU' ? 'selected' : ''}>GURU</option>
                     <option value="KURIKULUM" ${u.role === 'KURIKULUM' ? 'selected' : ''}>KURIKULUM</option>
                     <option value="KEPALA_SEKOLAH" ${u.role === 'KEPALA_SEKOLAH' ? 'selected' : ''}>KEPSEK</option>
@@ -416,10 +424,10 @@ function renderUserRow(u) {
                         ${subjects.length ? subjects.map(s => `
                             <span class="bg-indigo-50 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
                                 ${s.replace('SUBJ_', '')}
-                                <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500">×</button>
+                                <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500" ${disableActions ? 'disabled' : ''}>×</button>
                             </span>
                         `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
-                        <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                        <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1" ${disableActions ? 'disabled' : ''}>+ Tambah</button>
                     </div>
                     <!-- Managed Classes -->
                     <div class="flex flex-wrap gap-1 max-w-[200px]">
@@ -427,23 +435,31 @@ function renderUserRow(u) {
                         ${classes.length ? classes.map(c => `
                             <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
                                 ${c}
-                                <button onclick="window.removeUserClass('${u.uid}', '${c}')" class="hover:text-rose-500">×</button>
+                                <button onclick="window.removeUserClass('${u.uid}', '${c}')" class="hover:text-rose-500" ${disableActions ? 'disabled' : ''}>×</button>
                             </span>
                         `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
-                        <button onclick="window.promptAddClass('${u.uid}')" class="text-emerald-600 text-[9px] font-black hover:underline ml-1">+ Tambah</button>
+                        <button onclick="window.promptAddClass('${u.uid}')" class="text-emerald-600 text-[9px] font-black hover:underline ml-1" ${disableActions ? 'disabled' : ''}>+ Tambah</button>
                     </div>
                 </div>
             </td>
             <td class="py-4 px-6 text-center">
-                <div class="flex justify-center gap-2">
-                    ${isPending ? `
-                        <button onclick="window.setUserStatus('${u.uid}', 'active')" class="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase shadow-sm">Setujui</button>
-                    ` : `
-                        <button onclick="window.setUserStatus('${u.uid}', '${isBlocked ? 'active' : 'blocked'}')" 
-                                class="px-3 py-1 ${isBlocked ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-rose-600'} text-[9px] font-black rounded-lg uppercase">
-                            ${isBlocked ? 'Aktifkan' : 'Blokir'}
+                <div class="flex flex-col gap-2 items-center justify-center">
+                    <div class="flex gap-2">
+                        ${isPending ? `
+                            <button onclick="window.setUserStatus('${u.uid}', 'active')" class="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase shadow-sm" ${disableActions ? 'disabled' : ''}>Setujui</button>
+                        ` : `
+                            <button onclick="window.setUserStatus('${u.uid}', '${isBlocked ? 'active' : 'blocked'}')" 
+                                    class="px-3 py-1 ${isBlocked ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-rose-600'} text-[9px] font-black rounded-lg uppercase ${disableActions ? 'opacity-50 cursor-not-allowed' : ''}"
+                                    ${disableActions ? 'disabled' : ''}>
+                                ${isBlocked ? 'Aktifkan' : 'Blokir'}
+                            </button>
+                        `}
+                        <button onclick="window.deleteUser('${u.uid}')" 
+                                class="px-3 py-1 bg-rose-100 text-rose-600 text-[9px] font-black rounded-lg uppercase ${disableActions ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-200'}"
+                                ${disableActions ? 'disabled' : ''}>
+                            Hapus
                         </button>
-                    `}
+                    </div>
                 </div>
             </td>
         </tr>
@@ -489,6 +505,16 @@ window.updateUserRole = async (uid, newRole) => {
         const oldRole = (currentUserData.role || '').toUpperCase();
         const formattedNewRole = newRole.toUpperCase();
 
+        // LAYER 2: SELF-PROTECTION
+        if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat mengubah role Anda sendiri.");
+        if (oldRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat mengubah role OWNER lain.");
+
+        if (oldRole === 'OWNER' && formattedNewRole !== 'OWNER') {
+            const ownerQuery = query(collection(db, "users"), where("role", "==", "OWNER"));
+            const ownersSnap = await getDocs(ownerQuery);
+            if (ownersSnap.size <= 1) throw new Error("Gagal: Ini adalah satu-satunya akun OWNER yang tersisa. Sistem harus memiliki minimal 1 OWNER.");
+        }
+
         let updates = { role: formattedNewRole };
 
         // DATA HYGIENE POLICY: GURU -> NON-GURU Transition
@@ -522,10 +548,49 @@ window.updateUserRole = async (uid, newRole) => {
 
 window.setUserStatus = async (uid, status) => {
     try {
+        const userDocRef = doc(db, "users", uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
+        
+        const currentUserData = userDoc.data();
+        const oldRole = (currentUserData.role || '').toUpperCase();
+
+        // LAYER 2: SELF-PROTECTION
+        if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat mengubah status Anda sendiri.");
+        if (oldRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat memblokir OWNER lain.");
+
         await saveUserProfile(uid, { status });
         showCustomAlert(`Status user diubah menjadi ${status.toUpperCase()}.`);
         window.renderUsers();
     } catch (e) { showCustomAlert(e.message, true); }
+};
+
+window.deleteUser = async (uid) => {
+    if (!confirm("Hapus pengguna ini secara permanen?")) return;
+    try {
+        const userDocRef = doc(db, "users", uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
+        
+        const targetUser = userDoc.data();
+        const targetRole = (targetUser.role || '').toUpperCase();
+        
+        // LAYER 2: SELF-PROTECTION
+        if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat menghapus akun Anda sendiri.");
+        if (targetRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat menghapus akun OWNER lain.");
+        
+        if (targetRole === 'OWNER') {
+            const ownerQuery = query(collection(db, "users"), where("role", "==", "OWNER"));
+            const ownersSnap = await getDocs(ownerQuery);
+            if (ownersSnap.size <= 1) throw new Error("Gagal: Ini adalah satu-satunya akun OWNER yang tersisa. Sistem harus memiliki minimal 1 OWNER.");
+        }
+
+        await deleteDoc(userDocRef);
+        showCustomAlert("User berhasil dihapus.");
+        window.renderUsers();
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
 };
 
 window.promptAddSubject = async (uid) => {

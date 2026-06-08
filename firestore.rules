@@ -45,10 +45,17 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn() && request.resource.data.get('status', '') == 'pending';
-      allow update: if isAdmin() || (request.auth.uid == userId && 
-                    !request.resource.data.diff(resource.data).affectedKeys()
-                    .hasAny(['role', 'status', 'managedSubjects', 'managedClasses']));
-      allow delete: if isOwner();
+      allow update: if 
+        // Self-update safe fields
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']))
+        ||
+        // Admin self-update (can edit managed* but not role/status)
+        (isAdmin() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
+        ||
+        // Admin updates others (SUPER_ADMIN cannot update OWNER)
+        (isAdmin() && request.auth.uid != userId && (isOwner() || resource.data.get('role', '') != 'OWNER'));
+      
+      allow delete: if isOwner() && request.auth.uid != userId;
     }
 
     // 2. AUTHORIZED USERS (WHITELIST)
