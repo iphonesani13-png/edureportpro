@@ -236,6 +236,88 @@ export const loadParentDashboard = (st, assignmentsData, ortuTahun) => {
         updateBar('stat-hafalan-val', 'stat-hafalan-bar', wafaScore);
         updateBar('stat-karakter-val', 'stat-karakter-bar', characterTrend);
 
+        // --- RENDER RAT CHART (Tugas vs UH vs PAS/PAT) ---
+        const ratCanvas = document.getElementById('ratChart');
+        if (ratCanvas && window.Chart) {
+            if (window.ratChartInstance) {
+                window.ratChartInstance.destroy();
+            }
+
+            const chartLabels = [];
+            const dataTugas = [];
+            const dataUH = [];
+            const dataRAT = [];
+
+            if (st.subjects && Array.isArray(st.subjects)) {
+                st.subjects.forEach(sub => {
+                    chartLabels.push(sub.name || 'Mapel');
+                    dataTugas.push(sub.score_tugas || 0);
+                    dataUH.push(sub.score_uh || 0);
+                    dataRAT.push(sub.score_pas || sub.score_pat || 0); // The Real Assessment
+                });
+            }
+
+            window.ratChartInstance = new Chart(ratCanvas, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: 'Nilai Tugas',
+                            data: dataTugas,
+                            backgroundColor: '#93c5fd', // blue-300
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Ulangan Harian (UH)',
+                            data: dataUH,
+                            backgroundColor: '#fcd34d', // amber-300
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Real Assessment (PAS/PAT)',
+                            data: dataRAT,
+                            backgroundColor: '#10b981', // emerald-500
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 10, family: "'Inter', sans-serif", weight: 'bold' },
+                                usePointStyle: true,
+                                boxWidth: 8
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleFont: { family: "'Inter', sans-serif", size: 12 },
+                            bodyFont: { family: "'Inter', sans-serif", size: 12 },
+                            padding: 12,
+                            cornerRadius: 8
+                        }
+                    }
+                }
+            });
+        }
+        // --- END RAT CHART ---
+
         const tbody = document.getElementById('ortu-subjects-body');
         if (tbody) {
             tbody.innerHTML = '';

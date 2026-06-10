@@ -222,8 +222,9 @@ function setupUIForRole(profile) {
         document.getElementById('nav-ortu')?.classList.add('hidden');
 
         // Toggle specific buttons
+        const isKurikulumOrAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM'].includes(role);
         document.getElementById('btn-users')?.classList.toggle('hidden', !isAdmin);
-        document.getElementById('btn-kurikulum')?.classList.remove('hidden');
+        document.getElementById('btn-kurikulum')?.classList.toggle('hidden', !isKurikulumOrAdmin);
 
         window.switchTab('dashboard');
 
@@ -246,10 +247,10 @@ function setupUIForRole(profile) {
         }
     }
 
-    // --- BUTTON PROTECTION (READ-ONLY FOR KEPSEK) ---
-    const isReadOnly = role === 'KEPALA_SEKOLAH';
+    // --- BUTTON PROTECTION (READ-ONLY FOR KEPSEK & KURIKULUM) ---
+    const isReadOnly = ['KEPALA_SEKOLAH', 'KURIKULUM'].includes(role);
     if (isReadOnly) {
-        // Inject global CSS to hide action buttons for Kepsek
+        // Inject global CSS to hide action buttons for Kepsek & Kurikulum
         const style = document.createElement('style');
         style.id = 'readonly-protection';
         style.innerHTML = `
@@ -257,6 +258,8 @@ function setupUIForRole(profile) {
             button[onclick*="tambah"], 
             button[onclick*="handlePublish"], 
             button[onclick*="handleSaveDraft"],
+            button[onclick*="usSaveDraft"],
+            button[onclick*="usPublish"],
             button[onclick*="save"],
             button[onclick*="hapus"],
             button[onclick*="confirmCreate"] { display: none !important; }
