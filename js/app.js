@@ -2463,6 +2463,50 @@ window.refreshBukuInduk = async () => {
             }
         }
 
+        // --- RENDER RAT CHART (ADMIN/GURU POV) ---
+        const ratCanvasAdmin = document.getElementById('ratChartAdmin');
+        if (ratCanvasAdmin && window.Chart) {
+            if (window.ratChartAdminInstance) {
+                window.ratChartAdminInstance.destroy();
+            }
+
+            const chartLabels = [];
+            const dataTugas = [];
+            const dataUH = [];
+            const dataRAT = [];
+
+            if (st.subjects && Array.isArray(st.subjects)) {
+                st.subjects.forEach(sub => {
+                    chartLabels.push(sub.name || 'Mapel');
+                    dataTugas.push(sub.score_tugas || 0);
+                    dataUH.push(sub.score_uh || 0);
+                    dataRAT.push(sub.score_pas || sub.score_pat || 0);
+                });
+            }
+
+            window.ratChartAdminInstance = new Chart(ratCanvasAdmin, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        { label: 'Nilai Tugas', data: dataTugas, backgroundColor: '#93c5fd', borderRadius: 4 },
+                        { label: 'Ulangan Harian (UH)', data: dataUH, backgroundColor: '#fcd34d', borderRadius: 4 },
+                        { label: 'Real Assessment (PAS/PAT)', data: dataRAT, backgroundColor: '#10b981', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { size: 10, family: "'Inter', sans-serif", weight: 'bold' }, usePointStyle: true, boxWidth: 8 } },
+                        tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8 }
+                    }
+                }
+            });
+        }
+        // --- END RAT CHART ---
+
         // 5. UPDATE HERO STATS
         const redMapelEl = document.getElementById('buku-induk-red-mapel');
         const statusBadge = document.getElementById('buku-induk-status');
