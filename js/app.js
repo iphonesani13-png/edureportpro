@@ -2234,15 +2234,18 @@ window.renderLeaderboard = async () => {
 
         unggulan.forEach((s, idx) => {
             listUnggulan.insertAdjacentHTML('beforeend', `
-                <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+                <div onclick="window.openStudentEditor('${s.id}')" class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-indigo-50 transition-all transform hover:scale-[1.01]">
                     <div class="flex items-center gap-4">
                         <span class="w-8 h-8 flex items-center justify-center font-black text-xs ${idx < 3 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'} rounded-lg">${idx + 1}</span>
                         <div>
-                            <p class="font-black text-slate-900 text-sm">${formatNama(s.name)}</p>
+                            <p class="font-black text-slate-900 text-sm group-hover:text-indigo-700">${formatNama(s.name)}</p>
                             <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Rata-Rata ${isAdmin ? 'Sekolah' : 'Internal'}</p>
                         </div>
                     </div>
-                    <span class="text-xl font-black text-indigo-600">${s.avg}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-black text-indigo-600">${s.avg}</span>
+                        <span class="text-slate-300 font-bold">&rarr;</span>
+                    </div>
                 </div>
             `);
         });
@@ -2253,15 +2256,18 @@ window.renderLeaderboard = async () => {
 
         bimbingan.forEach((s) => {
             listBimbingan.insertAdjacentHTML('beforeend', `
-                <div class="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between shadow-sm">
+                <div onclick="window.openStudentEditor('${s.id}')" class="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center justify-between shadow-sm cursor-pointer hover:bg-rose-100 transition-all transform hover:scale-[1.01]">
                     <div class="flex items-center gap-4">
                         <div class="w-8 h-8 flex items-center justify-center bg-rose-100 text-rose-600 rounded-lg text-xs">⚠️</div>
                         <div>
-                            <p class="font-black text-rose-900 text-sm">${formatNama(s.name)}</p>
+                            <p class="font-black text-rose-900 text-sm group-hover:text-rose-700">${formatNama(s.name)}</p>
                             <p class="text-[9px] font-bold text-rose-400 uppercase tracking-widest">Mapel Merah (${isAdmin ? 'Sekolah' : 'Internal'})</p>
                         </div>
                     </div>
-                    <span class="text-xl font-black text-rose-600">${s.redCount}</span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl font-black text-rose-600">${s.redCount}</span>
+                        <span class="text-rose-300 font-bold">&rarr;</span>
+                    </div>
                 </div>
             `);
         });
