@@ -66,6 +66,11 @@ let state = {
         currentSubjectId: null,
         currentWorkspaceTab: 'tp', // cp, tp, atp, kkm
         allTemplates: [] // Global cache for readiness check
+    },
+    usState: {
+        currentAssessmentId: null,
+        students: [],
+        tempScores: {}
     }
 };
 
@@ -918,11 +923,50 @@ window.cancelNhMetadataForm = () => {
 window.confirmCreateAssessment = async () => {
     const name = document.getElementById('nh-input-name').value;
     const type = document.getElementById('nh-input-type').value;
+    const date = document.getElementById('nh-input-date').value;
+    const weight = document.getElementById('nh-input-weight').value;
 
-    showCustomAlert(e.message, true);
-}
-hideLoading();
-    };
+    if (!name || !date) return showCustomAlert("Lengkapi data penilaian!", true);
+
+    const { activeClassId, activeTemplateId, activeTemplate } = state.nhState;
+    
+    // VALIDASI STATE CRITICAL
+    if (!activeClassId) {
+        console.error("Critical Error: state.nhState.activeClassId is missing.");
+        return showCustomAlert("Sesi kelas kadaluarsa. Silakan pilih ulang kelas.", true);
+    }
+
+    showLoading("Memulai Penilaian...");
+    try {
+        const assessmentData = {
+            assessmentName: name,
+            assessmentType: type,
+            assessmentDate: date,
+            assessmentWeight: parseInt(weight) || 100,
+            templateId: activeTemplateId,
+            classId: activeClassId,
+            subjectId: activeTemplate.subjectId,
+            academicYear: activeTemplate.academicYear,
+            semester: activeTemplate.semester,
+            scores: {},
+            notes: {},
+            teacherReflection: ""
+        };
+
+        const newId = await AssessmentService.saveAssessment(null, assessmentData);
+        
+        console.log(`✨ NH Assessment Created:
+           assessmentId=${newId}
+           classId=${activeClassId}
+           templateId=${activeTemplateId}
+           subjectId=${activeTemplate.subjectId}`);
+
+        await window.openAssessmentGrid(newId);
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+};
 
 window.openAssessmentGrid = async (id) => {
     showLoading("Memuat Grid Nilai...");
@@ -2706,12 +2750,6 @@ window.initUjianSemester = async () => {
     document.getElementById('us-empty-state')?.classList.remove('hidden');
 };
 
-// State for ujian semester
-state.usState = {
-    currentAssessmentId: null,
-    students: [],
-    tempScores: {}
-};
 
 window.onUsFilterChange = async () => {
     const subjectId = document.getElementById('us-select-mapel')?.value;
