@@ -44,6 +44,7 @@ let state = {
     studentsData: [],
     assignmentsData: [],
     currentStudentId: null,
+    previousTab: 'dashboard',
     unsubscribeStudents: null,
     unsubscribeAssignments: null,
     subjectsList: ['Bahasa Indonesia', 'Wafa', 'Bahasa Inggris', 'IPA', 'Matematika', 'Seni Musik', 'Civil Society', 'Sport Class'],
@@ -2299,6 +2300,17 @@ window.renderTugasGuru = () => {
 window.openStudentEditor = async (docId) => {
     const st = state.studentsData.find(s => s.docId === docId);
     if (!st) return;
+
+    // Save previous tab so back button knows where to return
+    const sections = ['dashboard', 'leaderboard', 'tugas', 'nilai-harian', 'kurikulum', 'users', 'viewer'];
+    for (const sec of sections) {
+        const el = document.getElementById(`${sec}-section`);
+        if (el && !el.classList.contains('hidden')) {
+            state.previousTab = sec;
+            break;
+        }
+    }
+
     state.currentStudentId = docId;
     
     // Reset filters to ALL when opening a new student
@@ -2309,6 +2321,11 @@ window.openStudentEditor = async (docId) => {
 
     await window.refreshBukuInduk();
     window.switchTab('editor');
+};
+
+window.goBackFromEditor = () => {
+    state.currentStudentId = null;
+    window.switchTab(state.previousTab || 'dashboard');
 };
 
 window.refreshBukuInduk = async () => {
