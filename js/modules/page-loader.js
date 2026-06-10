@@ -1,5 +1,6 @@
 export const loadPartial = async (filePath) => {
-    const response = await fetch(filePath);
+    const cacheBuster = `?v=${new Date().getTime()}`;
+    const response = await fetch(filePath + cacheBuster);
     if (!response.ok) {
         throw new Error(`Failed to load partial: ${filePath}`);
     }
