@@ -2409,15 +2409,29 @@ window.refreshBukuInduk = async () => {
             if (isRestricted && !managed.includes(sid)) return;
 
             if (!mapelStats[sid]) {
-                mapelStats[sid] = { totalScore: 0, totalWeight: 0, actCount: 0 };
+                mapelStats[sid] = { 
+                    totalScore: 0, totalWeight: 0, actCount: 0,
+                    harianSum: 0, harianWeight: 0,
+                    tugasSum: 0, tugasWeight: 0,
+                    uhSum: 0, uhWeight: 0,
+                    pasSum: 0, pasWeight: 0,
+                    patSum: 0, patWeight: 0
+                };
             }
 
+            const type = (a.assessmentType || '').toLowerCase();
             const w = a.assessmentWeight || 100;
-            const score = a.scores[docId];
+            const score = a.scores[docId] || 0;
 
             mapelStats[sid].totalScore += (score * w);
             mapelStats[sid].totalWeight += w;
             mapelStats[sid].actCount++;
+
+            if (type === 'harian') { mapelStats[sid].harianSum += score * w; mapelStats[sid].harianWeight += w; }
+            else if (type === 'tugas') { mapelStats[sid].tugasSum += score * w; mapelStats[sid].tugasWeight += w; }
+            else if (type === 'uh') { mapelStats[sid].uhSum += score * w; mapelStats[sid].uhWeight += w; }
+            else if (type === 'pas') { mapelStats[sid].pasSum += score * w; mapelStats[sid].pasWeight += w; }
+            else if (type === 'pat') { mapelStats[sid].patSum += score * w; mapelStats[sid].patWeight += w; }
 
             if (a.notes && a.notes[docId]) {
                 teacherNotes.push({
@@ -2445,7 +2459,13 @@ window.refreshBukuInduk = async () => {
                 if (!isPassing) redMapelCount++;
 
                 const missingInThisSub = missingTasks.filter(m => m.subjectId === sid).length;
-                const subData = (st.subjects || []).find(s => s.name === subjectName) || {};
+
+                const avgHarian = stats.harianWeight > 0 ? Math.round(stats.harianSum / stats.harianWeight) : 0;
+                const avgTugas = stats.tugasWeight > 0 ? Math.round(stats.tugasSum / stats.tugasWeight) : 0;
+                const avgUH = stats.uhWeight > 0 ? Math.round(stats.uhSum / stats.uhWeight) : 0;
+                const avgPAS = stats.pasWeight > 0 ? Math.round(stats.pasSum / stats.pasWeight) : 0;
+                const avgPAT = stats.patWeight > 0 ? Math.round(stats.patSum / stats.patWeight) : 0;
+                const avgAkhir = avgPAS || avgPAT || 0;
 
                 mapelListContainer.insertAdjacentHTML('beforeend', `
                     <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center transition-all hover:border-indigo-200">
@@ -2453,11 +2473,11 @@ window.refreshBukuInduk = async () => {
                             <h4 class="font-black text-slate-900 text-sm uppercase tracking-tight">${subjectName}</h4>
                             <p class="text-[9px] font-bold text-slate-400 mt-1">KKM: ${kkm} • ${stats.actCount} Aktivitas</p>
                             <div class="flex gap-1.5 flex-wrap mt-2 text-[8px] font-black text-slate-500 uppercase tracking-wider">
-                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Har: ${subData.score_harian || 0}</span>
-                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Tgs: ${subData.score_tugas || 0}</span>
-                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">UH: ${subData.score_uh || 0}</span>
-                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">PAS: ${subData.score_pas || 0}</span>
-                                <span class="bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-700 font-black">Akhir: ${subData.score_pas || subData.score_pat || 0}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Har: ${avgHarian}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Tgs: ${avgTugas}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">UH: ${avgUH}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">PAS: ${avgPAS}</span>
+                                <span class="bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-700 font-black">Akhir: ${avgAkhir}</span>
                             </div>
                             ${missingInThisSub > 0 ? `<p class="text-[9px] font-black text-rose-500 mt-1.5 flex items-center gap-1"><span>⚠️</span> ${missingInThisSub} Tugas Kosong</p>` : ''}
                         </div>
@@ -2481,13 +2501,18 @@ window.refreshBukuInduk = async () => {
             const dataUH = [];
             const dataRAT = [];
 
-            if (st.subjects && Array.isArray(st.subjects)) {
-                st.subjects.forEach(sub => {
-                    chartLabels.push(sub.name || 'Mapel');
-                    dataTugas.push(sub.score_tugas || 0);
-                    dataUH.push(sub.score_uh || 0);
-                    dataRAT.push(sub.score_pas || sub.score_pat || 0);
-                });
+            for (const [sid, stats] of Object.entries(mapelStats)) {
+                const subjectName = sid.replace('SUBJ_', '').replace('_', ' ');
+                chartLabels.push(subjectName);
+                
+                const avgTugas = stats.tugasWeight > 0 ? Math.round(stats.tugasSum / stats.tugasWeight) : 0;
+                const avgUH = stats.uhWeight > 0 ? Math.round(stats.uhSum / stats.uhWeight) : 0;
+                const avgPAS = stats.pasWeight > 0 ? Math.round(stats.pasSum / stats.pasWeight) : 0;
+                const avgPAT = stats.patWeight > 0 ? Math.round(stats.patSum / stats.patWeight) : 0;
+                
+                dataTugas.push(avgTugas);
+                dataUH.push(avgUH);
+                dataRAT.push(avgPAS || avgPAT || 0);
             }
 
             window.ratChartAdminInstance = new Chart(ratCanvasAdmin, {
