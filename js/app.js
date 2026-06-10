@@ -7,32 +7,32 @@ import { auth, db } from "./modules/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { doc, setDoc, collection, query, where, getDocs, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-import { 
-    parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun 
+import {
+    parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun
 } from "./modules/utils.js";
 
-import { 
-    showCustomAlert, closeGlobalAlert, showLoading, hideLoading, switchTab as uiSwitchTab, toggleModal 
+import {
+    showCustomAlert, closeGlobalAlert, showLoading, hideLoading, switchTab as uiSwitchTab, toggleModal
 } from "./modules/ui-manager.js";
 
-import { 
-    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser, ROLES, addAuditLog 
+import {
+    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser, ROLES, addAuditLog
 } from "./modules/auth-service.js";
 
-import { 
-    streamStudents, streamAssignments, streamSingleStudent, getStudentByNis, linkChildToParent, autoFixStudentData 
+import {
+    streamStudents, streamAssignments, streamSingleStudent, getStudentByNis, linkChildToParent, autoFixStudentData
 } from "./modules/student-data.js";
 
-import { 
-    updateDashboardSummary, renderTimeline, renderDashboardTable, renderLeaderboard as uiRenderLeaderboard, loadParentDashboard 
+import {
+    updateDashboardSummary, renderTimeline, renderDashboardTable, renderLeaderboard as uiRenderLeaderboard, loadParentDashboard
 } from "./modules/render-functions.js";
 
-import { 
-    addAssignment, deleteAssignment, updateStudentBasicInfo, deleteStudent, handleCsvUpload 
+import {
+    addAssignment, deleteAssignment, updateStudentBasicInfo, deleteStudent, handleCsvUpload
 } from "./modules/teacher-service.js";
 
-import { 
-    renderAppFragments, registerStudentTableEvents 
+import {
+    renderAppFragments, registerStudentTableEvents
 } from "./modules/page-loader.js";
 
 import * as AssessmentService from "./modules/assessment-service.js";
@@ -86,9 +86,9 @@ const startAuthListener = () => {
                 if (!profile) {
                     if (intentRole === ROLES.ORANG_TUA) {
                         // Parents register with NIS later, save basic profile now
-                        profile = await registerPendingUser(user.uid, { 
-                            email: user.email, 
-                            name: user.displayName, 
+                        profile = await registerPendingUser(user.uid, {
+                            email: user.email,
+                            name: user.displayName,
                             role: ROLES.ORANG_TUA,
                             status: 'active' // Parents are active by default once they login? 
                         });
@@ -99,14 +99,14 @@ const startAuthListener = () => {
                         if (authCheck.authorized) {
                             // PRE-APPROVED FLOW
                             const existingProfile = await getUserProfile(user.uid);
-                            
+
                             if (!existingProfile) {
                                 // Create new profile (allowed by 'create' rule)
-                                profile = { 
-                                    uid: user.uid, 
-                                    email: user.email, 
-                                    name: user.displayName, 
-                                    role: authCheck.role || 'GURU', 
+                                profile = {
+                                    uid: user.uid,
+                                    email: user.email,
+                                    name: user.displayName,
+                                    role: authCheck.role || 'GURU',
                                     status: 'active',
                                     managedSubjects: authCheck.managedSubjects || [],
                                     managedClasses: authCheck.managedClasses || []
@@ -114,17 +114,17 @@ const startAuthListener = () => {
                                 await saveUserProfile(user.uid, profile);
                             } else {
                                 // Profile exists: Only update safe metadata to avoid PERMISSION_DENIED
-                                await saveUserProfile(user.uid, { 
-                                    name: user.displayName 
+                                await saveUserProfile(user.uid, {
+                                    name: user.displayName
                                 });
                                 profile = existingProfile; // Use DB data for state
                             }
                         } else {
                             // Not pre-approved: Register as PENDING
-                            profile = await registerPendingUser(user.uid, { 
-                                email: user.email, 
-                                name: user.displayName, 
-                                role: 'GURU' 
+                            profile = await registerPendingUser(user.uid, {
+                                email: user.email,
+                                name: user.displayName,
+                                role: 'GURU'
                             });
                         }
                     }
@@ -215,18 +215,18 @@ function setupUIForRole(profile) {
     if (isTeacher) {
         document.getElementById('nav-guru')?.classList.remove('hidden');
         document.getElementById('nav-ortu')?.classList.add('hidden');
-        
+
         // Toggle specific buttons
         document.getElementById('btn-users')?.classList.toggle('hidden', !isAdmin);
         document.getElementById('btn-kurikulum')?.classList.remove('hidden');
-        
+
         window.switchTab('dashboard');
-        
+
         // SECURITY PATCH: Only staff with restricted roles (GURU) get filtered student lists
         const isRestricted = !['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
         const managedClasses = profile.managedClasses || [];
         console.log(`[UAT] Initializing Sync for ${role}. Restricted=${isRestricted}, Classes:`, managedClasses);
-        
+
         initRealtimeSync(ROLES.GURU, null, isRestricted ? managedClasses : null);
     } else if (role === ROLES.ORANG_TUA) {
         document.getElementById('nav-guru')?.classList.add('hidden');
@@ -275,7 +275,7 @@ function initRealtimeSync(role, childId = null, classFilter = null) {
             if (!document.getElementById('dashboard-section')?.classList.contains('hidden')) window.renderDashboard();
             if (!document.getElementById('leaderboard-section')?.classList.contains('hidden')) window.renderLeaderboard();
             if (!document.getElementById('editor-section')?.classList.contains('hidden') && state.currentStudentId) window.openStudentEditor(state.currentStudentId);
-            
+
             // Refresh Kurikulum if active
             if (!document.getElementById('kurikulum-section')?.classList.contains('hidden')) {
                 const progressBody = document.getElementById('progress-nilai-body');
@@ -324,7 +324,7 @@ window.setLoginRole = (role) => {
     state.currentRole = role;
     const btnGuru = document.getElementById('role-btn-guru');
     const btnOrtu = document.getElementById('role-btn-ortu');
-    
+
     // Premium Role Switch Animation Logic
     const activeClasses = ['active', 'border-indigo-600', 'bg-indigo-50/30', 'text-indigo-600'];
     const inactiveClasses = ['text-slate-400', 'border-slate-100'];
@@ -363,6 +363,7 @@ window.switchTab = (mode) => {
     if (mode === 'tugas') window.renderTugasGuru();
     if (mode === 'kurikulum') window.renderKurikulum();
     if (mode === 'nilai-harian') window.initNilaiHarian();
+    if (mode === 'ujian-semester') window.initUjianSemester();
     if (mode === 'users') window.renderUsers();
 };
 
@@ -409,13 +410,13 @@ function renderUserRow(u) {
     const isBlocked = u.status === 'blocked';
     const subjects = u.managedSubjects || [];
     const classes = u.managedClasses || [];
-    
+
     // Layer 1: Self-Protection UI
     const isSelf = u.uid === state.currentUser.uid;
     const isTargetOwner = u.role === 'OWNER';
     const amIOwner = state.currentUser.role === 'OWNER';
     const disableActions = isSelf || (isTargetOwner && !amIOwner);
-    
+
     return `
         <tr class="hover:bg-slate-50/50 transition-all ${disableActions ? 'opacity-80' : ''}">
             <td class="py-4 px-6">
@@ -531,7 +532,7 @@ window.updateUserRole = async (uid, newRole) => {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
         if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
-        
+
         const currentUserData = userDoc.data();
         const oldRole = (currentUserData.role || '').toUpperCase();
         const formattedNewRole = newRole.toUpperCase();
@@ -550,12 +551,12 @@ window.updateUserRole = async (uid, newRole) => {
 
         // DATA HYGIENE POLICY: GURU -> NON-GURU Transition
         if (oldRole === ROLES.GURU && formattedNewRole !== ROLES.GURU) {
-            const hasPermissions = (currentUserData.managedSubjects && currentUserData.managedSubjects.length > 0) || 
-                                   (currentUserData.managedClasses && currentUserData.managedClasses.length > 0);
-            
+            const hasPermissions = (currentUserData.managedSubjects && currentUserData.managedSubjects.length > 0) ||
+                (currentUserData.managedClasses && currentUserData.managedClasses.length > 0);
+
             if (hasPermissions) {
                 if (!confirm("Perubahan role akan menghapus seluruh akses kelas dan mata pelajaran yang dimiliki user ini. Lanjutkan?")) {
-                    window.renderUsers(); 
+                    window.renderUsers();
                     hideLoading();
                     return;
                 }
@@ -574,8 +575,8 @@ window.updateUserRole = async (uid, newRole) => {
         await saveUserProfile(uid, updates);
         showCustomAlert("Role berhasil diperbarui.");
         window.renderUsers();
-    } catch (e) { 
-        showCustomAlert(e.message, true); 
+    } catch (e) {
+        showCustomAlert(e.message, true);
         window.renderUsers(); // Reset UI on error
     }
     hideLoading();
@@ -587,7 +588,7 @@ window.setUserStatus = async (uid, status) => {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
         if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
-        
+
         const currentUserData = userDoc.data();
         const oldRole = (currentUserData.role || '').toUpperCase();
 
@@ -612,14 +613,14 @@ window.deleteUser = async (uid) => {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
         if (!userDoc.exists()) throw new Error("User tidak ditemukan.");
-        
+
         const targetUser = userDoc.data();
         const targetRole = (targetUser.role || '').toUpperCase();
-        
+
         // LAYER 2: SELF-PROTECTION
         if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat menghapus akun Anda sendiri.");
         if (targetRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat menghapus akun OWNER lain.");
-        
+
         if (targetRole === 'OWNER') {
             const ownerQuery = query(collection(db, "users"), where("role", "==", "OWNER"));
             const ownersSnap = await getDocs(ownerQuery);
@@ -672,13 +673,13 @@ window.removeUserSubject = async (uid, sid) => {
     } catch (e) { console.error(e); }
 };
 
-    // --- NILAI HARIAN ORCHESTRATION ---
-    window.tambahMapelCepat = async () => {
+// --- NILAI HARIAN ORCHESTRATION ---
+window.tambahMapelCepat = async () => {
     const nama = prompt("Masukkan Nama Mata Pelajaran Baru:");
     if (!nama || nama.trim() === "") return;
 
     const subjectId = "SUBJ_" + nama.trim().toUpperCase().replace(/\s+/g, '_');
-    
+
     showLoading("Menambahkan Mapel...");
     try {
         const user = auth.currentUser;
@@ -716,7 +717,7 @@ window.initNilaiHarian = async () => {
     // 1. Determine which subjects this user can see
     const profile = await getUserProfile(user.uid);
     const role = profile?.role || 'GURU';
-    
+
     // NEW POLICY: ALL Staff can SEE all subjects in dropdown
     const subSnap = await getDocs(collection(db, "subjects"));
     let subjectsToShow = subSnap.docs.map(d => d.id);
@@ -744,7 +745,7 @@ window.initNilaiHarian = async () => {
     const selectKelas = document.getElementById('nh-select-kelas');
     if (selectKelas) {
         let classesHTML = '<option value="">Pilih Kelas...</option>';
-        
+
         if (isAdmin) {
             // Admin sees all standard classes
             const allClasses = ["7A", "7B", "8", "9"];
@@ -764,9 +765,9 @@ window.initNilaiHarian = async () => {
         }
         selectKelas.innerHTML = classesHTML;
     }
-    };
+};
 
-    window.tambahTpCepat = async () => {
+window.tambahTpCepat = async () => {
     const subjectId = document.getElementById('nh-select-mapel')?.value;
     if (!subjectId) return showCustomAlert("Pilih Mapel terlebih dahulu!", true);
 
@@ -774,7 +775,7 @@ window.initNilaiHarian = async () => {
     if (!title || title.trim() === "") return;
 
     const desc = prompt("Masukkan Deskripsi Tujuan Pembelajaran (TP):", title);
-    
+
     showLoading("Menambahkan TP...");
     try {
         const tpId = `TP_${Date.now()}`;
@@ -792,7 +793,7 @@ window.initNilaiHarian = async () => {
         };
 
         await setDoc(doc(db, "assessment_templates", tpId), newTemplate);
-        
+
         showCustomAlert("Tujuan Pembelajaran berhasil ditambahkan.");
         await window.onNhMapelChange(); // Refresh dropdown TP
         document.getElementById('nh-select-tp').value = tpId;
@@ -829,66 +830,66 @@ window.onNhMapelChange = async () => {
     hideLoading();
 };
 
-    window.onNhFilterChange = async () => {
-        const rawClassId = document.getElementById('nh-select-kelas')?.value;
-        const templateId = document.getElementById('nh-select-tp')?.value;
-        const workspace = document.getElementById('nh-workspace');
-        const emptyState = document.getElementById('nh-empty-state');
-        const listView = document.getElementById('nh-list-view');
-        const actionBar = document.getElementById('nh-action-buttons');
-        const metaForm = document.getElementById('nh-metadata-form');
+window.onNhFilterChange = async () => {
+    const rawClassId = document.getElementById('nh-select-kelas')?.value;
+    const templateId = document.getElementById('nh-select-tp')?.value;
+    const workspace = document.getElementById('nh-workspace');
+    const emptyState = document.getElementById('nh-empty-state');
+    const listView = document.getElementById('nh-list-view');
+    const actionBar = document.getElementById('nh-action-buttons');
+    const metaForm = document.getElementById('nh-metadata-form');
 
-        if (!rawClassId || !templateId) {
-            [workspace, listView, actionBar, metaForm].forEach(el => el?.classList.add('hidden'));
-            emptyState?.classList.remove('hidden');
-            return;
-        }
+    if (!rawClassId || !templateId) {
+        [workspace, listView, actionBar, metaForm].forEach(el => el?.classList.add('hidden'));
+        emptyState?.classList.remove('hidden');
+        return;
+    }
 
-        const yearParts = getActiveTahun().split('/');
-        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
-        
-        // FIX: Ensure classId is saved to state
-        state.nhState.activeClassId = classId;
-        state.nhState.activeTemplateId = templateId;
-        state.nhState.activeTemplate = state.nhTemplates.find(t => t.id === templateId);
+    const yearParts = getActiveTahun().split('/');
+    const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
 
-        console.log(`NH Filter Change: classId=${classId}, templateId=${templateId}`);
+    // FIX: Ensure classId is saved to state
+    state.nhState.activeClassId = classId;
+    state.nhState.activeTemplateId = templateId;
+    state.nhState.activeTemplate = state.nhTemplates.find(t => t.id === templateId);
 
-        showLoading("Memuat Daftar Penilaian...");
-        try {
-            const assessments = await AssessmentService.getAssessmentsByFilter(templateId, classId);
-            state.nhState.assessmentsList = assessments;
-            
-            renderNhList();
-            
-            [workspace, emptyState, metaForm, actionBar].forEach(el => el?.classList.add('hidden'));
-            listView?.classList.remove('hidden');
-        } catch (e) {
-            console.error(e);
-            showCustomAlert("Gagal memuat daftar penilaian.", true);
-        }
-        hideLoading();
-    };
+    console.log(`NH Filter Change: classId=${classId}, templateId=${templateId}`);
 
-    function renderNhList() {
-        const container = document.getElementById('nh-assessment-cards');
-        if (!container) return;
+    showLoading("Memuat Daftar Penilaian...");
+    try {
+        const assessments = await AssessmentService.getAssessmentsByFilter(templateId, classId);
+        state.nhState.assessmentsList = assessments;
 
-        container.innerHTML = '';
-        if (state.nhState.assessmentsList.length === 0) {
-            container.innerHTML = `
+        renderNhList();
+
+        [workspace, emptyState, metaForm, actionBar].forEach(el => el?.classList.add('hidden'));
+        listView?.classList.remove('hidden');
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal memuat daftar penilaian.", true);
+    }
+    hideLoading();
+};
+
+function renderNhList() {
+    const container = document.getElementById('nh-assessment-cards');
+    if (!container) return;
+
+    container.innerHTML = '';
+    if (state.nhState.assessmentsList.length === 0) {
+        container.innerHTML = `
                 <div class="col-span-full py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                     <p class="text-slate-400 font-bold text-sm">Belum ada aktivitas penilaian untuk TP ini.</p>
                 </div>
             `;
-            return;
-        }
+        return;
+    }
 
-        state.nhState.assessmentsList.forEach(asmt => {
-            const date = new Date(asmt.assessmentDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-            const isPub = asmt.status === 'published';
-            
-            container.insertAdjacentHTML('beforeend', `
+    state.nhState.assessmentsList.forEach(asmt => {
+        const date = new Date(asmt.assessmentDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        const isPub = asmt.status === 'published';
+
+        container.insertAdjacentHTML('beforeend', `
                 <div onclick="window.openAssessmentGrid('${asmt.id}')" class="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md hover:border-indigo-500 transition-all cursor-pointer group relative overflow-hidden">
                     <div class="flex justify-between items-start mb-4">
                         <span class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${isPub ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
@@ -900,279 +901,240 @@ window.onNhMapelChange = async () => {
                     <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${asmt.assessmentType} • Bobot ${asmt.assessmentWeight}%</p>
                 </div>
             `);
-        });
-    }
+    });
+}
 
-    window.showNhMetadataForm = () => {
+window.showNhMetadataForm = () => {
+    document.getElementById('nh-list-view').classList.add('hidden');
+    document.getElementById('nh-metadata-form').classList.remove('hidden');
+    document.getElementById('nh-input-date').value = new Date().toISOString().split('T')[0];
+};
+
+window.cancelNhMetadataForm = () => {
+    document.getElementById('nh-metadata-form').classList.add('hidden');
+    document.getElementById('nh-list-view').classList.remove('hidden');
+};
+
+window.confirmCreateAssessment = async () => {
+    const name = document.getElementById('nh-input-name').value;
+    const type = document.getElementById('nh-input-type').value;
+
+    showCustomAlert(e.message, true);
+}
+hideLoading();
+    };
+
+window.openAssessmentGrid = async (id) => {
+    showLoading("Memuat Grid Nilai...");
+    let assessment = null;
+    try {
+        assessment = await AssessmentService.getAssessmentById(id);
+        if (!assessment) throw new Error("Dokumen penilaian tidak ditemukan (ID: " + id + ")");
+
+        const students = await AssessmentService.getStudentsInClass(assessment.classId);
+
+        state.nhState.currentAssessmentId = id;
+        state.nhState.activeAssessment = assessment;
+        state.nhState.currentClassStudents = students;
+        state.nhState.tempScores = assessment.scores || {};
+        state.nhState.tempNotes = assessment.notes || {};
+
+        // UI Setup
+        document.getElementById('nh-tp-title').innerText = assessment.assessmentName;
+        document.getElementById('nh-tp-desc').innerText = state.nhState.activeTemplate.tpDesc;
+        document.getElementById('nh-reflection').value = assessment.teacherReflection || "";
+
+        window.renderNhGrid();
+
         document.getElementById('nh-list-view').classList.add('hidden');
-        document.getElementById('nh-metadata-form').classList.remove('hidden');
-        document.getElementById('nh-input-date').value = new Date().toISOString().split('T')[0];
-    };
-
-    window.cancelNhMetadataForm = () => {
         document.getElementById('nh-metadata-form').classList.add('hidden');
-        document.getElementById('nh-list-view').classList.remove('hidden');
-    };
+        document.getElementById('nh-workspace').classList.remove('hidden');
+        document.getElementById('nh-action-buttons').classList.remove('hidden');
+    } catch (e) {
+        console.error("NH GRID ERROR:", e);
+        console.log("ASSESSMENT ID SEARCHED:", id);
+        if (assessment) console.log("ASSESSMENT DATA RECOVERED:", assessment);
+        console.log("ACTIVE TEMPLATE:", state.nhState.activeTemplate);
+        console.log("ACTIVE CLASS ID:", state.nhState.activeClassId);
 
-    window.confirmCreateAssessment = async () => {
-        const name = document.getElementById('nh-input-name').value;
-        const type = document.getElementById('nh-input-type').value;
-        const date = document.getElementById('nh-input-date').value;
-        const weight = document.getElementById('nh-input-weight').value;
-
-        if (!name || !date) return showCustomAlert("Lengkapi data penilaian!", true);
-
-        const { activeClassId, activeTemplateId, activeTemplate } = state.nhState;
-        
-        // VALIDASI STATE CRITICAL
-        if (!activeClassId) {
-            console.error("Critical Error: state.nhState.activeClassId is missing.");
-            return showCustomAlert("Sesi kelas kadaluarsa. Silakan pilih ulang kelas.", true);
-        }
-
-        showLoading("Memulai Penilaian...");
-        try {
-            const assessmentData = {
-                assessmentName: name,
-                assessmentType: type,
-                assessmentDate: date,
-                assessmentWeight: parseInt(weight) || 100,
-                templateId: activeTemplateId,
-                classId: activeClassId,
-                subjectId: activeTemplate.subjectId,
-                academicYear: activeTemplate.academicYear,
-                semester: activeTemplate.semester,
-                scores: {},
-                notes: {},
-                teacherReflection: ""
-            };
-
-            const newId = await AssessmentService.saveAssessment(null, assessmentData);
-            
-            console.log(`✨ NH Assessment Created:
-               assessmentId=${newId}
-               classId=${activeClassId}
-               templateId=${activeTemplateId}
-               subjectId=${activeTemplate.subjectId}`);
-
-            await window.openAssessmentGrid(newId);
-        } catch (e) {
-            showCustomAlert(e.message, true);
-        }
-        hideLoading();
-    };
-
-    window.openAssessmentGrid = async (id) => {
-        showLoading("Memuat Grid Nilai...");
-        let assessment = null;
-        try {
-            assessment = await AssessmentService.getAssessmentById(id);
-            if (!assessment) throw new Error("Dokumen penilaian tidak ditemukan (ID: " + id + ")");
-            
-            const students = await AssessmentService.getStudentsInClass(assessment.classId);
-
-            state.nhState.currentAssessmentId = id;
-            state.nhState.activeAssessment = assessment;
-            state.nhState.currentClassStudents = students;
-            state.nhState.tempScores = assessment.scores || {};
-            state.nhState.tempNotes = assessment.notes || {};
-
-            // UI Setup
-            document.getElementById('nh-tp-title').innerText = assessment.assessmentName;
-            document.getElementById('nh-tp-desc').innerText = state.nhState.activeTemplate.tpDesc;
-            document.getElementById('nh-reflection').value = assessment.teacherReflection || "";
-            
-            window.renderNhGrid();
-
-            document.getElementById('nh-list-view').classList.add('hidden');
-            document.getElementById('nh-metadata-form').classList.add('hidden');
-            document.getElementById('nh-workspace').classList.remove('hidden');
-            document.getElementById('nh-action-buttons').classList.remove('hidden');
-        } catch (e) {
-            console.error("NH GRID ERROR:", e);
-            console.log("ASSESSMENT ID SEARCHED:", id);
-            if (assessment) console.log("ASSESSMENT DATA RECOVERED:", assessment);
-            console.log("ACTIVE TEMPLATE:", state.nhState.activeTemplate);
-            console.log("ACTIVE CLASS ID:", state.nhState.activeClassId);
-
-            showCustomAlert("Gagal memuat grid nilai.", true);
-        }
-        hideLoading();
-    };
+        showCustomAlert("Gagal memuat grid nilai.", true);
+    }
+    hideLoading();
+};
 
 window.backToNhList = () => {
-        document.getElementById('nh-workspace').classList.add('hidden');
-        document.getElementById('nh-action-buttons').classList.add('hidden');
-        window.onNhFilterChange(); // Refresh list
-    };
+    document.getElementById('nh-workspace').classList.add('hidden');
+    document.getElementById('nh-action-buttons').classList.add('hidden');
+    window.onNhFilterChange(); // Refresh list
+};
 
-    window.switchNhMode = (mode) => {
-        state.nhState.activeMode = mode;
-        const tabInput = document.getElementById('nh-tab-input');
-        const tabRekap = document.getElementById('nh-tab-rekap');
-        const viewInput = document.getElementById('nh-mode-input');
-        const viewRekap = document.getElementById('nh-mode-rekap');
+window.switchNhMode = (mode) => {
+    state.nhState.activeMode = mode;
+    const tabInput = document.getElementById('nh-tab-input');
+    const tabRekap = document.getElementById('nh-tab-rekap');
+    const viewInput = document.getElementById('nh-mode-input');
+    const viewRekap = document.getElementById('nh-mode-rekap');
 
-        if (mode === 'input') {
-            tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
-            tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
-            viewInput.classList.remove('hidden');
-            viewRekap.classList.add('hidden');
-        } else {
-            tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
-            tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
-            viewInput.classList.add('hidden');
-            viewRekap.classList.remove('hidden');
-            window.loadRekapData(); // Trigger data computation
-        }
-    };
+    if (mode === 'input') {
+        tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
+        tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
+        viewInput.classList.remove('hidden');
+        viewRekap.classList.add('hidden');
+    } else {
+        tabRekap.className = "px-6 py-2 rounded-xl text-sm font-bold bg-white text-slate-900 shadow-sm transition-all";
+        tabInput.className = "px-6 py-2 rounded-xl text-sm font-bold text-slate-500 hover:text-slate-900 transition-all";
+        viewInput.classList.add('hidden');
+        viewRekap.classList.remove('hidden');
+        window.loadRekapData(); // Trigger data computation
+    }
+};
 
-    window.closeRekapDetail = () => {
-        document.getElementById('rekap-detail-view').classList.add('hidden', 'lg:block'); // Hide on mobile, keep on desktop
-        document.getElementById('rekap-master-view').classList.remove('hidden'); // Show master on mobile
-    };
+window.closeRekapDetail = () => {
+    document.getElementById('rekap-detail-view').classList.add('hidden', 'lg:block'); // Hide on mobile, keep on desktop
+    document.getElementById('rekap-master-view').classList.remove('hidden'); // Show master on mobile
+};
 
-    window.loadRekapData = async () => {
-        const rawClassId = document.getElementById('nh-select-kelas')?.value;
-        const subjectId = document.getElementById('nh-select-mapel')?.value;
-        const academicYear = getActiveTahun();
+window.loadRekapData = async () => {
+    const rawClassId = document.getElementById('nh-select-kelas')?.value;
+    const subjectId = document.getElementById('nh-select-mapel')?.value;
+    const academicYear = getActiveTahun();
 
-        if (!rawClassId || !subjectId) {
-            return showCustomAlert("Silakan pilih Mapel dan Kelas terlebih dahulu.", true);
-        }
+    if (!rawClassId || !subjectId) {
+        return showCustomAlert("Silakan pilih Mapel dan Kelas terlebih dahulu.", true);
+    }
 
-        const yearParts = academicYear.split('/');
-        const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
-        state.nhState.activeClassId = classId; // Save it back to state for the detail view
+    const yearParts = academicYear.split('/');
+    const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+    state.nhState.activeClassId = classId; // Save it back to state for the detail view
 
-        showLoading("Mengkalkulasi Rekapitulasi...");
-        try {
-            // 1. DATA FETCHING (PRE-FETCH)
-            const [subject, templates, students, assessments] = await Promise.all([
-                AssessmentService.getSubjectDetails(subjectId),
-                AssessmentService.getTemplatesBySubject(subjectId, academicYear),
-                AssessmentService.getStudentsInClass(classId),
-                AssessmentService.getAllPublishedAssessments(subjectId, classId, academicYear)
-            ]);
+    showLoading("Mengkalkulasi Rekapitulasi...");
+    try {
+        // 1. DATA FETCHING (PRE-FETCH)
+        const [subject, templates, students, assessments] = await Promise.all([
+            AssessmentService.getSubjectDetails(subjectId),
+            AssessmentService.getTemplatesBySubject(subjectId, academicYear),
+            AssessmentService.getStudentsInClass(classId),
+            AssessmentService.getAllPublishedAssessments(subjectId, classId, academicYear)
+        ]);
 
-            const passingGrade = subject?.minPassingGrade || 75;
+        const passingGrade = subject?.minPassingGrade || 75;
 
-            // Cache Base Data
-            state.nhState.rekapBaseData = {
-                students, templates, assessments, passingGrade
+        // Cache Base Data
+        state.nhState.rekapBaseData = {
+            students, templates, assessments, passingGrade
+        };
+
+        // 2. CALCULATION ENGINE
+        const tpStats = {}; // { [templateId]: { totalWeight: 0, activities: [] } }
+        const studentScores = {}; // { [templateId]: { [studentId]: weightedScoreSum } }
+
+        // Initialize structures
+        templates.forEach(t => {
+            tpStats[t.id] = {
+                totalWeight: 0,
+                activities: [],
+                lastAssessed: null,
+                passCount: 0
             };
+            studentScores[t.id] = {};
+            students.forEach(s => studentScores[t.id][s.id] = 0);
+        });
 
-            // 2. CALCULATION ENGINE
-            const tpStats = {}; // { [templateId]: { totalWeight: 0, activities: [] } }
-            const studentScores = {}; // { [templateId]: { [studentId]: weightedScoreSum } }
+        // Aggregate Assessments
+        assessments.forEach(a => {
+            const tId = a.templateId;
+            if (!tpStats[tId]) return; // Orphanned assessment
 
-            // Initialize structures
-            templates.forEach(t => {
-                tpStats[t.id] = { 
-                    totalWeight: 0, 
-                    activities: [], 
-                    lastAssessed: null,
-                    passCount: 0
-                };
-                studentScores[t.id] = {};
-                students.forEach(s => studentScores[t.id][s.id] = 0);
-            });
+            const weight = a.assessmentWeight || 100;
+            tpStats[tId].activities.push(a);
+            tpStats[tId].totalWeight += weight;
 
-            // Aggregate Assessments
-            assessments.forEach(a => {
-                const tId = a.templateId;
-                if (!tpStats[tId]) return; // Orphanned assessment
-
-                const weight = a.assessmentWeight || 100;
-                tpStats[tId].activities.push(a);
-                tpStats[tId].totalWeight += weight;
-
-                // Track last assessed date based on publishedAt or assessmentDate
-                let dateToCompare = null;
-                if (a.publishedAt && a.publishedAt.toDate) {
-                    dateToCompare = a.publishedAt.toDate();
-                } else if (a.assessmentDate) {
-                    dateToCompare = new Date(a.assessmentDate);
-                }
-
-                if (dateToCompare) {
-                    if (!tpStats[tId].lastAssessed || dateToCompare > tpStats[tId].lastAssessed) {
-                        tpStats[tId].lastAssessed = dateToCompare;
-                    }
-                }
-
-                // Sum weighted scores per student
-                students.forEach(s => {
-                    const score = a.scores[s.id] || 0;
-                    studentScores[tId][s.id] += (score * weight);
-                });
-            });
-
-            // Calculate final averages and pass rates per TP
-            let totalPassRateSum = 0;
-            let tpWithActivitiesCount = 0;
-
-            templates.forEach(t => {
-                const stats = tpStats[t.id];
-                if (stats.totalWeight > 0) {
-                    tpWithActivitiesCount++;
-                    students.forEach(s => {
-                        // Calculate average
-                        studentScores[t.id][s.id] = studentScores[t.id][s.id] / stats.totalWeight;
-                        // Check pass status
-                        if (studentScores[t.id][s.id] >= passingGrade) {
-                            stats.passCount++;
-                        }
-                    });
-                    
-                    stats.passRate = Math.round((stats.passCount / students.length) * 100) || 0;
-                    totalPassRateSum += stats.passRate;
-                } else {
-                    stats.passRate = 0;
-                }
-            });
-
-            // Cache computed scores
-            state.nhState.rekapComputedScores = studentScores;
-
-            // 3. LEVEL 1: SEMESTER SUMMARY RENDER
-            const totalTp = templates.length;
-            const doneTp = tpWithActivitiesCount;
-            const waitTp = totalTp - doneTp;
-            const classPassRate = doneTp > 0 ? Math.round(totalPassRateSum / doneTp) : 0;
-
-            document.getElementById('rekap-stat-total-tp').innerText = totalTp;
-            document.getElementById('rekap-stat-done-tp').innerText = doneTp;
-            document.getElementById('rekap-stat-wait-tp').innerText = waitTp;
-            document.getElementById('rekap-stat-pass-rate').innerText = `${classPassRate}%`;
-
-            // 4. LEVEL 2: TP LIST RENDER
-            const listContainer = document.getElementById('rekap-tp-list');
-            listContainer.innerHTML = '';
-
-            if (templates.length === 0) {
-                listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 font-bold text-sm">Belum ada TP untuk mapel ini.</div>`;
+            // Track last assessed date based on publishedAt or assessmentDate
+            let dateToCompare = null;
+            if (a.publishedAt && a.publishedAt.toDate) {
+                dateToCompare = a.publishedAt.toDate();
+            } else if (a.assessmentDate) {
+                dateToCompare = new Date(a.assessmentDate);
             }
 
-            templates.forEach(t => {
-                const stats = tpStats[t.id];
-                const actCount = stats.activities.length;
-                let statusBadge, progressBarColor;
-
-                if (actCount === 0) {
-                    statusBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black uppercase">Belum Dinilai</span>`;
-                    progressBarColor = 'bg-slate-200';
-                } else if (stats.passRate >= 50) { // Using 50 as safe visual threshold if no school target
-                    statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Tuntas</span>`;
-                    progressBarColor = 'bg-emerald-500';
-                } else {
-                    statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Perlu Remedial</span>`;
-                    progressBarColor = 'bg-rose-500';
+            if (dateToCompare) {
+                if (!tpStats[tId].lastAssessed || dateToCompare > tpStats[tId].lastAssessed) {
+                    tpStats[tId].lastAssessed = dateToCompare;
                 }
+            }
 
-                const lastDateStr = stats.lastAssessed ? stats.lastAssessed.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'}) : '-';
+            // Sum weighted scores per student
+            students.forEach(s => {
+                const score = a.scores[s.id] || 0;
+                studentScores[tId][s.id] += (score * weight);
+            });
+        });
 
-                listContainer.insertAdjacentHTML('beforeend', `
+        // Calculate final averages and pass rates per TP
+        let totalPassRateSum = 0;
+        let tpWithActivitiesCount = 0;
+
+        templates.forEach(t => {
+            const stats = tpStats[t.id];
+            if (stats.totalWeight > 0) {
+                tpWithActivitiesCount++;
+                students.forEach(s => {
+                    // Calculate average
+                    studentScores[t.id][s.id] = studentScores[t.id][s.id] / stats.totalWeight;
+                    // Check pass status
+                    if (studentScores[t.id][s.id] >= passingGrade) {
+                        stats.passCount++;
+                    }
+                });
+
+                stats.passRate = Math.round((stats.passCount / students.length) * 100) || 0;
+                totalPassRateSum += stats.passRate;
+            } else {
+                stats.passRate = 0;
+            }
+        });
+
+        // Cache computed scores
+        state.nhState.rekapComputedScores = studentScores;
+
+        // 3. LEVEL 1: SEMESTER SUMMARY RENDER
+        const totalTp = templates.length;
+        const doneTp = tpWithActivitiesCount;
+        const waitTp = totalTp - doneTp;
+        const classPassRate = doneTp > 0 ? Math.round(totalPassRateSum / doneTp) : 0;
+
+        document.getElementById('rekap-stat-total-tp').innerText = totalTp;
+        document.getElementById('rekap-stat-done-tp').innerText = doneTp;
+        document.getElementById('rekap-stat-wait-tp').innerText = waitTp;
+        document.getElementById('rekap-stat-pass-rate').innerText = `${classPassRate}%`;
+
+        // 4. LEVEL 2: TP LIST RENDER
+        const listContainer = document.getElementById('rekap-tp-list');
+        listContainer.innerHTML = '';
+
+        if (templates.length === 0) {
+            listContainer.innerHTML = `<div class="text-center py-8 text-slate-400 font-bold text-sm">Belum ada TP untuk mapel ini.</div>`;
+        }
+
+        templates.forEach(t => {
+            const stats = tpStats[t.id];
+            const actCount = stats.activities.length;
+            let statusBadge, progressBarColor;
+
+            if (actCount === 0) {
+                statusBadge = `<span class="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-black uppercase">Belum Dinilai</span>`;
+                progressBarColor = 'bg-slate-200';
+            } else if (stats.passRate >= 50) { // Using 50 as safe visual threshold if no school target
+                statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Tuntas</span>`;
+                progressBarColor = 'bg-emerald-500';
+            } else {
+                statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[9px] font-black uppercase">Perlu Remedial</span>`;
+                progressBarColor = 'bg-rose-500';
+            }
+
+            const lastDateStr = stats.lastAssessed ? stats.lastAssessed.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-';
+
+            listContainer.insertAdjacentHTML('beforeend', `
                     <div onclick="window.openRekapDetail('${t.id}')" class="glass-card p-4 bg-white border border-slate-100 shadow-sm hover:border-indigo-500 hover:shadow-md transition-all cursor-pointer group">
                         <div class="flex justify-between items-start mb-2">
                             <div>
@@ -1194,48 +1156,48 @@ window.backToNhList = () => {
                         </div>
                     </div>
                 `);
-            });
+        });
 
-        } catch (e) {
-            console.error("Rekap Engine Error:", e);
-            showCustomAlert("Gagal mengkalkulasi rekap penilaian.", true);
-        }
-        hideLoading();
-    };
+    } catch (e) {
+        console.error("Rekap Engine Error:", e);
+        showCustomAlert("Gagal mengkalkulasi rekap penilaian.", true);
+    }
+    hideLoading();
+};
 
-    window.openRekapDetail = (templateId) => {
-        const { templates, assessments, students, passingGrade } = state.nhState.rekapBaseData;
-        const template = templates.find(t => t.id === templateId);
-        if (!template) return;
+window.openRekapDetail = (templateId) => {
+    const { templates, assessments, students, passingGrade } = state.nhState.rekapBaseData;
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
 
-        state.nhState.selectedTemplateId = templateId;
+    state.nhState.selectedTemplateId = templateId;
 
-        // UI Header
-        document.getElementById('rekap-detail-tpid').innerText = template.tpId;
-        document.getElementById('rekap-detail-title').innerText = template.title;
+    // UI Header
+    document.getElementById('rekap-detail-tpid').innerText = template.tpId;
+    document.getElementById('rekap-detail-title').innerText = template.title;
 
-        // Filter activities for this TP
-        const acts = assessments.filter(a => a.templateId === templateId);
-        
-        // 1. Render Activities & Reflections
-        const actContainer = document.getElementById('rekap-detail-activities');
-        const refContainer = document.getElementById('rekap-detail-reflections');
-        const refBox = document.getElementById('rekap-detail-reflection-box');
-        
-        actContainer.innerHTML = '';
-        refContainer.innerHTML = '';
+    // Filter activities for this TP
+    const acts = assessments.filter(a => a.templateId === templateId);
 
-        if (acts.length === 0) {
-            actContainer.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada aktivitas.</p>`;
-            refBox.classList.add('hidden');
-        } else {
-            refBox.classList.remove('hidden');
-            acts.forEach(a => {
-                // Calc avg for activity
-                const validScores = Object.values(a.scores).filter(s => s > 0);
-                const avg = validScores.length ? Math.round(validScores.reduce((sum, s) => sum + s, 0) / validScores.length) : 0;
-                
-                actContainer.insertAdjacentHTML('beforeend', `
+    // 1. Render Activities & Reflections
+    const actContainer = document.getElementById('rekap-detail-activities');
+    const refContainer = document.getElementById('rekap-detail-reflections');
+    const refBox = document.getElementById('rekap-detail-reflection-box');
+
+    actContainer.innerHTML = '';
+    refContainer.innerHTML = '';
+
+    if (acts.length === 0) {
+        actContainer.innerHTML = `<p class="text-xs text-slate-400 italic">Belum ada aktivitas.</p>`;
+        refBox.classList.add('hidden');
+    } else {
+        refBox.classList.remove('hidden');
+        acts.forEach(a => {
+            // Calc avg for activity
+            const validScores = Object.values(a.scores).filter(s => s > 0);
+            const avg = validScores.length ? Math.round(validScores.reduce((sum, s) => sum + s, 0) / validScores.length) : 0;
+
+            actContainer.insertAdjacentHTML('beforeend', `
                     <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div>
                             <p class="text-[10px] font-bold text-slate-900">${a.assessmentName}</p>
@@ -1245,68 +1207,68 @@ window.backToNhList = () => {
                     </div>
                 `);
 
-                if (a.teacherReflection) {
-                    refContainer.insertAdjacentHTML('beforeend', `
+            if (a.teacherReflection) {
+                refContainer.insertAdjacentHTML('beforeend', `
                         <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 text-xs text-indigo-900 italic">
                             <span class="font-bold text-[9px] uppercase tracking-widest text-indigo-400 block mb-1">${a.assessmentName}</span>
                             "${a.teacherReflection}"
                         </div>
                     `);
-                }
-            });
-        }
+            }
+        });
+    }
 
-        // 2. Render Remedial List
-        const remList = document.getElementById('rekap-detail-remedial-list');
-        const remBox = document.getElementById('rekap-detail-remedial-box');
-        remList.innerHTML = '';
+    // 2. Render Remedial List
+    const remList = document.getElementById('rekap-detail-remedial-list');
+    const remBox = document.getElementById('rekap-detail-remedial-box');
+    remList.innerHTML = '';
 
-        const scoresMap = state.nhState.rekapComputedScores[templateId];
-        let remedialCount = 0;
+    const scoresMap = state.nhState.rekapComputedScores[templateId];
+    let remedialCount = 0;
 
-        if (acts.length > 0 && scoresMap) {
-            students.forEach(st => {
-                const avgScore = scoresMap[st.id] || 0;
-                if (avgScore < passingGrade) {
-                    remedialCount++;
-                    remList.insertAdjacentHTML('beforeend', `
+    if (acts.length > 0 && scoresMap) {
+        students.forEach(st => {
+            const avgScore = scoresMap[st.id] || 0;
+            if (avgScore < passingGrade) {
+                remedialCount++;
+                remList.insertAdjacentHTML('beforeend', `
                         <li class="flex justify-between items-center border-b border-rose-100/50 pb-1 last:border-0">
                             <span>${formatNama(st.name || st.nama)}</span>
                             <span class="font-black bg-rose-100 px-2 py-0.5 rounded">${Math.round(avgScore)}</span>
                         </li>
                     `);
-                }
-            });
-        }
+            }
+        });
+    }
 
-        if (remedialCount > 0) {
-            remBox.classList.remove('hidden');
-        } else if (acts.length > 0) {
-            remBox.classList.remove('hidden');
-            remList.innerHTML = `<li class="text-emerald-600 text-center py-2">✅ Semua siswa tuntas KKM (${passingGrade})</li>`;
-        } else {
-            remBox.classList.add('hidden');
-        }
+    if (remedialCount > 0) {
+        remBox.classList.remove('hidden');
+    } else if (acts.length > 0) {
+        remBox.classList.remove('hidden');
+        remList.innerHTML = `<li class="text-emerald-600 text-center py-2">✅ Semua siswa tuntas KKM (${passingGrade})</li>`;
+    } else {
+        remBox.classList.add('hidden');
+    }
 
-        // Show Panel (Mobile logic)
-        document.getElementById('rekap-detail-view').classList.remove('hidden', 'lg:block');
-        if (window.innerWidth < 1024) {
-            document.getElementById('rekap-master-view').classList.add('hidden');
-        }
-    };
+    // Show Panel (Mobile logic)
+    document.getElementById('rekap-detail-view').classList.remove('hidden', 'lg:block');
+    if (window.innerWidth < 1024) {
+        document.getElementById('rekap-master-view').classList.add('hidden');
+    }
+};
 
-    window.renderNhGrid = () => {
-        const body = document.getElementById('nh-table-body');
-        if (!body) return;
+window.renderNhGrid = () => {
+    const body = document.getElementById('nh-table-body');
+    if (!body) return;
 
-        const isLocked = state.nhState.activeAssessment.status === 'published';
+    const isLocked = state.nhState.activeAssessment.status === 'published';
 
-        body.innerHTML = '';
-        state.nhState.currentClassStudents.forEach((st, idx) => {
-            const score = state.nhState.tempScores[st.id] || 0;
-            const note = state.nhState.tempNotes[st.id] || "";
+    body.innerHTML = '';
+    state.nhState.currentClassStudents.forEach((st, idx) => {
+        const score = state.nhState.tempScores[st.id] || 0;
+        const note = state.nhState.tempNotes[st.id] || "";
 
-            body.insertAdjacentHTML('beforeend', `
+        body.insertAdjacentHTML('beforeend', `
                 <tr class="hover:bg-slate-50/50 transition-all">
                     <td class="py-4 px-6 text-center text-slate-400 font-bold text-xs">${idx + 1}</td>
                     <td class="py-4 px-4">
@@ -1328,82 +1290,82 @@ window.backToNhList = () => {
                     </td>
                 </tr>
             `);
-        });
-        updateNhStats();
-    };
+    });
+    updateNhStats();
+};
 
-    window.syncNhInput = (studentId, type, val) => {
-        if (type === 'score') {
-            let num = parseInt(val) || 0;
-            if (num > 100) num = 100;
-            state.nhState.tempScores[studentId] = num;
-        } else {
-            state.nhState.tempNotes[studentId] = val;
-        }
-        updateNhStats();
-    };
-
-    function updateNhStats() {
-        const scores = Object.values(state.nhState.tempScores);
-        const validScores = scores.filter(s => s > 0);
-
-        const total = state.nhState.currentClassStudents.length;
-        const max = validScores.length ? Math.max(...validScores) : 0;
-        const min = validScores.length ? Math.min(...validScores) : 0;
-        const avg = validScores.length ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
-
-        const statTotal = document.getElementById('nh-stat-total');
-        const statMax = document.getElementById('nh-stat-max');
-        const statMin = document.getElementById('nh-stat-min');
-        const statAvg = document.getElementById('nh-stat-avg');
-
-        if (statTotal) statTotal.innerText = total;
-        if (statMax) statMax.innerText = max;
-        if (statMin) statMin.innerText = min;
-        if (statAvg) statAvg.innerText = avg;
+window.syncNhInput = (studentId, type, val) => {
+    if (type === 'score') {
+        let num = parseInt(val) || 0;
+        if (num > 100) num = 100;
+        state.nhState.tempScores[studentId] = num;
+    } else {
+        state.nhState.tempNotes[studentId] = val;
     }
+    updateNhStats();
+};
 
-    window.handleSaveDraft = async () => {
-        const id = state.nhState.currentAssessmentId;
-        const reflection = document.getElementById('nh-reflection').value;
+function updateNhStats() {
+    const scores = Object.values(state.nhState.tempScores);
+    const validScores = scores.filter(s => s > 0);
 
-        showLoading("Menyimpan Draft...");
-        try {
-            const updatedData = {
-                scores: state.nhState.tempScores,
-                notes: state.nhState.tempNotes,
-                teacherReflection: reflection
-            };
-            await AssessmentService.saveAssessment(id, updatedData, false);
-            showCustomAlert("Draft berhasil disimpan.");
-        } catch (e) {
-            showCustomAlert(e.message, true);
-        }
-        hideLoading();
-    };
+    const total = state.nhState.currentClassStudents.length;
+    const max = validScores.length ? Math.max(...validScores) : 0;
+    const min = validScores.length ? Math.min(...validScores) : 0;
+    const avg = validScores.length ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length) : 0;
 
-    window.handlePublish = async () => {
-        const id = state.nhState.currentAssessmentId;
-        const reflection = document.getElementById('nh-reflection').value;
-        const total = state.nhState.currentClassStudents.length;
+    const statTotal = document.getElementById('nh-stat-total');
+    const statMax = document.getElementById('nh-stat-max');
+    const statMin = document.getElementById('nh-stat-min');
+    const statAvg = document.getElementById('nh-stat-avg');
 
-        showLoading("Mempublikasikan Nilai...");
-        try {
-            const updatedData = {
-                scores: state.nhState.tempScores,
-                notes: state.nhState.tempNotes,
-                teacherReflection: reflection
-            };
-            await AssessmentService.saveAssessment(id, updatedData, true, total);
-            showCustomAlert("Nilai berhasil dipublish.");
-            window.backToNhList();
-        } catch (e) {
-            showCustomAlert(e.message, true);
-        }
-        hideLoading();
-    };
+    if (statTotal) statTotal.innerText = total;
+    if (statMax) statMax.innerText = max;
+    if (statMin) statMin.innerText = min;
+    if (statAvg) statAvg.innerText = avg;
+}
 
-    window.renderKurikulum = () => {
+window.handleSaveDraft = async () => {
+    const id = state.nhState.currentAssessmentId;
+    const reflection = document.getElementById('nh-reflection').value;
+
+    showLoading("Menyimpan Draft...");
+    try {
+        const updatedData = {
+            scores: state.nhState.tempScores,
+            notes: state.nhState.tempNotes,
+            teacherReflection: reflection
+        };
+        await AssessmentService.saveAssessment(id, updatedData, false);
+        showCustomAlert("Draft berhasil disimpan.");
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+};
+
+window.handlePublish = async () => {
+    const id = state.nhState.currentAssessmentId;
+    const reflection = document.getElementById('nh-reflection').value;
+    const total = state.nhState.currentClassStudents.length;
+
+    showLoading("Mempublikasikan Nilai...");
+    try {
+        const updatedData = {
+            scores: state.nhState.tempScores,
+            notes: state.nhState.tempNotes,
+            teacherReflection: reflection
+        };
+        await AssessmentService.saveAssessment(id, updatedData, true, total);
+        showCustomAlert("Nilai berhasil dipublish.");
+        window.backToNhList();
+    } catch (e) {
+        showCustomAlert(e.message, true);
+    }
+    hideLoading();
+};
+
+window.renderKurikulum = () => {
     const content = document.getElementById('kurikulum-content');
     if (content && content.innerHTML.includes('Pilih Menu')) {
         window.switchKurikulumTab('mapel');
@@ -1437,7 +1399,7 @@ window.renderKatalog = async () => {
     try {
         const year = getActiveTahun();
         const managed = profile?.managedSubjects || [];
-        
+
         // 1. DATA LOCKDOWN: Fetch only relevant templates
         let q;
         if (isAdmin || role === 'KEPALA_SEKOLAH') {
@@ -1450,12 +1412,12 @@ window.renderKatalog = async () => {
                 return;
             }
             q = query(
-                collection(db, "assessment_templates"), 
+                collection(db, "assessment_templates"),
                 where("academicYear", "==", year),
                 where("subjectId", "in", managed)
             );
         }
-        
+
         const snap = await getDocs(q);
         state.nhState.allTemplates = snap.docs.map(d => d.data());
 
@@ -1473,10 +1435,10 @@ window.renderKatalog = async () => {
         container.innerHTML = `
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 ${subjectsToRender.map(sub => {
-                    const sid = "SUBJ_" + sub.toUpperCase().replace(/\s+/g, '_');
-                    const readiness = calculateSubjectReadiness(sid);
-                    
-                    return `
+            const sid = "SUBJ_" + sub.toUpperCase().replace(/\s+/g, '_');
+            const readiness = calculateSubjectReadiness(sid);
+
+            return `
                         <div onclick="window.openSubjectWorkspace('${sid}')" 
                              class="glass-card p-6 bg-white border border-slate-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
                             <div class="flex justify-between items-start mb-6">
@@ -1494,7 +1456,7 @@ window.renderKatalog = async () => {
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
                 ${subjectsToRender.length === 0 ? `<div class="col-span-full py-20 text-center text-slate-400 font-bold italic">Anda belum diberikan akses ke mata pelajaran manapun. Silakan hubungi Admin.</div>` : ''}
             </div>
         `;
@@ -1507,7 +1469,7 @@ window.renderKatalog = async () => {
 
 function calculateSubjectReadiness(subjectId) {
     const templates = state.nhState.allTemplates.filter(t => t.subjectId === subjectId);
-    
+
     // 🔴 Belum Siap: 0 TP
     if (templates.length === 0) {
         return { text: "Belum Siap", color: "bg-rose-500" };
@@ -1515,7 +1477,7 @@ function calculateSubjectReadiness(subjectId) {
 
     // Check if ATP (semester/order) is complete for all templates
     const atpIncomplete = templates.some(t => !t.semester || t.order === undefined);
-    
+
     // 🟡 Sedang Disiapkan: TP ada tapi ATP/KKM belum lengkap
     // (Note: KKM check would need subject details, assuming Yellow if ATP missing)
     if (atpIncomplete) {
@@ -1543,7 +1505,7 @@ window.renderWorkspace = async () => {
     const workspaceActions = document.getElementById('workspace-actions');
     const subjectId = state.nhState.currentSubjectId;
     const currentTab = state.nhState.currentWorkspaceTab || 'tp';
-    
+
     const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
 
     if (headerActions) headerActions.classList.add('hidden');
@@ -1585,7 +1547,7 @@ window.renderWorkspace = async () => {
 window.renderTpTab = async (subjectId) => {
     const content = document.getElementById('workspace-tab-content');
     const year = getActiveTahun();
-    
+
     try {
         const templates = await AssessmentService.getTemplatesBySubject(subjectId, year);
         const sortedTemplates = templates.filter(t => t.status !== 'deleted').sort((a, b) => (a.tpId || "").localeCompare(b.tpId || ""));
@@ -1686,11 +1648,11 @@ window.openImportTpModal = () => {
     document.getElementById('import-tp-dropzone').classList.remove('hidden');
     document.getElementById('btn-confirm-import-tp').disabled = true;
     toggleModal('import-tp-modal', true);
-    
+
     // Wire up dropzone
     const dropzone = document.getElementById('import-tp-dropzone');
     const input = document.getElementById('tp-excel-input');
-    
+
     dropzone.onclick = () => input.click();
     input.onchange = (e) => window.handleTpExcelFile(e.target.files[0]);
 };
@@ -1704,7 +1666,7 @@ window.handleTpExcelFile = (file) => {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const json = XLSX.utils.sheet_to_json(worksheet);
-        
+
         window.previewTpImport(json, file.name);
     };
     reader.readAsArrayBuffer(file);
@@ -1715,7 +1677,7 @@ window.previewTpImport = (data, filename) => {
     const validCountEl = document.getElementById('tp-valid-count');
     const errorCountEl = document.getElementById('tp-error-count');
     const filenameEl = document.getElementById('tp-filename');
-    
+
     previewBody.innerHTML = '';
     tempImportData = [];
     let valid = 0, error = 0;
@@ -1726,7 +1688,7 @@ window.previewTpImport = (data, filename) => {
         const title = row['Judul TP'] || row['JUDUL'] || '';
         const desc = row['Deskripsi TP'] || row['DESKRIPSI'] || '';
         const bloom = row['Level Bloom'] || row['BLOOM'] || 'C2';
-        
+
         const isValid = code && title;
         if (isValid) {
             valid++;
@@ -1752,7 +1714,7 @@ window.previewTpImport = (data, filename) => {
     validCountEl.innerText = valid;
     errorCountEl.innerText = error;
     filenameEl.innerText = filename;
-    
+
     document.getElementById('import-tp-dropzone').classList.add('hidden');
     document.getElementById('import-tp-preview').classList.remove('hidden');
     document.getElementById('btn-confirm-import-tp').disabled = valid === 0;
@@ -1765,7 +1727,7 @@ window.cancelImportTP = () => {
 
 window.processImportTP = async () => {
     if (tempImportData.length === 0) return;
-    
+
     showLoading(`Mengimport ${tempImportData.length} data...`);
     try {
         const subjectId = state.nhState.currentSubjectId;
@@ -1805,7 +1767,7 @@ window.downloadTpTemplate = () => {
 window.renderAtpTab = async (subjectId) => {
     const content = document.getElementById('workspace-tab-content');
     const year = getActiveTahun();
-    
+
     try {
         const templates = await AssessmentService.getTemplatesBySubject(subjectId, year);
         const activeTemplates = templates.filter(t => t.status !== 'deleted');
@@ -1847,7 +1809,7 @@ window.renderAtpTab = async (subjectId) => {
 function renderAtpList(templates, semester) {
     const filtered = templates.filter(t => t.semester == semester).sort((a, b) => (a.order || 0) - (b.order || 0));
     if (filtered.length === 0) return `<p class="text-[10px] text-slate-400 italic text-center py-10">Belum ada materi di semester ini.</p>`;
-    
+
     return filtered.map((t, idx) => `
         <div class="p-4 bg-white border border-slate-100 rounded-2xl flex items-center gap-4 shadow-sm">
             <span class="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-500 text-[10px] font-black rounded-lg">${t.order || (idx + 1)}</span>
@@ -1864,7 +1826,7 @@ function renderAtpList(templates, semester) {
 
 window.renderKkmTab = async (subjectId) => {
     const content = document.getElementById('workspace-tab-content');
-    
+
     try {
         const subject = await AssessmentService.getSubjectDetails(subjectId);
         const kkm = subject?.minPassingGrade || 75;
@@ -1896,7 +1858,7 @@ window.renderKkmTab = async (subjectId) => {
 
 window.renderCpTab = async (subjectId) => {
     const content = document.getElementById('workspace-tab-content');
-    
+
     try {
         const subject = await AssessmentService.getSubjectDetails(subjectId);
         const cp = subject?.cpText || "Belum ada dokumen Capaian Pembelajaran untuk mata pelajaran ini. Silakan hubungi admin kurikulum.";
@@ -1961,7 +1923,7 @@ window.saveTP = async () => {
         const data = {
             subjectId: state.nhState.currentSubjectId,
             academicYear: getActiveTahun(),
-            semester: 1, 
+            semester: 1,
             tpId, title, cognitiveLevel, tpDesc
         };
 
@@ -1972,7 +1934,7 @@ window.saveTP = async () => {
         }
 
         toggleModal('tp-modal', false);
-        await window.renderWorkspace(); 
+        await window.renderWorkspace();
         showCustomAlert("Tujuan Pembelajaran berhasil disimpan.");
     } catch (e) {
         showCustomAlert("Gagal menyimpan TP: " + e.message, true);
@@ -1983,13 +1945,13 @@ window.saveTP = async () => {
 window.hapusTP = async (id) => {
     const role = state.currentUser?.role;
     const isOwner = role === 'OWNER';
-    
-    const msg = isOwner 
-        ? "Anda adalah OWNER. Hapus permanen materi ini?" 
+
+    const msg = isOwner
+        ? "Anda adalah OWNER. Hapus permanen materi ini?"
         : "Arsip materi ini? Materi tidak akan muncul lagi di daftar aktif namun histori nilai tetap aman.";
 
     if (!confirm(msg)) return;
-    
+
     showLoading("Memproses...");
     try {
         if (isOwner) {
@@ -2044,15 +2006,15 @@ function renderKurikulumContent(tab) {
 window.konfirmasiTambahMapel = async () => {
     const nama = document.getElementById('input-mapel-baru')?.value.trim();
     if (!nama) return showCustomAlert("Nama mapel tidak boleh kosong!", true);
-    
+
     if (state.subjectsList.includes(nama)) return showCustomAlert("Mapel sudah ada!", true);
-    
+
     showLoading("Menambahkan Mapel...");
     state.subjectsList.push(nama);
-    
+
     // Tambahkan mapel ke seluruh siswa (optional, bisa lewat autoFix nantinya)
     // Untuk saat ini biarkan sync yang handle atau user fix manual
-    
+
     toggleModal('tambah-mapel-modal', false);
     document.getElementById('input-mapel-baru').value = '';
     renderKurikulumContent('mapel');
@@ -2084,7 +2046,7 @@ window.renderDashboard = () => {
 
     if (!isAdmin) {
         const managedClasses = user?.managedClasses || [];
-        
+
         // If teacher has no assigned classes, show informative empty state
         if (managedClasses.length === 0) {
             const tableBody = document.getElementById('student-table-body');
@@ -2181,7 +2143,7 @@ window.renderLeaderboard = async () => {
         }
 
         // 4. AGGREGATE PER STUDENT
-        const studentStats = {}; 
+        const studentStats = {};
         const kkm = 75;
 
         assessments.forEach(a => {
@@ -2201,7 +2163,7 @@ window.renderLeaderboard = async () => {
         });
 
         // 5. PREPARE FINAL LISTS
-        const students = state.studentsData; 
+        const students = state.studentsData;
         const finalData = Object.entries(studentStats).map(([id, stats]) => {
             const st = students.find(s => s.docId === id);
             return {
@@ -2302,7 +2264,7 @@ window.openStudentEditor = async (docId) => {
     if (!st) return;
 
     // Save previous tab so back button knows where to return
-    const sections = ['dashboard', 'leaderboard', 'tugas', 'nilai-harian', 'kurikulum', 'users', 'viewer'];
+    const sections = ['dashboard', 'leaderboard', 'tugas', 'nilai-harian', 'kurikulum', 'users', 'viewer', 'ujian-semester'];
     for (const sec of sections) {
         const el = document.getElementById(`${sec}-section`);
         if (el && !el.classList.contains('hidden')) {
@@ -2312,7 +2274,7 @@ window.openStudentEditor = async (docId) => {
     }
 
     state.currentStudentId = docId;
-    
+
     // Reset filters to ALL when opening a new student
     const semEl = document.getElementById('bi-filter-semester');
     const bulEl = document.getElementById('bi-filter-bulan');
@@ -2341,11 +2303,11 @@ window.refreshBukuInduk = async () => {
     await autoFixStudentData(st, state.subjectsList);
 
     showLoading("Mengkalkulasi Rekap...");
-    
+
     try {
         const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
         const calculatedKelas = calculateCurrentKelas(st.base_kelas || st.kelas, st.base_tahun || '2025/2026', currentTahun);
-        
+
         // Get filter values
         const selectedSemester = document.getElementById('bi-filter-semester')?.value || 'ALL';
         const selectedBulan = document.getElementById('bi-filter-bulan')?.value || 'ALL';
@@ -2389,17 +2351,17 @@ window.refreshBukuInduk = async () => {
 
         studentAssessments.forEach(a => {
             const sid = a.subjectId;
-            
+
             // Double check isolation in memory (extra safety)
             if (isRestricted && !managed.includes(sid)) return;
 
             if (!mapelStats[sid]) {
                 mapelStats[sid] = { totalScore: 0, totalWeight: 0, actCount: 0 };
             }
-            
+
             const w = a.assessmentWeight || 100;
             const score = a.scores[docId];
-            
+
             mapelStats[sid].totalScore += (score * w);
             mapelStats[sid].totalWeight += w;
             mapelStats[sid].actCount++;
@@ -2423,8 +2385,8 @@ window.refreshBukuInduk = async () => {
             mapelListContainer.innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Tidak ada data untuk periode ini.</p></div>`;
         } else {
             for (const [sid, stats] of Object.entries(mapelStats)) {
-                const subjectName = sid.replace('SUBJ_', '').replace('_', ' '); 
-                const kkm = 75; 
+                const subjectName = sid.replace('SUBJ_', '').replace('_', ' ');
+                const kkm = 75;
                 const avg = stats.totalWeight > 0 ? Math.round(stats.totalScore / stats.totalWeight) : 0;
                 const isPassing = avg >= kkm;
                 if (!isPassing) redMapelCount++;
@@ -2442,7 +2404,7 @@ window.refreshBukuInduk = async () => {
                                 <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Tgs: ${subData.score_tugas || 0}</span>
                                 <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">UH: ${subData.score_uh || 0}</span>
                                 <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">PAS: ${subData.score_pas || 0}</span>
-                                <span class="bg-indigo-100 px-1.5 py-0.5 rounded text-indigo-600">Akhir: ${subData.score_pat || 0}</span>
+                                <span class="bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-700 font-black">Akhir: ${subData.score_pas || subData.score_pat || 0}</span>
                             </div>
                             ${missingInThisSub > 0 ? `<p class="text-[9px] font-black text-rose-500 mt-1.5 flex items-center gap-1"><span>⚠️</span> ${missingInThisSub} Tugas Kosong</p>` : ''}
                         </div>
@@ -2459,7 +2421,7 @@ window.refreshBukuInduk = async () => {
         const statusBadge = document.getElementById('buku-induk-status');
         const heroCard = document.getElementById('buku-induk-hero');
         redMapelEl.innerText = redMapelCount;
-        
+
         if (redMapelCount > 2) {
             statusBadge.innerText = "KRITIS";
             statusBadge.className = "text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-rose-500 text-white shadow-sm shadow-rose-200";
@@ -2511,7 +2473,7 @@ window.refreshBukuInduk = async () => {
                 `);
             });
         }
-        
+
         window.applyTimelineFilter(ROLES.GURU);
     } catch (e) {
         console.error("Gagal refresh Buku Induk:", e);
@@ -2534,7 +2496,7 @@ window.konfirmasiEdit = async () => {
     const nama = document.getElementById('edit-nama-input').value;
     const kelas = document.getElementById('edit-kelas-input').value;
     if (!nama || !kelas) return showCustomAlert("Lengkapi data!", true);
-    
+
     showLoading("Menyimpan...");
     try {
         await updateStudentBasicInfo(state.currentStudentId, { nama, kelas });
@@ -2556,7 +2518,7 @@ window.hapusSiswa = (docId) => {
 
 window.konfirmasiHapus = async () => {
     showLoading("Menghapus...");
-    try { await deleteStudent(state.currentStudentId); toggleModal('delete-modal', false); } 
+    try { await deleteStudent(state.currentStudentId); toggleModal('delete-modal', false); }
     catch (err) { showCustomAlert("Gagal.", true); }
     hideLoading();
 };
@@ -2630,7 +2592,7 @@ window.tambahTransaksiPoin = () => {
 window.handleFileUpload = (e) => {
     showLoading("Mengimpor...");
     handleCsvUpload(e.target.files[0], getActiveTahun(), state.subjectsList)
-        .then(({newCount, updateCount}) => showCustomAlert(`Berhasil! ${newCount} baru, ${updateCount} update.`))
+        .then(({ newCount, updateCount }) => showCustomAlert(`Berhasil! ${newCount} baru, ${updateCount} update.`))
         .finally(() => { hideLoading(); e.target.value = ''; });
 };
 
@@ -2673,7 +2635,7 @@ const initApp = async () => {
     try {
         console.log("System: Rendering fragments...");
         await renderAppFragments();
-        
+
         console.log("System: Fragments ready. Starting Auth...");
         const tahunSelect = document.getElementById('filter-tahun');
         if (tahunSelect) {
@@ -2685,10 +2647,277 @@ const initApp = async () => {
         }
         registerStudentTableEvents();
         startAuthListener(); // <--- SEKARANG DIA SABAR MENUNGGU
-        
+
     } catch (err) {
         console.error('Init Error:', err);
     }
 };
 
 initApp();
+
+// ===========================================
+// UJIAN SEMESTER MODULE (PAS / PAT)
+// ===========================================
+
+window.initUjianSemester = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const profile = await getUserProfile(user.uid);
+    const role = profile?.role || 'GURU';
+    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
+
+    // Load Mapel
+    const subSnap = await getDocs(collection(db, "subjects"));
+    const subjectsToShow = subSnap.docs.map(d => d.id);
+
+    const selectMapel = document.getElementById('us-select-mapel');
+    if (selectMapel) {
+        selectMapel.innerHTML = '<option value="">Pilih Mapel...</option>';
+        subjectsToShow.forEach(sid => {
+            const label = sid.replace('SUBJ_', '').replace('_', ' ');
+            selectMapel.insertAdjacentHTML('beforeend', `<option value="${sid}">${label}</option>`);
+        });
+    }
+
+    // Load Kelas (reuse same logic as NH)
+    const selectKelas = document.getElementById('us-select-kelas');
+    if (selectKelas) {
+        let classesHTML = '<option value="">Pilih Kelas...</option>';
+        if (isAdmin) {
+            ["7A", "7B", "8", "9"].forEach(c => {
+                classesHTML += `<option value="${c}">Kelas ${c}</option>`;
+            });
+        } else {
+            const managedClasses = profile?.managedClasses || [];
+            if (managedClasses.length === 0) {
+                classesHTML += `<option value="" disabled>-- Anda tidak memiliki kelas --</option>`;
+            } else {
+                managedClasses.forEach(c => {
+                    classesHTML += `<option value="${c}">Kelas ${c}</option>`;
+                });
+            }
+        }
+        selectKelas.innerHTML = classesHTML;
+    }
+
+    // Reset workspace
+    document.getElementById('us-workspace')?.classList.add('hidden');
+    document.getElementById('us-empty-state')?.classList.remove('hidden');
+};
+
+// State for ujian semester
+state.usState = {
+    currentAssessmentId: null,
+    students: [],
+    tempScores: {}
+};
+
+window.onUsFilterChange = async () => {
+    const subjectId = document.getElementById('us-select-mapel')?.value;
+    const rawClassId = document.getElementById('us-select-kelas')?.value;
+    const jenis = document.getElementById('us-select-jenis')?.value; // 'pas' or 'pat'
+    const workspace = document.getElementById('us-workspace');
+    const emptyState = document.getElementById('us-empty-state');
+
+    if (!subjectId || !rawClassId) {
+        workspace?.classList.add('hidden');
+        emptyState?.classList.remove('hidden');
+        return;
+    }
+
+    const yearParts = getActiveTahun().split('/');
+    const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+    const academicYear = getActiveTahun();
+    const semester = jenis === 'pas' ? 1 : 2;
+    const jenisLabel = jenis === 'pas' ? 'PAS (Penilaian Akhir Semester)' : 'PAT (Penilaian Akhir Tahun)';
+    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+
+    showLoading("Memuat data ujian...");
+
+    try {
+        // 1. Load students in this class
+        const students = await AssessmentService.getStudentsInClass(classId);
+        state.usState.students = students;
+
+        // 2. Check if an assessment for this PAS/PAT already exists
+        const assessmentsRef = collection(db, "assessments");
+        const q = query(
+            assessmentsRef,
+            where("subjectId", "==", subjectId),
+            where("classId", "==", classId),
+            where("academicYear", "==", academicYear),
+            where("assessmentType", "==", jenis)
+        );
+        const snap = await getDocs(q);
+
+        let existingAssessment = null;
+        if (!snap.empty) {
+            existingAssessment = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        }
+
+        state.usState.currentAssessmentId = existingAssessment?.id || null;
+        state.usState.tempScores = existingAssessment?.scores || {};
+
+        // 3. Update UI
+        document.getElementById('us-grid-title').innerText = `${subjectName} — ${jenisLabel}`;
+        document.getElementById('us-grid-subtitle').innerText = `Kelas ${rawClassId} • Tahun ${academicYear} • Semester ${semester}`;
+
+        const statusBadge = document.getElementById('us-status-badge');
+        if (existingAssessment) {
+            const isPub = existingAssessment.status === 'published';
+            statusBadge.innerText = isPub ? 'PUBLISHED' : 'DRAFT';
+            statusBadge.className = `text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isPub ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`;
+        } else {
+            statusBadge.innerText = 'BARU';
+            statusBadge.className = 'text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-blue-50 text-blue-600';
+        }
+
+        // 4. Render student score grid
+        const grid = document.getElementById('us-score-grid');
+        grid.innerHTML = '';
+
+        if (students.length === 0) {
+            grid.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm font-bold">Tidak ada siswa di kelas ini.</div>';
+        } else {
+            students.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+            students.forEach((st, idx) => {
+                const score = state.usState.tempScores[st.id] || '';
+                grid.insertAdjacentHTML('beforeend', `
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-all group">
+                        <span class="w-8 text-right text-[10px] font-black text-slate-400">${idx + 1}</span>
+                        <div class="flex-grow">
+                            <p class="text-sm font-bold text-slate-900">${formatNama(st.nama)}</p>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase">${st.id}</p>
+                        </div>
+                        <input type="number" min="0" max="100" value="${score}"
+                            data-student-id="${st.id}"
+                            onchange="window.onUsScoreChange(this)"
+                            class="w-20 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm font-black focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                            placeholder="0">
+                    </div>
+                `);
+            });
+        }
+
+        emptyState?.classList.add('hidden');
+        workspace?.classList.remove('hidden');
+    } catch (e) {
+        console.error("US Filter Error:", e);
+        showCustomAlert("Gagal memuat data: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.onUsScoreChange = (input) => {
+    const studentId = input.dataset.studentId;
+    const val = parseInt(input.value) || 0;
+    state.usState.tempScores[studentId] = Math.min(100, Math.max(0, val));
+};
+
+window.usSaveDraft = async () => {
+    const subjectId = document.getElementById('us-select-mapel')?.value;
+    const rawClassId = document.getElementById('us-select-kelas')?.value;
+    const jenis = document.getElementById('us-select-jenis')?.value;
+
+    if (!subjectId || !rawClassId) return showCustomAlert("Pilih mapel dan kelas!", true);
+
+    const yearParts = getActiveTahun().split('/');
+    const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+    const academicYear = getActiveTahun();
+    const semester = jenis === 'pas' ? 1 : 2;
+    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+
+    showLoading("Menyimpan Draft...");
+    try {
+        const assessmentData = {
+            assessmentName: `${jenis.toUpperCase()} - ${subjectName}`,
+            assessmentType: jenis,
+            assessmentDate: new Date().toISOString().split('T')[0],
+            assessmentWeight: 100,
+            classId: classId,
+            subjectId: subjectId,
+            academicYear: academicYear,
+            semester: semester,
+            scores: state.usState.tempScores,
+            notes: {},
+            teacherReflection: `Nilai ${jenis.toUpperCase()} ${subjectName}`
+        };
+
+        const savedId = await AssessmentService.saveAssessment(
+            state.usState.currentAssessmentId,
+            assessmentData,
+            false, // not publish
+            0
+        );
+
+        state.usState.currentAssessmentId = savedId;
+
+        // Update status badge
+        const statusBadge = document.getElementById('us-status-badge');
+        statusBadge.innerText = 'DRAFT';
+        statusBadge.className = 'text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-amber-50 text-amber-600';
+
+        showCustomAlert("Draft berhasil disimpan! ✅");
+    } catch (e) {
+        showCustomAlert("Gagal menyimpan: " + e.message, true);
+    }
+    hideLoading();
+};
+
+window.usPublish = async () => {
+    const subjectId = document.getElementById('us-select-mapel')?.value;
+    const rawClassId = document.getElementById('us-select-kelas')?.value;
+    const jenis = document.getElementById('us-select-jenis')?.value;
+
+    if (!subjectId || !rawClassId) return showCustomAlert("Pilih mapel dan kelas!", true);
+
+    // Check all students have scores
+    const totalStudents = state.usState.students.length;
+    const filledScores = Object.values(state.usState.tempScores).filter(s => s > 0).length;
+    if (filledScores < totalStudents) {
+        return showCustomAlert(`Masih ada ${totalStudents - filledScores} siswa yang belum memiliki nilai. Lengkapi semua nilai sebelum publish.`, true);
+    }
+
+    const yearParts = getActiveTahun().split('/');
+    const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
+    const academicYear = getActiveTahun();
+    const semester = jenis === 'pas' ? 1 : 2;
+    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+
+    showLoading("Mempublish Nilai...");
+    try {
+        const assessmentData = {
+            assessmentName: `${jenis.toUpperCase()} - ${subjectName}`,
+            assessmentType: jenis,
+            assessmentDate: new Date().toISOString().split('T')[0],
+            assessmentWeight: 100,
+            classId: classId,
+            subjectId: subjectId,
+            academicYear: academicYear,
+            semester: semester,
+            scores: state.usState.tempScores,
+            notes: {},
+            teacherReflection: `Nilai ${jenis.toUpperCase()} ${subjectName} - Kelas ${rawClassId}`
+        };
+
+        const savedId = await AssessmentService.saveAssessment(
+            state.usState.currentAssessmentId,
+            assessmentData,
+            true, // publish
+            totalStudents
+        );
+
+        state.usState.currentAssessmentId = savedId;
+
+        // Update status badge
+        const statusBadge = document.getElementById('us-status-badge');
+        statusBadge.innerText = 'PUBLISHED';
+        statusBadge.className = 'text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-emerald-50 text-emerald-600';
+
+        showCustomAlert("Nilai berhasil dipublish! 🎉 Nilai sudah masuk ke profil siswa.");
+    } catch (e) {
+        showCustomAlert("Gagal publish: " + e.message, true);
+    }
+    hideLoading();
+};

@@ -23,6 +23,9 @@
                 <button id="btn-leaderboard" onclick="switchTab('leaderboard')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>🏆</span> Peringkat
                 </button>
+                <button id="btn-ujian-semester" onclick="switchTab('ujian-semester')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
+                    <span>🎓</span> Ujian Semester
+                </button>
                 <button id="btn-kurikulum" onclick="switchTab('kurikulum')" class="sidebar-item w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all">
                     <span>⚙️</span> Administrasi Kurikulum
                 </button>
@@ -568,6 +571,77 @@
                     <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-3xl mb-4">📝</div>
                     <h3 class="text-lg font-bold text-slate-900">Siap Menilai?</h3>
                     <p class="text-slate-400 text-sm max-w-xs">Silakan pilih Mata Pelajaran dan Kelas di atas untuk memulainya.</p>
+                </div>
+            </section>
+
+            <!-- UJIAN SEMESTER SECTION (PAS / PAT) -->
+            <section id="ujian-semester-section" class="hidden animate-fade-in space-y-6">
+                <!-- HEADER -->
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Ujian Semester</h2>
+                    <p class="text-slate-400 text-sm font-medium mt-0.5">Input nilai PAS (Semester 1) dan PAT (Semester 2) per mata pelajaran.</p>
+                </div>
+
+                <!-- FILTERS -->
+                <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Mata Pelajaran</label>
+                            <select id="us-select-mapel" onchange="window.onUsFilterChange()" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih Mapel...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Kelas</label>
+                            <select id="us-select-kelas" onchange="window.onUsFilterChange()" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="">Pilih Kelas...</option>
+                                <option value="7A">Kelas 7A</option>
+                                <option value="7B">Kelas 7B</option>
+                                <option value="8">Kelas 8</option>
+                                <option value="9">Kelas 9</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">Jenis Ujian</label>
+                            <select id="us-select-jenis" onchange="window.onUsFilterChange()" class="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500">
+                                <option value="pas">PAS (Penilaian Akhir Semester)</option>
+                                <option value="pat">PAT (Penilaian Akhir Tahun)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- EMPTY STATE -->
+                <div id="us-empty-state" class="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
+                    <p class="text-4xl mb-4">🎓</p>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Pilih Mapel & Kelas</h3>
+                    <p class="text-slate-400 text-sm max-w-xs text-center">Pilih mata pelajaran dan kelas untuk mulai input nilai PAS/PAT.</p>
+                </div>
+
+                <!-- SCORE GRID -->
+                <div id="us-workspace" class="hidden space-y-4">
+                    <div class="glass-card p-6 bg-white border border-slate-100 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 id="us-grid-title" class="font-black text-slate-900 uppercase tracking-widest text-sm">Input Nilai</h3>
+                                <p id="us-grid-subtitle" class="text-[10px] font-bold text-slate-400 mt-0.5"></p>
+                            </div>
+                            <div id="us-status-badge" class="text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest bg-slate-100 text-slate-500">BELUM ADA</div>
+                        </div>
+                        <div id="us-score-grid" class="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                            <!-- Student rows generated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="flex items-center justify-end gap-3">
+                        <button onclick="window.usSaveDraft()" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
+                            💾 Simpan Draft
+                        </button>
+                        <button onclick="window.usPublish()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                            🚀 Publish Nilai
+                        </button>
+                    </div>
                 </div>
             </section>
 
