@@ -55,16 +55,10 @@ export const autoFixStudentData = async (st, subjectsList) => {
     return false;
 };
 
-export const streamStudents = (callback, classFilter = null) => {
+export const streamStudents = (callback) => {
     let q = collection(db, 'students');
     
-    // SECURITY PATCH: If classFilter is provided, use it to avoid PERMISSION_DENIED
-    if (classFilter && Array.isArray(classFilter) && classFilter.length > 0) {
-        console.log(`[Firestore] Querying with Filter (IN):`, classFilter);
-        q = query(q, where("kelas", "in", classFilter));
-    } else {
-        console.log(`[Firestore] Querying ALL students (No Filter)`);
-    }
+    console.log(`[Firestore] Querying ALL students (Client will filter based on Role & Year progression)`);
 
     return onSnapshot(q, (snapshot) => {
         console.log(`[Firestore] Received ${snapshot.size} students.`);

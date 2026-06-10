@@ -233,7 +233,7 @@ function setupUIForRole(profile) {
         const managedClasses = profile.managedClasses || [];
         console.log(`[UAT] Initializing Sync for ${role}. Restricted=${isRestricted}, Classes:`, managedClasses);
 
-        initRealtimeSync(ROLES.GURU, null, isRestricted ? managedClasses : null);
+        initRealtimeSync(ROLES.GURU, null);
     } else if (role === ROLES.ORANG_TUA) {
         document.getElementById('nav-guru')?.classList.add('hidden');
         document.getElementById('nav-ortu')?.classList.remove('hidden');
@@ -271,8 +271,8 @@ function setupUIForRole(profile) {
 }
 
 // --- REALTIME SYNC ---
-function initRealtimeSync(role, childId = null, classFilter = null) {
-    console.log("AUTH_STEP_4: Starting Realtime Sync...", { role, classFilter });
+function initRealtimeSync(role, childId = null) {
+    console.log("AUTH_STEP_4: Starting Realtime Sync...", { role });
     if (state.unsubscribeStudents) state.unsubscribeStudents();
     if (state.unsubscribeAssignments) state.unsubscribeAssignments();
 
