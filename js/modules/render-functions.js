@@ -196,7 +196,14 @@ export const loadParentDashboard = (st, assignmentsData, ortuTahun) => {
 
         if (st.subjects && Array.isArray(st.subjects)) {
             st.subjects.forEach(sub => {
-                const scores = [sub.score_harian || 0, sub.score_uh || 0, sub.score_pts || 0, sub.score_pas || 0];
+                const scores = [
+                    sub.score_harian || 0, 
+                    sub.score_tugas || 0, 
+                    sub.score_uh || 0, 
+                    sub.score_pts || 0, 
+                    sub.score_pas || 0,
+                    sub.score_pat || 0
+                ];
                 scores.forEach(s => {
                     if (s > 0) {
                         totalScore += s;
@@ -204,7 +211,7 @@ export const loadParentDashboard = (st, assignmentsData, ortuTahun) => {
                     }
                 });
                 if (sub.name.toLowerCase().includes('wafa') || sub.name.toLowerCase().includes('tahfidz')) {
-                    wafaScore = sub.score_harian || sub.score_uh || sub.score_pts || sub.score_pas || 0;
+                    wafaScore = sub.score_harian || sub.score_tugas || sub.score_uh || sub.score_pts || sub.score_pas || sub.score_pat || 0;
                 }
             });
         }
@@ -235,15 +242,16 @@ export const loadParentDashboard = (st, assignmentsData, ortuTahun) => {
             if (st.subjects && Array.isArray(st.subjects) && st.subjects.length > 0) {
                 st.subjects.forEach(sub => {
                     tbody.insertAdjacentHTML('beforeend', `
-                        <tr class="hover:bg-purple-50/30 transition-colors">
+                        <tr class="hover:bg-indigo-50/30 transition-colors">
                             <td class="px-4 py-4">
                                 <p class="font-extrabold text-gray-800">${sub.name || '-'}</p>
                                 <p class="text-[9px] font-bold text-gray-400 mt-1">${sub.last_updated_date ? 'Diperbarui: ' + sub.last_updated_date : 'Belum dinilai'}</p>
                             </td>
-                            <td class="px-3 py-4 text-center font-black text-sm text-purple-600 bg-purple-50/20">${sub.score_harian || 0}</td>
-                            <td class="px-3 py-4 text-center font-black text-sm text-purple-600 bg-purple-50/40">${sub.score_uh || 0}</td>
-                            <td class="px-3 py-4 text-center font-black text-sm text-purple-600 bg-purple-50/60">${sub.score_pts || 0}</td>
-                            <td class="px-3 py-4 text-center font-black text-sm text-purple-600 bg-purple-50/80">${sub.score_pas || 0}</td>
+                            <td class="px-3 py-4 text-center font-black text-sm text-indigo-600 bg-indigo-50/20">${sub.score_harian || 0}</td>
+                            <td class="px-3 py-4 text-center font-black text-sm text-indigo-600 bg-indigo-50/40">${sub.score_tugas || 0}</td>
+                            <td class="px-3 py-4 text-center font-black text-sm text-indigo-600 bg-indigo-50/60">${sub.score_uh || 0}</td>
+                            <td class="px-3 py-4 text-center font-black text-sm text-indigo-600 bg-indigo-50/80">${sub.score_pas || 0}</td>
+                            <td class="px-3 py-4 text-center font-black text-sm text-indigo-600 bg-indigo-100/80">${sub.score_pat || 0}</td>
                             <td class="px-4 py-4 text-gray-600 font-medium text-xs">${sub.note || '<span class="text-gray-300 italic">Tidak ada catatan</span>'}</td>
                         </tr>
                     `);

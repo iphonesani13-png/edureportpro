@@ -1,6 +1,6 @@
 import { auth, provider, db } from "./firebase-config.js";
 import { signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 /**
  * Access Matrix V2 - Auth Engine & Role Definitions
@@ -13,6 +13,29 @@ export const ROLES = {
     KEPALA_SEKOLAH: 'KEPALA_SEKOLAH',
     GURU: 'GURU',
     ORANG_TUA: 'ORANG_TUA'
+};
+
+/**
+ * Audit Trail V1: Mencatat perubahan sistemik
+ */
+export const addAuditLog = async (actionType, targetUid, targetEmail, before, after) => {
+    try {
+        const actor = auth.currentUser;
+        if (!actor) return; // Prevent logging if not logged in
+
+        await addDoc(collection(db, "system_logs"), {
+            actionType,
+            targetUid,
+            targetEmail,
+            actorUid: actor.uid,
+            actorEmail: actor.email,
+            before,
+            after,
+            timestamp: serverTimestamp()
+        });
+    } catch (e) {
+        console.error("Failed to create audit log:", e);
+    }
 };
 
 export const loginWithGoogle = async (role) => {
@@ -28,19 +51,26 @@ export const logout = async () => {
  * Mendapatkan profil user lengkap dengan role dan status
  */
 export const getUserProfile = async (uid) => {
-    const userDocRef = doc(db, 'users', uid);
-    const userDoc = await getDoc(userDocRef);
-    if (userDoc.exists()) {
-        const data = userDoc.data();
-        let normalizedRole = (data.role || '').toUpperCase();
-        if (normalizedRole === 'ORANGTUA') normalizedRole = 'ORANG_TUA'; // Map legacy format
+    console.log("AUTH_STEP_PROFILE_START", uid);
+    try {
+        const userDocRef = doc(db, 'users', uid);
+        const userDoc = await getDoc(userDocRef);
+        console.log("AUTH_STEP_PROFILE_FETCHED", userDoc.exists());
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            let normalizedRole = (data.role || '').toUpperCase();
+            if (normalizedRole === 'ORANGTUA') normalizedRole = 'ORANG_TUA'; // Map legacy format
 
-        return {
-            ...data,
-            role: normalizedRole
-        };
+            return {
+                ...data,
+                role: normalizedRole
+            };
+        }
+        return null;
+    } catch (e) {
+        console.error("AUTH_STEP_PROFILE_EXCEPTION", e.code, e.message);
+        throw e; // Rethrow to let caller handle
     }
-    return null;
 };
 
 /**

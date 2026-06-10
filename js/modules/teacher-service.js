@@ -54,7 +54,7 @@ export const handleCsvUpload = async (file, currentTahun, subjectsList) => {
                     poin: 0,
                     point_history: [],
                     subjects: subjectsList.map(name => ({ 
-                        name: name, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, 
+                        name: name, score_harian: 0, score_tugas: 0, score_uh: 0, score_pts: 0, score_pas: 0, score_pat: 0, 
                         note: '', last_updated_date: '' 
                     }))
                 };

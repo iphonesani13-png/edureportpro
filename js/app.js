@@ -16,7 +16,7 @@ import {
 } from "./modules/ui-manager.js";
 
 import { 
-    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser, ROLES 
+    loginWithGoogle, logout as firebaseLogout, getUserProfile, saveUserProfile, checkAuthorizedEmail, registerPendingUser, ROLES, addAuditLog 
 } from "./modules/auth-service.js";
 
 import { 
@@ -72,12 +72,14 @@ let state = {
 const startAuthListener = () => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            console.log("AUTH_STEP_1: User Authenticated", user.email);
             showLoading("Menyiapkan Sesi...");
             try {
                 let intentRole = (localStorage.getItem('login_intent_role') || '').toUpperCase();
                 if (intentRole === 'ORANGTUA') intentRole = ROLES.ORANG_TUA; // Map legacy cached intent
 
                 let profile = await getUserProfile(user.uid);
+                console.log("AUTH_STEP_2: Profile Resolved", profile?.role);
 
                 // 1. FIRST TIME LOGIN (REGISTRATION)
                 if (!profile) {
@@ -94,16 +96,28 @@ const startAuthListener = () => {
                         // Teachers/Admins: Check database authorization
                         const authCheck = await checkAuthorizedEmail(user.email);
                         if (authCheck.authorized) {
-                            // Pre-approved in authorized_users collection
-                            profile = { 
-                                uid: user.uid, 
-                                email: user.email, 
-                                name: user.displayName, 
-                                role: authCheck.role || 'GURU', 
-                                status: 'active',
-                                managedSubjects: authCheck.managedSubjects || []
-                            };
-                            await saveUserProfile(user.uid, profile);
+                            // PRE-APPROVED FLOW
+                            const existingProfile = await getUserProfile(user.uid);
+                            
+                            if (!existingProfile) {
+                                // Create new profile (allowed by 'create' rule)
+                                profile = { 
+                                    uid: user.uid, 
+                                    email: user.email, 
+                                    name: user.displayName, 
+                                    role: authCheck.role || 'GURU', 
+                                    status: 'active',
+                                    managedSubjects: authCheck.managedSubjects || [],
+                                    managedClasses: authCheck.managedClasses || []
+                                };
+                                await saveUserProfile(user.uid, profile);
+                            } else {
+                                // Profile exists: Only update safe metadata to avoid PERMISSION_DENIED
+                                await saveUserProfile(user.uid, { 
+                                    name: user.displayName 
+                                });
+                                profile = existingProfile; // Use DB data for state
+                            }
                         } else {
                             // Not pre-approved: Register as PENDING
                             profile = await registerPendingUser(user.uid, { 
@@ -146,9 +160,10 @@ const startAuthListener = () => {
                 */
 
                 state.currentUser = profile;
-                setupUIForRole(profile.role, profile.childId);
+                console.log("AUTH_STEP_3: Setting up UI...");
+                setupUIForRole(profile);
             } catch (err) {
-                console.error("Auth Error:", err);
+                console.error("AUTH_STEP_CRITICAL_EXCEPTION:", err);
                 hideLoading();
                 showLoginScreen();
             }
@@ -180,7 +195,8 @@ function showLoginScreen() {
     document.getElementById('main-app')?.classList.add('hidden');
 }
 
-function setupUIForRole(role, childId) {
+function setupUIForRole(profile) {
+    const { role, childId } = profile;
     state.currentRole = role;
     hideLoading();
     document.getElementById('login-screen')?.classList.add('hidden');
@@ -188,7 +204,7 @@ function setupUIForRole(role, childId) {
     document.getElementById('main-app')?.classList.remove('hidden');
 
     const badge = document.getElementById('user-role-badge');
-    const roleLabel = role.replace('_', ' ');
+    const roleLabel = (role || '').replace('_', ' ');
     if (badge) badge.innerText = roleLabel;
 
     // --- SIDEBAR VISIBILITY (ACCESS MATRIX V2) ---
@@ -204,7 +220,13 @@ function setupUIForRole(role, childId) {
         document.getElementById('btn-kurikulum')?.classList.remove('hidden');
         
         window.switchTab('dashboard');
-        initRealtimeSync(ROLES.GURU);
+        
+        // SECURITY PATCH: Only staff with restricted roles (GURU) get filtered student lists
+        const isRestricted = !['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
+        const managedClasses = profile.managedClasses || [];
+        console.log(`[UAT] Initializing Sync for ${role}. Restricted=${isRestricted}, Classes:`, managedClasses);
+        
+        initRealtimeSync(ROLES.GURU, null, isRestricted ? managedClasses : null);
     } else if (role === ROLES.ORANG_TUA) {
         document.getElementById('nav-guru')?.classList.add('hidden');
         document.getElementById('nav-ortu')?.classList.remove('hidden');
@@ -240,7 +262,8 @@ function setupUIForRole(role, childId) {
 }
 
 // --- REALTIME SYNC ---
-function initRealtimeSync(role, childId = null) {
+function initRealtimeSync(role, childId = null, classFilter = null) {
+    console.log("AUTH_STEP_4: Starting Realtime Sync...", { role, classFilter });
     if (state.unsubscribeStudents) state.unsubscribeStudents();
     if (state.unsubscribeAssignments) state.unsubscribeAssignments();
 
@@ -260,7 +283,7 @@ function initRealtimeSync(role, childId = null) {
                     if (title) window.refreshTableProgress(title);
                 }
             }
-        });
+        }, classFilter); // Apply filter here
 
         state.unsubscribeAssignments = streamAssignments((data) => {
             state.assignmentsData = data;
@@ -477,7 +500,10 @@ window.promptAddClass = async (uid) => {
         const user = userDoc.data();
         const managed = user?.managedClasses || [];
         if (!managed.includes(cleanName)) {
+            const before = [...managed];
             managed.push(cleanName);
+            // AUDIT LOG: CLASS_ACCESS_CHANGE
+            await addAuditLog('CLASS_ACCESS_CHANGE', uid, user.email, before, managed);
             await saveUserProfile(uid, { managedClasses: managed });
             window.renderUsers();
         }
@@ -489,13 +515,17 @@ window.removeUserClass = async (uid, className) => {
     try {
         const userDoc = await getDoc(doc(db, "users", uid));
         const user = userDoc.data();
-        const managed = (user?.managedClasses || []).filter(c => c !== className);
+        const before = user?.managedClasses || [];
+        const managed = before.filter(c => c !== className);
+        // AUDIT LOG: CLASS_ACCESS_CHANGE
+        await addAuditLog('CLASS_ACCESS_CHANGE', uid, user.email, before, managed);
         await saveUserProfile(uid, { managedClasses: managed });
         window.renderUsers();
     } catch (e) { console.error(e); }
 };
 
 window.updateUserRole = async (uid, newRole) => {
+    showLoading("Memperbarui Role...");
     try {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
@@ -524,8 +554,8 @@ window.updateUserRole = async (uid, newRole) => {
             
             if (hasPermissions) {
                 if (!confirm("Perubahan role akan menghapus seluruh akses kelas dan mata pelajaran yang dimiliki user ini. Lanjutkan?")) {
-                    // Revert select UI if user cancels
                     window.renderUsers(); 
+                    hideLoading();
                     return;
                 }
             }
@@ -533,6 +563,9 @@ window.updateUserRole = async (uid, newRole) => {
             updates.managedSubjects = [];
             updates.managedClasses = [];
         }
+
+        // AUDIT LOG: ROLE_CHANGE
+        await addAuditLog('ROLE_CHANGE', uid, currentUserData.email, oldRole, formattedNewRole);
 
         // Note: We use saveUserProfile which merges. 
         // By explicitly sending [], we overwrite the existing arrays.
@@ -544,9 +577,11 @@ window.updateUserRole = async (uid, newRole) => {
         showCustomAlert(e.message, true); 
         window.renderUsers(); // Reset UI on error
     }
+    hideLoading();
 };
 
 window.setUserStatus = async (uid, status) => {
+    showLoading("Memperbarui Status...");
     try {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
@@ -559,14 +594,19 @@ window.setUserStatus = async (uid, status) => {
         if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat mengubah status Anda sendiri.");
         if (oldRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat memblokir OWNER lain.");
 
+        // AUDIT LOG: USER_STATUS_CHANGE
+        await addAuditLog('USER_STATUS_CHANGE', uid, currentUserData.email, currentUserData.status || 'active', status);
+
         await saveUserProfile(uid, { status });
         showCustomAlert(`Status user diubah menjadi ${status.toUpperCase()}.`);
         window.renderUsers();
     } catch (e) { showCustomAlert(e.message, true); }
+    hideLoading();
 };
 
 window.deleteUser = async (uid) => {
     if (!confirm("Hapus pengguna ini secara permanen?")) return;
+    showLoading("Menghapus User...");
     try {
         const userDocRef = doc(db, "users", uid);
         const userDoc = await getDoc(userDocRef);
@@ -591,6 +631,7 @@ window.deleteUser = async (uid) => {
     } catch (e) {
         showCustomAlert(e.message, true);
     }
+    hideLoading();
 };
 
 window.promptAddSubject = async (uid) => {
@@ -606,7 +647,10 @@ window.promptAddSubject = async (uid) => {
         const user = userDoc.data();
         const managed = user?.managedSubjects || [];
         if (!managed.includes(sid)) {
+            const before = [...managed];
             managed.push(sid);
+            // AUDIT LOG: SUBJECT_ACCESS_CHANGE
+            await addAuditLog('SUBJECT_ACCESS_CHANGE', uid, user.email, before, managed);
             await saveUserProfile(uid, { managedSubjects: managed });
             window.renderUsers();
         }
@@ -618,7 +662,10 @@ window.removeUserSubject = async (uid, sid) => {
     try {
         const userDoc = await getDoc(doc(db, "users", uid));
         const user = userDoc.data();
-        const managed = (user?.managedSubjects || []).filter(s => s !== sid);
+        const before = user?.managedSubjects || [];
+        const managed = before.filter(s => s !== sid);
+        // AUDIT LOG: SUBJECT_ACCESS_CHANGE
+        await addAuditLog('SUBJECT_ACCESS_CHANGE', uid, user.email, before, managed);
         await saveUserProfile(uid, { managedSubjects: managed });
         window.renderUsers();
     } catch (e) { console.error(e); }
@@ -668,17 +715,10 @@ window.initNilaiHarian = async () => {
     // 1. Determine which subjects this user can see
     const profile = await getUserProfile(user.uid);
     const role = profile?.role || 'GURU';
-    const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM'].includes(role);
     
-    let subjectsToShow = [];
-    if (isAdmin) {
-        // Admins/Kurikulum see everything
-        const subSnap = await getDocs(collection(db, "subjects"));
-        subjectsToShow = subSnap.docs.map(d => d.id);
-    } else {
-        // Teachers only see their managed subjects
-        subjectsToShow = profile?.managedSubjects || [];
-    }
+    // NEW POLICY: ALL Staff can SEE all subjects in dropdown
+    const subSnap = await getDocs(collection(db, "subjects"));
+    let subjectsToShow = subSnap.docs.map(d => d.id);
 
     const selectMapel = document.getElementById('nh-select-mapel');
     if (selectMapel) {
@@ -702,13 +742,26 @@ window.initNilaiHarian = async () => {
     // Load Kelas
     const selectKelas = document.getElementById('nh-select-kelas');
     if (selectKelas) {
-        selectKelas.innerHTML = `
-            <option value="">Pilih Kelas...</option>
-            <option value="7A">Kelas 7A</option>
-            <option value="7B">Kelas 7B</option>
-            <option value="8">Kelas 8</option>
-            <option value="9">Kelas 9</option>
-        `;
+        let classesHTML = '<option value="">Pilih Kelas...</option>';
+        
+        if (isAdmin) {
+            // Admin sees all standard classes
+            const allClasses = ["7A", "7B", "8", "9"];
+            allClasses.forEach(c => {
+                classesHTML += `<option value="${c}">Kelas ${c}</option>`;
+            });
+        } else {
+            // Guru ONLY sees their managed classes
+            const managedClasses = profile?.managedClasses || [];
+            if (managedClasses.length === 0) {
+                classesHTML += `<option value="" disabled>-- Anda tidak memiliki kelas --</option>`;
+            } else {
+                managedClasses.forEach(c => {
+                    classesHTML += `<option value="${c}">Kelas ${c}</option>`;
+                });
+            }
+        }
+        selectKelas.innerHTML = classesHTML;
     }
     };
 
@@ -2016,11 +2069,14 @@ window.hapusMapel = (nama) => {
 window.renderDashboard = () => {
     const currentTahun = document.getElementById('filter-tahun')?.value || getActiveTahun();
     const filterKelas = document.getElementById('filter-kelas')?.value || 'ALL';
-    const query = document.getElementById('filter-siswa-query')?.value?.toLowerCase() || '';
+    const queryStr = document.getElementById('filter-siswa-query')?.value?.toLowerCase() || '';
 
     const user = state.currentUser;
     const role = user?.role || 'GURU';
     const isAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
+
+    console.log(`[UAT] Rendering Dashboard: Role=${role}, Year=${currentTahun}, Filter=${filterKelas}`);
+    console.log(`[UAT] Students in State: ${state.studentsData.length}`);
 
     // ACCESS MATRIX V2: Filter students based on role
     let baseStudents = state.studentsData;
@@ -2064,11 +2120,11 @@ window.renderDashboard = () => {
     })).filter(st => st.calculatedKelas !== 'Lulus' && st.calculatedKelas !== 'Belum Masuk');
 
     if (filterKelas !== 'ALL') filtered = filtered.filter(st => st.calculatedKelas === filterKelas);
-    if (query) filtered = filtered.filter(st => (st.docId || '').toLowerCase().includes(query) || (st.nama || '').toLowerCase().includes(query));
+    if (queryStr) filtered = filtered.filter(st => (st.docId || '').toLowerCase().includes(queryStr) || (st.nama || '').toLowerCase().includes(queryStr));
 
     filtered.sort((a, b) => (a.nama || "").localeCompare(b.nama || ""));
     updateDashboardSummary(filtered);
-    renderDashboardTable(filtered, query, currentTahun);
+    renderDashboardTable(filtered, queryStr, currentTahun);
 };
 
 window.renderLeaderboard = async () => {
@@ -2089,34 +2145,13 @@ window.renderLeaderboard = async () => {
     showLoading("Mengkalkulasi Peringkat...");
 
     try {
-        // 1. DATA LOCKDOWN: Build Secure Query
-        let q;
+        // 1. DATA LOCKDOWN (OPEN READ): All staff can see published grades
         const assessmentsRef = collection(db, "assessments");
-
-        if (isAdmin) {
-            // ADMIN MODE: Full Global Query
-            q = query(
-                assessmentsRef,
-                where("academicYear", "==", currentTahun),
-                where("status", "==", "published")
-            );
-        } else {
-            // GURU MODE: Strict Isolation by Managed Subjects
-            // Note: If teacher has > 30 subjects, this will need chunking (standard K-12 is < 10)
-            if (managedSubjects.length === 0) {
-                hideLoading();
-                listUnggulan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">Anda belum memiliki akses mata pelajaran.</p>';
-                listBimbingan.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-10">-</p>';
-                return;
-            }
-
-            q = query(
-                assessmentsRef,
-                where("academicYear", "==", currentTahun),
-                where("status", "==", "published"),
-                where("subjectId", "in", managedSubjects)
-            );
-        }
+        const q = query(
+            assessmentsRef,
+            where("academicYear", "==", currentTahun),
+            where("status", "==", "published")
+        );
 
         const snap = await getDocs(q);
         let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2281,6 +2316,10 @@ window.refreshBukuInduk = async () => {
     const st = state.studentsData.find(s => s.docId === docId);
     if (!st) return;
 
+    const role = state.currentUser?.role || 'GURU';
+    const isRestricted = !['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
+    const managed = state.currentUser?.managedSubjects || [];
+
     showLoading("Mengkalkulasi Rekap...");
     
     try {
@@ -2297,38 +2336,13 @@ window.refreshBukuInduk = async () => {
         document.getElementById('editor-badge-kelas').innerText = `KELAS ${calculatedKelas}`;
         document.getElementById('guru-view-poin').innerText = st.poin || 0;
 
-        // 2. DATA LOCKDOWN: Fetch only relevant assessments
-        const role = state.currentUser?.role || ROLES.GURU;
-        const managed = state.currentUser?.managedSubjects || [];
-        const isRestricted = role === ROLES.GURU;
-        
-        let q;
+        // 2. DATA LOCKDOWN (OPEN READ): All staff can see published results
         const assessmentsRef = collection(db, "assessments");
-
-        if (!isRestricted || ['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role)) {
-            // Full access
-            q = query(
-                assessmentsRef,
-                where("academicYear", "==", currentTahun),
-                where("status", "==", "published")
-            );
-        } else {
-            // Restricted access
-            if (managed.length === 0) {
-                // Render empty and return
-                document.getElementById('buku-induk-mapel-list').innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Anda belum memiliki akses ke mata pelajaran.</p></div>`;
-                document.getElementById('buku-induk-missing-tasks').innerHTML = '';
-                document.getElementById('buku-induk-teacher-notes').innerHTML = '';
-                hideLoading();
-                return;
-            }
-            q = query(
-                assessmentsRef,
-                where("academicYear", "==", currentTahun),
-                where("status", "==", "published"),
-                where("subjectId", "in", managed)
-            );
-        }
+        const q = query(
+            assessmentsRef,
+            where("academicYear", "==", currentTahun),
+            where("status", "==", "published")
+        );
 
         const snap = await getDocs(q);
         let assessments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2396,13 +2410,21 @@ window.refreshBukuInduk = async () => {
                 if (!isPassing) redMapelCount++;
 
                 const missingInThisSub = missingTasks.filter(m => m.subjectId === sid).length;
+                const subData = (st.subjects || []).find(s => s.name === subjectName) || {};
 
                 mapelListContainer.insertAdjacentHTML('beforeend', `
                     <div class="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex justify-between items-center transition-all hover:border-indigo-200">
                         <div>
                             <h4 class="font-black text-slate-900 text-sm uppercase tracking-tight">${subjectName}</h4>
                             <p class="text-[9px] font-bold text-slate-400 mt-1">KKM: ${kkm} • ${stats.actCount} Aktivitas</p>
-                            ${missingInThisSub > 0 ? `<p class="text-[9px] font-black text-rose-500 mt-1 flex items-center gap-1"><span>⚠️</span> ${missingInThisSub} Tugas Kosong</p>` : ''}
+                            <div class="flex gap-1.5 flex-wrap mt-2 text-[8px] font-black text-slate-500 uppercase tracking-wider">
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Har: ${subData.score_harian || 0}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">Tgs: ${subData.score_tugas || 0}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">UH: ${subData.score_uh || 0}</span>
+                                <span class="bg-indigo-50/50 px-1.5 py-0.5 rounded">PAS: ${subData.score_pas || 0}</span>
+                                <span class="bg-indigo-100 px-1.5 py-0.5 rounded text-indigo-600">Akhir: ${subData.score_pat || 0}</span>
+                            </div>
+                            ${missingInThisSub > 0 ? `<p class="text-[9px] font-black text-rose-500 mt-1.5 flex items-center gap-1"><span>⚠️</span> ${missingInThisSub} Tugas Kosong</p>` : ''}
                         </div>
                         <div class="text-right">
                             <span class="text-2xl font-black ${isPassing ? 'text-slate-900' : 'text-rose-600'}">${avg}</span>

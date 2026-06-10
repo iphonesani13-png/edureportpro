@@ -110,6 +110,11 @@ export const saveAssessment = async (assessmentId, assessmentData, isPublish = f
         baseData.publishedBy = teacherId;
     }
 
+    let finalSubjectId = assessmentData.subjectId;
+    let finalClassId = assessmentData.classId;
+    let finalAcademicYear = assessmentData.academicYear;
+    let finalStatus = isPublish ? "published" : null;
+
     if (!assessmentId) {
         // CREATE NEW (Auto-ID)
         const docRef = await addDoc(collection(db, "assessments"), {
@@ -120,6 +125,10 @@ export const saveAssessment = async (assessmentId, assessmentData, isPublish = f
             isRemedial: false,
             originalAssessmentId: null
         });
+        
+        if (isPublish) {
+            await syncStudentGradesAfterPublish(finalSubjectId, finalClassId, finalAcademicYear);
+        }
         return docRef.id;
     } else {
         // UPDATE EXISTING
@@ -135,8 +144,18 @@ export const saveAssessment = async (assessmentId, assessmentData, isPublish = f
                     throw new Error("Dokumen sudah dipublish dan terkunci.");
                 }
             }
+            
+            finalSubjectId = existing.subjectId;
+            finalClassId = existing.classId;
+            finalAcademicYear = existing.academicYear;
+            finalStatus = isPublish ? "published" : existing.status;
+            
             transaction.update(docRef, baseData);
         });
+        
+        if (finalStatus === "published") {
+            await syncStudentGradesAfterPublish(finalSubjectId, finalClassId, finalAcademicYear);
+        }
         return assessmentId;
     }
 };
@@ -225,4 +244,91 @@ export const updateSubjectConfig = async (subjectId, config, teacherId) => {
         updatedBy: teacherId,
         updatedAt: serverTimestamp()
     });
+};
+
+/**
+ * Melakukan sinkronisasi nilai kategori ke koleksi students setelah publish
+ */
+export const syncStudentGradesAfterPublish = async (subjectId, classId, academicYear) => {
+    try {
+        console.log(`[Sync] Starting grade sync for subjectId=${subjectId}, classId=${classId}, academicYear=${academicYear}`);
+        
+        // 1. Dapatkan detail mapel untuk mencocokkan nama
+        const subjectDoc = await getDoc(doc(db, "subjects", subjectId));
+        if (!subjectDoc.exists()) {
+            console.error(`[Sync] Subject doc not found: ${subjectId}`);
+            return;
+        }
+        const subjectName = subjectDoc.data().name;
+
+        // 2. Dapatkan seluruh published assessments untuk filter ini
+        const q = query(
+            collection(db, "assessments"),
+            where("subjectId", "==", subjectId),
+            where("classId", "==", classId),
+            where("academicYear", "==", academicYear),
+            where("status", "==", "published")
+        );
+        const snap = await getDocs(q);
+        const assessments = snap.docs.map(d => d.data());
+
+        // 3. Dapatkan daftar siswa dalam kelas
+        const students = await getStudentsInClass(classId);
+        if (students.length === 0) return;
+
+        // 4. Kalkulasi nilai rata-rata per kategori untuk setiap siswa
+        for (const student of students) {
+            const accum = {
+                harian: { sum: 0, count: 0 },
+                tugas: { sum: 0, count: 0 },
+                uh: { sum: 0, count: 0 },
+                pts: { sum: 0, count: 0 },
+                pas: { sum: 0, count: 0 },
+                pat: { sum: 0, count: 0 }
+            };
+
+            assessments.forEach(a => {
+                const score = a.scores ? a.scores[student.id] : null;
+                if (score !== undefined && score !== null) {
+                    // Normalisasi jenis asesmen
+                    let type = (a.assessmentType || '').toLowerCase();
+                    if (type === 'kuis' || type === 'uh') type = 'uh';
+                    else if (type === 'praktikum' || type === 'harian') type = 'harian';
+                    else if (type === 'tugas') type = 'tugas';
+                    else if (type === 'pas') type = 'pas';
+                    else if (type === 'pat') type = 'pat';
+                    
+                    if (accum[type]) {
+                        accum[type].sum += Number(score);
+                        accum[type].count++;
+                    }
+                }
+            });
+
+            // Update subjek dalam array subjects siswa
+            const updatedSubjects = (student.subjects || []).map(sub => {
+                if (sub.name === subjectName) {
+                    return {
+                        ...sub,
+                        score_harian: accum.harian.count > 0 ? Math.round(accum.harian.sum / accum.harian.count) : 0,
+                        score_tugas: accum.tugas.count > 0 ? Math.round(accum.tugas.sum / accum.tugas.count) : 0,
+                        score_uh: accum.uh.count > 0 ? Math.round(accum.uh.sum / accum.uh.count) : 0,
+                        score_pts: accum.pts.count > 0 ? Math.round(accum.pts.sum / accum.pts.count) : 0,
+                        score_pas: accum.pas.count > 0 ? Math.round(accum.pas.sum / accum.pas.count) : 0,
+                        score_pat: accum.pat.count > 0 ? Math.round(accum.pat.sum / accum.pat.count) : 0,
+                        last_updated_date: new Date().toLocaleDateString('id-ID'),
+                        note: sub.note || ''
+                    };
+                }
+                return sub;
+            });
+
+            // Simpan perubahan ke Firestore
+            const studentRef = doc(db, "students", student.id);
+            await updateDoc(studentRef, { subjects: updatedSubjects });
+        }
+        console.log(`[Sync] Grade sync completed successfully for ${students.length} students.`);
+    } catch (e) {
+        console.error("[Sync] Error in syncStudentGradesAfterPublish:", e);
+    }
 };

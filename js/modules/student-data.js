@@ -1,6 +1,6 @@
 import { db, auth } from "./firebase-config.js";
 import { 
-    doc, getDoc, setDoc, collection, onSnapshot 
+    doc, getDoc, setDoc, collection, onSnapshot, query, where 
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 export const getStudentByNis = async (nis) => {
@@ -27,7 +27,7 @@ export const autoFixStudentData = async (st, subjectsList) => {
 
     if (!data.subjects || !Array.isArray(data.subjects)) {
         data.subjects = subjectsList.map(name => ({ 
-            name: name, score_harian: 0, score_uh: 0, score_pts: 0, score_pas: 0, 
+            name: name, score_harian: 0, score_tugas: 0, score_uh: 0, score_pts: 0, score_pas: 0, score_pat: 0, 
             note: '', last_updated_date: '' 
         }));
         needsUpdate = true;
@@ -39,9 +39,11 @@ export const autoFixStudentData = async (st, subjectsList) => {
                 needsUpdate = true;
             }
             if (sub.score_harian === undefined) { sub.score_harian = 0; needsUpdate = true; }
+            if (sub.score_tugas === undefined) { sub.score_tugas = 0; needsUpdate = true; }
             if (sub.score_uh === undefined) { sub.score_uh = 0; needsUpdate = true; }
             if (sub.score_pts === undefined) { sub.score_pts = 0; needsUpdate = true; }
             if (sub.score_pas === undefined) { sub.score_pas = 0; needsUpdate = true; }
+            if (sub.score_pat === undefined) { sub.score_pat = 0; needsUpdate = true; }
             if (sub.last_updated_date === undefined) { sub.last_updated_date = ''; needsUpdate = true; }
         });
     }
@@ -53,11 +55,23 @@ export const autoFixStudentData = async (st, subjectsList) => {
     return false;
 };
 
-export const streamStudents = (callback) => {
-    const studentsCol = collection(db, 'students');
-    return onSnapshot(studentsCol, (snapshot) => {
+export const streamStudents = (callback, classFilter = null) => {
+    let q = collection(db, 'students');
+    
+    // SECURITY PATCH: If classFilter is provided, use it to avoid PERMISSION_DENIED
+    if (classFilter && Array.isArray(classFilter) && classFilter.length > 0) {
+        console.log(`[Firestore] Querying with Filter (IN):`, classFilter);
+        q = query(q, where("kelas", "in", classFilter));
+    } else {
+        console.log(`[Firestore] Querying ALL students (No Filter)`);
+    }
+
+    return onSnapshot(q, (snapshot) => {
+        console.log(`[Firestore] Received ${snapshot.size} students.`);
         const data = snapshot.docs.map(d => ({ docId: d.id, ...d.data() }));
         callback(data);
+    }, (error) => {
+        console.error("🔥 STREAM_STUDENTS_ERROR:", error.code, error.message);
     });
 };
 
@@ -66,6 +80,8 @@ export const streamAssignments = (callback) => {
     return onSnapshot(assignCol, (snapshot) => {
         const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         callback(data);
+    }, (error) => {
+        console.error("🔥 STREAM_ASSIGNMENTS_ERROR:", error.code, error.message);
     });
 };
 
