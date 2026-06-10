@@ -450,17 +450,15 @@ function renderUserRow(u) {
                 </span>
             </td>
             <td class="py-4 px-6">
-                <div class="space-y-3">
+                <div class="space-y-3 relative">
                     <!-- Managed Subjects -->
                     <div class="flex flex-wrap gap-1 max-w-[200px]">
                         <span class="text-[7px] font-black text-slate-300 uppercase block w-full mb-1">Mata Pelajaran:</span>
                         ${subjects.length ? subjects.map(s => `
                             <span class="bg-indigo-50 text-indigo-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
                                 ${s.replace('SUBJ_', '')}
-                                <button onclick="window.removeUserSubject('${u.uid}', '${s}')" class="hover:text-rose-500" ${disableActions ? 'disabled' : ''}>×</button>
                             </span>
                         `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
-                        <button onclick="window.promptAddSubject('${u.uid}')" class="text-indigo-600 text-[9px] font-black hover:underline ml-1" ${disableActions ? 'disabled' : ''}>+ Tambah</button>
                     </div>
                     <!-- Managed Classes -->
                     <div class="flex flex-wrap gap-1 max-w-[200px]">
@@ -468,11 +466,12 @@ function renderUserRow(u) {
                         ${classes.length ? classes.map(c => `
                             <span class="bg-emerald-50 text-emerald-600 text-[8px] font-black px-2 py-0.5 rounded uppercase flex items-center gap-1">
                                 ${c}
-                                <button onclick="window.removeUserClass('${u.uid}', '${c}')" class="hover:text-rose-500" ${disableActions ? 'disabled' : ''}>×</button>
                             </span>
                         `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
-                        <button onclick="window.promptAddClass('${u.uid}')" class="text-emerald-600 text-[9px] font-black hover:underline ml-1" ${disableActions ? 'disabled' : ''}>+ Tambah</button>
                     </div>
+                    <button onclick="window.openAksesModal('${u.uid}', '${u.name || 'User Baru'}', '${encodeURIComponent(JSON.stringify(classes))}', '${encodeURIComponent(JSON.stringify(subjects))}')" class="mt-2 text-indigo-600 text-[10px] font-black bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1" ${disableActions ? 'disabled' : ''}>
+                        ⚙️ Atur Akses
+                    </button>
                 </div>
             </td>
             <td class="py-4 px-6 text-center">
@@ -499,39 +498,96 @@ function renderUserRow(u) {
     `;
 }
 
-window.promptAddClass = async (uid) => {
-    const name = prompt("Ketik Nama Kelas (Cth: 7A, 7B, 8, 9):");
-    if (!name) return;
-    const cleanName = name.trim().toUpperCase();
-    if (!['7A', '7B', '8', '9'].includes(cleanName)) return showCustomAlert("Nama kelas tidak valid!", true);
-
+window.openAksesModal = (uid, userName, classesJson, subjectsJson) => {
+    document.getElementById('akses-modal-uid').value = uid;
+    document.getElementById('akses-modal-subtitle').innerText = `Mengatur akses untuk: ${userName}`;
+    
+    let currentClasses = [];
+    let currentSubjects = [];
     try {
-        const userDoc = await getDoc(doc(db, "users", uid));
-        const user = userDoc.data();
-        const managed = user?.managedClasses || [];
-        if (!managed.includes(cleanName)) {
-            const before = [...managed];
-            managed.push(cleanName);
-            // AUDIT LOG: CLASS_ACCESS_CHANGE
-            await addAuditLog('CLASS_ACCESS_CHANGE', uid, user.email, before, managed);
-            await saveUserProfile(uid, { managedClasses: managed });
-            window.renderUsers();
-        }
-    } catch (e) { console.error(e); }
+        currentClasses = JSON.parse(decodeURIComponent(classesJson));
+        currentSubjects = JSON.parse(decodeURIComponent(subjectsJson));
+    } catch(e) {}
+
+    // Render Classes
+    const classContainer = document.getElementById('akses-modal-kelas-container');
+    const allClasses = ['7A', '7B', '8', '9']; // Default standard classes
+    
+    // Allow custom classes if they exist in the user's current array but not in default
+    currentClasses.forEach(c => {
+        if (!allClasses.includes(c)) allClasses.push(c);
+    });
+
+    classContainer.innerHTML = allClasses.map(c => `
+        <label class="flex items-center space-x-3 p-3 bg-slate-50 hover:bg-emerald-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-emerald-100">
+            <input type="checkbox" value="${c}" class="akses-kelas-checkbox w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500" ${currentClasses.includes(c) ? 'checked' : ''}>
+            <span class="text-sm font-bold text-slate-700 uppercase">${c}</span>
+        </label>
+    `).join('');
+
+    // Render Subjects
+    const mapelContainer = document.getElementById('akses-modal-mapel-container');
+    const allSubjects = state.subjectsList || [];
+    
+    mapelContainer.innerHTML = allSubjects.map(s => {
+        const cleanName = s.replace('SUBJ_', '');
+        // For backwards compatibility, the subject ID used in managedSubjects is usually SUBJ_ + NAME
+        const expectedId = s.startsWith('SUBJ_') ? s : 'SUBJ_' + s.toUpperCase().replace(/\\s+/g, '_');
+        const isChecked = currentSubjects.includes(expectedId) || currentSubjects.includes(s);
+
+        return `
+            <label class="flex items-center space-x-3 p-3 bg-slate-50 hover:bg-indigo-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-indigo-100">
+                <input type="checkbox" value="${expectedId}" class="akses-mapel-checkbox w-5 h-5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500" ${isChecked ? 'checked' : ''}>
+                <span class="text-sm font-bold text-slate-700 uppercase">${cleanName}</span>
+            </label>
+        `;
+    }).join('');
+
+    toggleModal('atur-akses-modal', true);
 };
 
-window.removeUserClass = async (uid, className) => {
-    if (!confirm("Hapus akses kelas ini?")) return;
+window.saveAksesUser = async () => {
+    const uid = document.getElementById('akses-modal-uid').value;
+    if (!uid) return;
+
+    // Get checked classes
+    const classCheckboxes = document.querySelectorAll('.akses-kelas-checkbox:checked');
+    const newClasses = Array.from(classCheckboxes).map(cb => cb.value);
+
+    // Get checked subjects
+    const mapelCheckboxes = document.querySelectorAll('.akses-mapel-checkbox:checked');
+    const newSubjects = Array.from(mapelCheckboxes).map(cb => cb.value);
+
+    showLoading("Menyimpan Akses...");
     try {
         const userDoc = await getDoc(doc(db, "users", uid));
         const user = userDoc.data();
-        const before = user?.managedClasses || [];
-        const managed = before.filter(c => c !== className);
-        // AUDIT LOG: CLASS_ACCESS_CHANGE
-        await addAuditLog('CLASS_ACCESS_CHANGE', uid, user.email, before, managed);
-        await saveUserProfile(uid, { managedClasses: managed });
+        
+        const oldClasses = user?.managedClasses || [];
+        const oldSubjects = user?.managedSubjects || [];
+
+        // Save to Firestore
+        await saveUserProfile(uid, { 
+            managedClasses: newClasses,
+            managedSubjects: newSubjects
+        });
+
+        // Audit Logs (only if changed)
+        if (JSON.stringify(oldClasses.sort()) !== JSON.stringify(newClasses.sort())) {
+            await addAuditLog('CLASS_ACCESS_CHANGE', uid, user.email, oldClasses, newClasses);
+        }
+        if (JSON.stringify(oldSubjects.sort()) !== JSON.stringify(newSubjects.sort())) {
+            await addAuditLog('SUBJECT_ACCESS_CHANGE', uid, user.email, oldSubjects, newSubjects);
+        }
+
+        toggleModal('atur-akses-modal', false);
         window.renderUsers();
-    } catch (e) { console.error(e); }
+        showCustomAlert("Hak Akses berhasil diperbarui!");
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal menyimpan akses: " + e.message, true);
+    }
+    hideLoading();
 };
 
 window.updateUserRole = async (uid, newRole) => {
@@ -644,42 +700,6 @@ window.deleteUser = async (uid) => {
     hideLoading();
 };
 
-window.promptAddSubject = async (uid) => {
-    const list = state.subjectsList.join(", ");
-    const name = prompt("Ketik Nama Mapel persis (Cth: IPA, Matematika, dkk):\n\nOpsi: " + list);
-    if (!name) return;
-
-    const sid = "SUBJ_" + name.trim().toUpperCase().replace(/\s+/g, '_');
-    if (!state.subjectsList.includes(name.trim())) return showCustomAlert("Mapel tidak terdaftar di Katalog!", true);
-
-    try {
-        const userDoc = await getDoc(doc(db, "users", uid));
-        const user = userDoc.data();
-        const managed = user?.managedSubjects || [];
-        if (!managed.includes(sid)) {
-            const before = [...managed];
-            managed.push(sid);
-            // AUDIT LOG: SUBJECT_ACCESS_CHANGE
-            await addAuditLog('SUBJECT_ACCESS_CHANGE', uid, user.email, before, managed);
-            await saveUserProfile(uid, { managedSubjects: managed });
-            window.renderUsers();
-        }
-    } catch (e) { console.error(e); }
-};
-
-window.removeUserSubject = async (uid, sid) => {
-    if (!confirm("Hapus akses mapel ini?")) return;
-    try {
-        const userDoc = await getDoc(doc(db, "users", uid));
-        const user = userDoc.data();
-        const before = user?.managedSubjects || [];
-        const managed = before.filter(s => s !== sid);
-        // AUDIT LOG: SUBJECT_ACCESS_CHANGE
-        await addAuditLog('SUBJECT_ACCESS_CHANGE', uid, user.email, before, managed);
-        await saveUserProfile(uid, { managedSubjects: managed });
-        window.renderUsers();
-    } catch (e) { console.error(e); }
-};
 
 // --- NILAI HARIAN ORCHESTRATION ---
 window.tambahMapelCepat = async () => {
