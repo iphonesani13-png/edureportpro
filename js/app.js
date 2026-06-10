@@ -2320,6 +2320,9 @@ window.refreshBukuInduk = async () => {
     const isRestricted = !['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
     const managed = state.currentUser?.managedSubjects || [];
 
+    // Auto-fix student schema anomalies on the fly (adds missing subjects/fields)
+    await autoFixStudentData(st, state.subjectsList);
+
     showLoading("Mengkalkulasi Rekap...");
     
     try {

@@ -17,37 +17,55 @@ service cloud.firestore {
     function userRole() {
       return userData().get('role', '');
     }
+
+    function userStatus() {
+      return userData().get('status', '');
+    }
     
-    function isOwner() { return isSignedIn() && userRole() == 'OWNER'; }
-    function isSuperAdmin() { return isSignedIn() && userRole() == 'SUPER_ADMIN'; }
-    function isKurikulum() { return isSignedIn() && userRole() == 'KURIKULUM'; }
-    function isKepsek() { return isSignedIn() && userRole() == 'KEPALA_SEKOLAH'; }
-    function isGuru() { return isSignedIn() && userRole() == 'GURU'; }
+    function isOwner() { 
+      return isSignedIn() && userRole() == 'OWNER' && userStatus() == 'active'; 
+    }
+    function isSuperAdmin() { 
+      return isSignedIn() && userRole() == 'SUPER_ADMIN' && userStatus() == 'active'; 
+    }
+    function isKurikulum() { 
+      return isSignedIn() && userRole() == 'KURIKULUM' && userStatus() == 'active'; 
+    }
+    function isKepsek() { 
+      return isSignedIn() && userRole() == 'KEPALA_SEKOLAH' && userStatus() == 'active'; 
+    }
+    function isGuru() { 
+      return isSignedIn() && userRole() == 'GURU' && userStatus() == 'active'; 
+    }
     
     function isAdmin() { 
       let role = userRole();
-      return isSignedIn() && (role == 'OWNER' || role == 'SUPER_ADMIN'); 
+      let status = userStatus();
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN'); 
     }
 
     function isStaff() { 
       let role = userRole();
-      return isSignedIn() && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || role == 'GURU'); 
+      let status = userStatus();
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || role == 'GURU'); 
     }
     
     // Guru hanya bisa akses jika subjectId ada di daftar pengampu
     function managesSubject(subjectId) {
       let data = userData();
       let role = data.get('role', '');
-      return role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || 
-             (role == 'GURU' && subjectId in data.get('managedSubjects', []));
+      let status = data.get('status', '');
+      return status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || 
+             (role == 'GURU' && subjectId in data.get('managedSubjects', [])));
     }
     
     // Guru hanya bisa akses jika kelas siswa ada di daftar kelas yang diajar
     function managesClass(className) {
       let data = userData();
       let role = data.get('role', '');
-      return role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || 
-             (role == 'GURU' && className in data.get('managedClasses', []));
+      let status = data.get('status', '');
+      return status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || 
+             (role == 'GURU' && className in data.get('managedClasses', [])));
     }
 
     // --- 📂 COLLECTION RULES ---
@@ -55,7 +73,9 @@ service cloud.firestore {
     // 1. USERS COLLECTION
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.get('status', '') == 'pending';
+      allow create: if isSignedIn() && 
+                    request.resource.data.get('status', '') == 'pending' &&
+                    (request.resource.data.get('role', '') == 'GURU' || request.resource.data.get('role', '') == 'ORANG_TUA');
       allow update: if 
         // Self-update safe fields
         (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']))
@@ -128,6 +148,18 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAdmin(); // Log created by admin action
       allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // 10. PARENT INVITES
+    match /parent_invites/{inviteId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isStaff();
+      allow update: if isSignedIn() && 
+                    resource.data.get('status', '') == 'pending' && 
+                    request.resource.data.get('status', '') == 'used' && 
+                    request.resource.data.get('usedBy', '') == request.auth.uid;
+      allow delete: if isAdmin();
     }
   }
 }
