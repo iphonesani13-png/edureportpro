@@ -77,7 +77,8 @@
                     <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                         <div class="relative flex-grow md:flex-grow-0">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-xs">🔍</span>
-                            <input id="filter-siswa-query" type="text" oninput="renderDashboard()" placeholder="Cari NIS / Nama..." class="w-full md:w-64 pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <input id="filter-siswa-query" type="text" oninput="renderDashboard(); document.getElementById('clear-search-btn').classList.toggle('hidden', this.value === '')" placeholder="Cari NIS / Nama..." class="w-full md:w-64 pl-9 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                            <button id="clear-search-btn" onclick="document.getElementById('filter-siswa-query').value=''; renderDashboard(); this.classList.add('hidden')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500 hidden cursor-pointer font-black text-[10px] bg-slate-100 hover:bg-rose-100 w-5 h-5 rounded-full flex items-center justify-center transition-colors">✕</button>
                         </div>
                         <select id="filter-kelas" onchange="renderDashboard()" class="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold appearance-none cursor-pointer focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="ALL">Semua Kelas</option>
