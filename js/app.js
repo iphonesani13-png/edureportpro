@@ -292,7 +292,7 @@ function initRealtimeSync(role, childId = null) {
                     if (title) window.refreshTableProgress(title);
                 }
             }
-        }, classFilter); // Apply filter here
+        });
 
         state.unsubscribeAssignments = streamAssignments((data) => {
             state.assignmentsData = data;
