@@ -84,7 +84,6 @@ export const renderDashboardTable = (students, query, currentTahun) => {
                 </td>
                 <td class="px-6 py-5 font-bold text-gray-700">${safeNama}</td>
                 <td class="px-6 py-5 text-center"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-black text-xs">${safeKelas}</span></td>
-                <td class="px-6 py-5 text-center"><span class="${badgeClass} px-3 py-1 rounded-full font-black text-xs">${displayPoin}</span></td>
                 <td class="px-6 py-5">
                     <div class="flex justify-end gap-2 relative z-50" data-row-action-block>
                         <button type="button" data-student-action="profile" data-student-id="${safeDocId}" class="student-row-action text-purple-600 font-bold text-sm bg-purple-50 px-4 py-2 rounded-xl transition-opacity hover:bg-purple-100 cursor-pointer shadow-sm relative z-50">Buka Profil &rarr;</button>
