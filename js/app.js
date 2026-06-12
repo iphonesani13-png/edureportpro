@@ -5,7 +5,7 @@
 
 import { auth, db } from "./modules/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { doc, setDoc, collection, query, where, getDocs, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { doc, setDoc, collection, query, where, getDocs, getDoc, deleteDoc, runTransaction, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 import {
     parseDate, formatNama, escapeHtml, calculateCurrentKelas, getActiveTahun
@@ -604,6 +604,7 @@ window.updateUserRole = async (uid, newRole) => {
         // LAYER 2: SELF-PROTECTION
         if (uid === state.currentUser.uid) throw new Error("Anda tidak dapat mengubah role Anda sendiri.");
         if (oldRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat mengubah role OWNER lain.");
+        if (formattedNewRole === 'OWNER' && state.currentUser.role !== 'OWNER') throw new Error("Hanya OWNER yang dapat memberikan role OWNER.");
 
         if (oldRole === 'OWNER' && formattedNewRole !== 'OWNER') {
             const ownerQuery = query(collection(db, "users"), where("role", "==", "OWNER"));
@@ -774,6 +775,7 @@ window.initNilaiHarian = async () => {
     if (selectKelas) {
         let classesHTML = '<option value="">Pilih Kelas...</option>';
 
+        const isAdmin = ['OWNER', 'SUPER_ADMIN'].includes(role);
         if (isAdmin) {
             // Admin sees all standard classes
             const allClasses = ["7A", "7B", "8", "9"];
@@ -2738,21 +2740,84 @@ window.handleFileUpload = (e) => {
         .finally(() => { hideLoading(); e.target.value = ''; });
 };
 
-window.verifyAndLinkStudent = async () => {
-    const nis = document.getElementById('ortu-input-nis')?.value.trim();
-    if (!nis) return showCustomAlert("Masukkan NIS!", true);
-    showLoading("Mencari...");
+window.generateParentInvite = async () => {
+    const studentId = state.currentStudentId;
+    if (!studentId) return showCustomAlert("Siswa belum dipilih!", true);
+    
+    showLoading("Membuat Kode Aktivasi...");
     try {
-        const snap = await getStudentByNis(nis);
-        if (snap.exists()) {
-            await linkChildToParent(auth.currentUser.uid, nis);
-            setupUIForRole(ROLES.ORANG_TUA, nis);
-        } else {
-            showCustomAlert("NIS tidak ditemukan.", true);
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 16; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
         }
+        
+        const inviteRef = doc(db, 'parent_invites', code);
+        await setDoc(inviteRef, {
+            studentId: studentId,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            createdBy: auth.currentUser.uid
+        });
+        
+        document.getElementById('generated-invite-code').innerText = code;
+        toggleModal('generate-invite-modal', true);
+    } catch (e) {
+        console.error("Error generating invite:", e);
+        showCustomAlert("Gagal membuat kode aktivasi.", true);
+    }
+    hideLoading();
+};
+
+window.copyInviteCode = () => {
+    const code = document.getElementById('generated-invite-code').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        showCustomAlert("Kode berhasil disalin!");
+    });
+};
+
+window.closeInviteModal = () => {
+    toggleModal('generate-invite-modal', false);
+};
+
+window.verifyAndLinkStudent = async () => {
+    const code = document.getElementById('ortu-input-invite-code')?.value.trim().toUpperCase();
+    if (!code) return showCustomAlert("Masukkan Kode Aktivasi!", true);
+    
+    showLoading("Memverifikasi Kode...");
+    try {
+        const uid = auth.currentUser.uid;
+        const inviteRef = doc(db, 'parent_invites', code);
+        const userRef = doc(db, 'users', uid);
+        
+        const result = await runTransaction(db, async (transaction) => {
+            const inviteDoc = await transaction.get(inviteRef);
+            if (!inviteDoc.exists()) {
+                throw "Kode Aktivasi tidak valid.";
+            }
+            const inviteData = inviteDoc.data();
+            if (inviteData.status !== "pending") {
+                throw "Kode Aktivasi sudah digunakan atau kedaluwarsa.";
+            }
+            
+            transaction.update(inviteRef, {
+                status: "used",
+                usedBy: uid,
+                usedAt: serverTimestamp()
+            });
+            
+            transaction.update(userRef, {
+                childId: inviteData.studentId
+            });
+            
+            return inviteData.studentId;
+        });
+        
+        showCustomAlert("Berhasil terhubung dengan data ananda!");
+        setupUIForRole(ROLES.ORANG_TUA, result);
     } catch (e) {
         console.error("Error linking student:", e);
-        showCustomAlert("Terjadi kesalahan saat memverifikasi NIS.", true);
+        showCustomAlert(typeof e === 'string' ? e : "Gagal menghubungkan akun. Periksa kembali kode Anda.", true);
     }
     hideLoading();
 };

@@ -19,14 +19,17 @@ service cloud.firestore {
     }
 
     function userStatus() {
-      return userData().get('status', '');
+      // Default to active if missing, just in case
+      return userData().get('status', 'active');
     }
     
     function isOwner() { 
-      return isSignedIn() && userRole() == 'OWNER' && userStatus() == 'active'; 
+      let role = userRole();
+      return isSignedIn() && (role == 'OWNER' || role == 'Owner' || role == 'owner') && userStatus() == 'active'; 
     }
     function isSuperAdmin() { 
-      return isSignedIn() && userRole() == 'SUPER_ADMIN' && userStatus() == 'active'; 
+      let role = userRole();
+      return isSignedIn() && (role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin') && userStatus() == 'active'; 
     }
     function isKurikulum() { 
       return isSignedIn() && userRole() == 'KURIKULUM' && userStatus() == 'active'; 
@@ -41,13 +44,13 @@ service cloud.firestore {
     function isAdmin() { 
       let role = userRole();
       let status = userStatus();
-      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN'); 
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'Owner' || role == 'owner' || role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin'); 
     }
 
     function isStaff() { 
       let role = userRole();
       let status = userStatus();
-      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || role == 'GURU'); 
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'Owner' || role == 'owner' || role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || role == 'GURU'); 
     }
     
     // Guru hanya bisa akses jika subjectId ada di daftar pengampu
@@ -83,8 +86,8 @@ service cloud.firestore {
         // Admin self-update (can edit managed* but not role/status)
         (isAdmin() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
         ||
-        // Admin updates others (SUPER_ADMIN cannot update OWNER)
-        (isAdmin() && request.auth.uid != userId && (isOwner() || resource.data.get('role', '') != 'OWNER'));
+        // Admin updates others (SUPER_ADMIN cannot update OWNER or promote to OWNER)
+        (isAdmin() && request.auth.uid != userId && (isOwner() || (resource.data.get('role', '') != 'OWNER' && request.resource.data.get('role', '') != 'OWNER')));
       
       allow delete: if isOwner() && request.auth.uid != userId;
     }
@@ -99,17 +102,16 @@ service cloud.firestore {
     match /students/{studentId} {
       allow read: if isStaff() || 
                    (isSignedIn() && userData().get('childId', '') == studentId);
-      allow write: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isStaff();
       allow delete: if isOwner();
     }
 
     // 4. ASSESSMENT TEMPLATES (TP/ATP)
     match /assessment_templates/{templateId} {
       allow read: if isStaff();
-      allow create: if (isKurikulum() || isGuru()) && 
-                    managesSubject(request.resource.data.get('subjectId', ''));
-      allow update: if (isKurikulum() || isGuru()) && 
-                    managesSubject(request.resource.data.get('subjectId', '')) && 
+      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', '')) && 
                     request.resource.data.get('status', '') != 'deleted';
       allow delete: if isOwner();
     }
@@ -118,8 +120,8 @@ service cloud.firestore {
     match /assessments/{assessmentId} {
       allow read: if isStaff() || 
                    (isSignedIn() && assessmentId.split('_')[0] == userData().get('childId', ''));
-      allow create: if isGuru() && managesSubject(request.resource.data.get('subjectId', ''));
-      allow update: if isGuru() && managesSubject(request.resource.data.get('subjectId', ''));
+      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', ''));
       allow delete: if isOwner();
     }
 
@@ -138,8 +140,8 @@ service cloud.firestore {
     // 8. ASSIGNMENTS
     match /assignments/{taskId} {
       allow read: if isSignedIn();
-      allow create: if isGuru() && managesSubject(request.resource.data.get('subjectId', ''));
-      allow update: if isGuru() && managesSubject(request.resource.data.get('subjectId', ''));
+      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', ''));
       allow delete: if isOwner();
     }
 
