@@ -423,18 +423,23 @@ function renderUserRow(u) {
     const isSelf = u.uid === state.currentUser.uid;
     const isTargetOwner = u.role === 'OWNER';
     const amIOwner = state.currentUser.role === 'OWNER';
-    const disableActions = isSelf || (isTargetOwner && !amIOwner);
+    
+    // Prevent changing own role or editing other owners if not an owner
+    const disableRoleChange = isSelf || (isTargetOwner && !amIOwner);
+    
+    // Allow self to change own access (classes/subjects) but protect other owners
+    const disableAccessChange = (isTargetOwner && !amIOwner);
 
     return `
-        <tr class="hover:bg-slate-50/50 transition-all ${disableActions ? 'opacity-80' : ''}">
+        <tr class="hover:bg-slate-50/50 transition-all ${disableRoleChange && disableAccessChange ? 'opacity-80' : ''}">
             <td class="py-4 px-6">
                 <p class="font-black text-slate-900 text-sm">${u.name || 'User Baru'} ${isSelf ? '<span class="text-indigo-500 ml-1 text-[10px]">(Anda)</span>' : ''}</p>
                 <p class="text-[10px] font-medium text-slate-500">${u.email}</p>
             </td>
             <td class="py-4 px-6 text-center">
                 <select onchange="window.updateUserRole('${u.uid}', this.value)" 
-                        class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500 ${disableActions ? 'cursor-not-allowed opacity-50' : ''}" 
-                        ${disableActions ? 'disabled' : ''}>
+                        class="bg-slate-50 border-none rounded-lg text-[10px] font-black uppercase px-2 py-1 focus:ring-1 focus:ring-indigo-500 ${disableRoleChange ? 'cursor-not-allowed opacity-50' : ''}" 
+                        ${disableRoleChange ? 'disabled' : ''}>
                     <option value="GURU" ${u.role === 'GURU' ? 'selected' : ''}>GURU</option>
                     <option value="KURIKULUM" ${u.role === 'KURIKULUM' ? 'selected' : ''}>KURIKULUM</option>
                     <option value="KEPALA_SEKOLAH" ${u.role === 'KEPALA_SEKOLAH' ? 'selected' : ''}>KEPSEK</option>
@@ -469,7 +474,7 @@ function renderUserRow(u) {
                             </span>
                         `).join('') : '<span class="text-[9px] text-slate-300 italic">Tanpa Akses</span>'}
                     </div>
-                    <button onclick="window.openAksesModal('${u.uid}', '${u.name || 'User Baru'}', '${encodeURIComponent(JSON.stringify(classes))}', '${encodeURIComponent(JSON.stringify(subjects))}')" class="mt-2 text-indigo-600 text-[10px] font-black bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1" ${disableActions ? 'disabled' : ''}>
+                    <button onclick="window.openAksesModal('${u.uid}', '${u.name || 'User Baru'}', '${encodeURIComponent(JSON.stringify(classes))}', '${encodeURIComponent(JSON.stringify(subjects))}')" class="mt-2 text-indigo-600 text-[10px] font-black bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-1" ${disableAccessChange ? 'disabled' : ''}>
                         ⚙️ Atur Akses
                     </button>
                 </div>
@@ -478,17 +483,17 @@ function renderUserRow(u) {
                 <div class="flex flex-col gap-2 items-center justify-center">
                     <div class="flex gap-2">
                         ${isPending ? `
-                            <button onclick="window.setUserStatus('${u.uid}', 'active')" class="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase shadow-sm" ${disableActions ? 'disabled' : ''}>Setujui</button>
+                            <button onclick="window.setUserStatus('${u.uid}', 'active')" class="px-3 py-1 bg-emerald-600 text-white text-[9px] font-black rounded-lg uppercase shadow-sm" ${disableRoleChange ? 'disabled' : ''}>Setujui</button>
                         ` : `
                             <button onclick="window.setUserStatus('${u.uid}', '${isBlocked ? 'active' : 'blocked'}')" 
-                                    class="px-3 py-1 ${isBlocked ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-rose-600'} text-[9px] font-black rounded-lg uppercase ${disableActions ? 'opacity-50 cursor-not-allowed' : ''}"
-                                    ${disableActions ? 'disabled' : ''}>
+                                    class="px-3 py-1 ${isBlocked ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-rose-600'} text-[9px] font-black rounded-lg uppercase ${disableRoleChange ? 'opacity-50 cursor-not-allowed' : ''}"
+                                    ${disableRoleChange ? 'disabled' : ''}>
                                 ${isBlocked ? 'Aktifkan' : 'Blokir'}
                             </button>
                         `}
                         <button onclick="window.deleteUser('${u.uid}')" 
-                                class="px-3 py-1 bg-rose-100 text-rose-600 text-[9px] font-black rounded-lg uppercase ${disableActions ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-200'}"
-                                ${disableActions ? 'disabled' : ''}>
+                                class="px-3 py-1 bg-rose-100 text-rose-600 text-[9px] font-black rounded-lg uppercase ${disableRoleChange ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-200'}"
+                                ${disableRoleChange ? 'disabled' : ''}>
                             Hapus
                         </button>
                     </div>
