@@ -87,8 +87,12 @@ service cloud.firestore {
          request.resource.data.activationCode == get(/databases/$(database)/documents/settings/registration).data.code
         )
         ||
-        // Self-update safe fields
+        // Self-update safe fields (name, photo, etc. — NOT role, status, managed*)
         (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']))
+        ||
+        // Guru self-update: can edit own managedSubjects & managedClasses (but NOT role or status)
+        (request.auth.uid == userId && resource.data.get('role', '') == 'GURU' && resource.data.get('status', '') == 'active' &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
         ||
         // Admin self-update (can edit managed* but not role/status)
         (isAdmin() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))

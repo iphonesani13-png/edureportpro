@@ -222,6 +222,103 @@ window.activateTeacherAccount = async () => {
     hideLoading();
 };
 
+// --- GURU ONBOARDING (PROFILE SETUP) ---
+async function showGuruOnboarding(profile) {
+    const allClasses = ["7A", "7B", "8", "9"];
+    const existingClasses = profile.managedClasses || [];
+    const existingSubjects = profile.managedSubjects || [];
+
+    // Fetch subjects from Firestore
+    let allSubjects = [];
+    try {
+        const subSnap = await getDocs(collection(db, "subjects"));
+        allSubjects = subSnap.docs.map(d => d.id);
+    } catch(e) { console.error(e); }
+
+    const classCheckboxes = allClasses.map(c => `
+        <label class="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50">
+            <input type="checkbox" value="${c}" class="guru-onboard-kelas accent-indigo-600 w-5 h-5" ${existingClasses.includes(c) ? 'checked' : ''}>
+            <span class="font-bold text-slate-700">Kelas ${c}</span>
+        </label>
+    `).join('');
+
+    const subjectCheckboxes = allSubjects.map(s => {
+        const label = s.replace('SUBJ_', '').replace(/_/g, ' ');
+        return `
+            <label class="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-all has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50">
+                <input type="checkbox" value="${s}" class="guru-onboard-mapel accent-indigo-600 w-5 h-5" ${existingSubjects.includes(s) ? 'checked' : ''}>
+                <span class="font-bold text-slate-700">${label}</span>
+            </label>
+        `;
+    }).join('');
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'guru-onboarding-overlay';
+    overlay.className = 'fixed inset-0 z-[999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6';
+    overlay.innerHTML = `
+        <div class="max-w-lg w-full bg-white rounded-3xl shadow-2xl p-8 space-y-6 max-h-[90vh] overflow-y-auto">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center text-3xl mx-auto">🎓</div>
+                <h2 class="text-2xl font-black text-slate-900">Atur Profil Mengajar</h2>
+                <p class="text-sm text-slate-500">Pilih kelas dan mata pelajaran yang Anda ampu. Anda bisa mengubahnya kapan saja nanti.</p>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Kelas yang Diampu</h3>
+                <div class="grid grid-cols-2 gap-2">${classCheckboxes}</div>
+            </div>
+
+            <div class="space-y-3">
+                <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Mata Pelajaran</h3>
+                <div class="grid grid-cols-1 gap-2">${subjectCheckboxes}</div>
+            </div>
+
+            <button onclick="window.saveGuruProfile()" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg hover:bg-indigo-700 transition text-lg">
+                Simpan & Mulai Mengajar
+            </button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+window.saveGuruProfile = async () => {
+    const selectedClasses = [...document.querySelectorAll('.guru-onboard-kelas:checked')].map(cb => cb.value);
+    const selectedSubjects = [...document.querySelectorAll('.guru-onboard-mapel:checked')].map(cb => cb.value);
+
+    if (selectedClasses.length === 0 || selectedSubjects.length === 0) {
+        return showCustomAlert("Pilih minimal 1 kelas dan 1 mata pelajaran!", true);
+    }
+
+    showLoading("Menyimpan Profil...");
+    try {
+        const user = auth.currentUser;
+        await saveUserProfile(user.uid, {
+            managedClasses: selectedClasses,
+            managedSubjects: selectedSubjects
+        });
+
+        // Update local state
+        state.currentUser.managedClasses = selectedClasses;
+        state.currentUser.managedSubjects = selectedSubjects;
+
+        document.getElementById('guru-onboarding-overlay')?.remove();
+        showCustomAlert("Profil berhasil disimpan! Selamat mengajar! 🎉");
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal menyimpan profil. Coba lagi.", true);
+    }
+    hideLoading();
+};
+
+window.openGuruProfileEditor = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const profile = await getUserProfile(user.uid);
+    if (!profile) return;
+    showGuruOnboarding(profile);
+};
+
 // --- NAVIGATION & UI FLOW ---
 function showLoginScreen() {
     hideLoading();
@@ -254,12 +351,19 @@ function setupUIForRole(profile) {
         const isKurikulumOrAdmin = ['OWNER', 'SUPER_ADMIN', 'KURIKULUM'].includes(role);
         document.getElementById('btn-users')?.classList.toggle('hidden', !isAdmin);
         document.getElementById('btn-kurikulum')?.classList.toggle('hidden', !isKurikulumOrAdmin);
+        document.getElementById('btn-guru-profil')?.classList.toggle('hidden', role !== 'GURU');
+
+        // GURU ONBOARDING: If teacher has no classes/subjects yet, show profile setup
+        const managedSubjects = profile.managedSubjects || [];
+        const managedClasses = profile.managedClasses || [];
+        if (role === 'GURU' && (managedSubjects.length === 0 || managedClasses.length === 0)) {
+            showGuruOnboarding(profile);
+        }
 
         window.switchTab('dashboard');
 
         // SECURITY PATCH: Only staff with restricted roles (GURU) get filtered student lists
         const isRestricted = !['OWNER', 'SUPER_ADMIN', 'KURIKULUM', 'KEPALA_SEKOLAH'].includes(role);
-        const managedClasses = profile.managedClasses || [];
         console.log(`[UAT] Initializing Sync for ${role}. Restricted=${isRestricted}, Classes:`, managedClasses);
 
         initRealtimeSync(ROLES.GURU, null);
@@ -276,8 +380,8 @@ function setupUIForRole(profile) {
         }
     }
 
-    // --- BUTTON PROTECTION (READ-ONLY FOR KEPSEK & KURIKULUM) ---
-    const isReadOnly = ['KEPALA_SEKOLAH', 'KURIKULUM'].includes(role);
+    // --- BUTTON PROTECTION (READ-ONLY FOR KEPSEK ONLY — Kurikulum can edit TP & Mapel) ---
+    const isReadOnly = role === 'KEPALA_SEKOLAH';
     if (isReadOnly) {
         // Inject global CSS to hide action buttons for Kepsek & Kurikulum
         const style = document.createElement('style');
@@ -839,60 +943,54 @@ window.initNilaiHarian = async () => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // 1. Determine which subjects this user can see
+    // 1. Determine user role and managed scope
     const profile = await getUserProfile(user.uid);
     const role = profile?.role || 'GURU';
-
-    const subSnap = await getDocs(collection(db, "subjects"));
-    let subjectsToShow = subSnap.docs.map(d => d.id);
     const isAdmin = ['OWNER', 'SUPER_ADMIN'].includes(role);
+    const isKurikulum = role === 'KURIKULUM';
+    const managedSubjects = profile?.managedSubjects || [];
+    const managedClasses = profile?.managedClasses || [];
 
-    if (!isAdmin) {
-        const managedSubjects = profile?.managedSubjects || [];
-        subjectsToShow = subjectsToShow.filter(s => managedSubjects.includes(s));
-    }
+    // Store managed scope in nhState for later write-permission checks
+    state.nhState.canWriteAll = isAdmin || isKurikulum;
+    state.nhState.managedSubjects = managedSubjects;
+    state.nhState.managedClasses = managedClasses;
+
+    // 2. ALL roles see ALL subjects (Baca Terbuka)
+    const subSnap = await getDocs(collection(db, "subjects"));
+    const allSubjects = subSnap.docs.map(d => d.id);
 
     const selectMapel = document.getElementById('nh-select-mapel');
     if (selectMapel) {
         selectMapel.innerHTML = '<option value="">Pilih Mapel...</option>';
-        subjectsToShow.forEach(sid => {
-            const label = sid.replace('SUBJ_', '').replace('_', ' ');
-            selectMapel.insertAdjacentHTML('beforeend', `<option value="${sid}">${label}</option>`);
+        allSubjects.forEach(sid => {
+            const label = sid.replace('SUBJ_', '').replace(/_/g, ' ');
+            const isOwned = state.nhState.canWriteAll || managedSubjects.includes(sid);
+            const suffix = (!state.nhState.canWriteAll && !isOwned) ? ' 👁️' : '';
+            selectMapel.insertAdjacentHTML('beforeend', `<option value="${sid}">${label}${suffix}</option>`);
         });
 
         // UX: Auto-select last used
         const lastSubject = localStorage.getItem('nh_last_subject');
-        if (lastSubject && subjectsToShow.includes(lastSubject)) {
+        if (lastSubject && allSubjects.includes(lastSubject)) {
             selectMapel.value = lastSubject;
             window.onNhMapelChange();
-        } else if (subjectsToShow.length === 1) {
-            selectMapel.value = subjectsToShow[0];
+        } else if (allSubjects.length === 1) {
+            selectMapel.value = allSubjects[0];
             window.onNhMapelChange();
         }
     }
 
-    // Load Kelas
+    // 3. ALL roles see ALL classes (Baca Terbuka)
+    const allClasses = ["7A", "7B", "8", "9"];
     const selectKelas = document.getElementById('nh-select-kelas');
     if (selectKelas) {
         let classesHTML = '<option value="">Pilih Kelas...</option>';
-
-        if (isAdmin) {
-            // Admin sees all standard classes
-            const allClasses = ["7A", "7B", "8", "9"];
-            allClasses.forEach(c => {
-                classesHTML += `<option value="${c}">Kelas ${c}</option>`;
-            });
-        } else {
-            // Guru ONLY sees their managed classes
-            const managedClasses = profile?.managedClasses || [];
-            if (managedClasses.length === 0) {
-                classesHTML += `<option value="" disabled>-- Anda tidak memiliki kelas --</option>`;
-            } else {
-                managedClasses.forEach(c => {
-                    classesHTML += `<option value="${c}">Kelas ${c}</option>`;
-                });
-            }
-        }
+        allClasses.forEach(c => {
+            const isOwned = state.nhState.canWriteAll || managedClasses.includes(c);
+            const suffix = (!state.nhState.canWriteAll && !isOwned) ? ' 👁️' : '';
+            classesHTML += `<option value="${c}">Kelas ${c}${suffix}</option>`;
+        });
         selectKelas.innerHTML = classesHTML;
     }
 };
@@ -960,6 +1058,16 @@ window.onNhMapelChange = async () => {
     hideLoading();
 };
 
+// Helper: Can the current user WRITE to the currently selected mapel+kelas combination?
+function canWriteNh() {
+    if (state.nhState.canWriteAll) return true;
+    const selectedMapel = document.getElementById('nh-select-mapel')?.value;
+    const selectedKelas = document.getElementById('nh-select-kelas')?.value;
+    const ms = state.nhState.managedSubjects || [];
+    const mc = state.nhState.managedClasses || [];
+    return ms.includes(selectedMapel) && mc.includes(selectedKelas);
+}
+
 window.onNhFilterChange = async () => {
     const rawClassId = document.getElementById('nh-select-kelas')?.value;
     const templateId = document.getElementById('nh-select-tp')?.value;
@@ -984,6 +1092,10 @@ window.onNhFilterChange = async () => {
     state.nhState.activeTemplate = state.nhTemplates.find(t => t.id === templateId);
 
     console.log(`NH Filter Change: classId=${classId}, templateId=${templateId}`);
+
+    // Write permission check: show/hide create button
+    const btnCreate = document.getElementById('nh-btn-create');
+    if (btnCreate) btnCreate.classList.toggle('hidden', !canWriteNh());
 
     showLoading("Memuat Daftar Penilaian...");
     try {
@@ -1035,6 +1147,7 @@ function renderNhList() {
 }
 
 window.showNhMetadataForm = () => {
+    if (!canWriteNh()) return showCustomAlert("Anda tidak memiliki izin menulis untuk mapel/kelas ini. Anda hanya bisa melihat.", true);
     document.getElementById('nh-list-view').classList.add('hidden');
     document.getElementById('nh-metadata-form').classList.remove('hidden');
     document.getElementById('nh-input-date').value = new Date().toISOString().split('T')[0];
@@ -1501,6 +1614,7 @@ function updateNhStats() {
 }
 
 window.handleSaveDraft = async () => {
+    if (!canWriteNh()) return showCustomAlert("Anda hanya bisa melihat nilai ini (Read-Only).", true);
     const id = state.nhState.currentAssessmentId;
     const reflection = document.getElementById('nh-reflection').value;
 
@@ -1520,6 +1634,7 @@ window.handleSaveDraft = async () => {
 };
 
 window.handlePublish = async () => {
+    if (!canWriteNh()) return showCustomAlert("Anda hanya bisa melihat nilai ini (Read-Only).", true);
     const id = state.nhState.currentAssessmentId;
     const reflection = document.getElementById('nh-reflection').value;
     const total = state.nhState.currentClassStudents.length;
