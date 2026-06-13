@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Migrasi Data Prod ke Staging</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-10 text-center space-y-6 bg-slate-50">
+    <h1 class="text-2xl font-bold">Alat Migrasi Siswa (Prod ➡️ Staging)</h1>
+    <p class="text-slate-500">Alat ini akan menyalin data siswa dari Production ke Staging secara otomatis.</p>
+    
+    <div id="status" class="p-4 bg-white shadow rounded-xl max-w-lg mx-auto font-mono text-sm text-left h-64 overflow-y-auto">
+        Siap memulai...<br>
+    </div>
+
+    <div class="flex justify-center gap-4">
+        <button id="btn-prod" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg">Langkah 1: Tarik Data Prod</button>
+        <button id="btn-staging" class="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hidden">Langkah 2: Salin ke Staging</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const prodConfig = {
+            apiKey: "AIzaSyAKURaZ1qn3hX264SQdVd-FHuKpXcBL8RI",
+            authDomain: "smpitlaatahzan-raport.firebaseapp.com",
+            projectId: "smpitlaatahzan-raport"
+        };
+
+        const stagingConfig = {
+            apiKey: "AIzaSyBmTUcp0fV7SP5yUPp3i1120P-h6paadv0",
+            authDomain: "smpit-raport-staging.firebaseapp.com",
+            projectId: "smpit-raport-staging"
+        };
+
+        const appProd = initializeApp(prodConfig, "PROD");
+        const appStaging = initializeApp(stagingConfig, "STAGING");
+
+        const authProd = getAuth(appProd);
+        const authStaging = getAuth(appStaging);
+        
+        const dbProd = getFirestore(appProd);
+        const dbStaging = getFirestore(appStaging);
+
+        const provider = new GoogleAuthProvider();
+        const statusEl = document.getElementById('status');
+        const log = (msg) => {
+            statusEl.innerHTML += `> ${msg}<br>`;
+            statusEl.scrollTop = statusEl.scrollHeight;
+        };
+
+        let tempStudents = [];
+
+        document.getElementById('btn-prod').addEventListener('click', async () => {
+            try {
+                log("Meminta login ke Production...");
+                await signInWithPopup(authProd, provider);
+                log("✅ Login Prod Berhasil!");
+
+                log("Mengambil data siswa dari Production...");
+                const snap = await getDocs(collection(dbProd, "students"));
+                tempStudents = snap.docs.map(d => ({id: d.id, data: d.data()}));
+                log(`📦 Menemukan ${tempStudents.length} siswa di Production!`);
+                
+                document.getElementById('btn-prod').classList.add('hidden');
+                document.getElementById('btn-staging').classList.remove('hidden');
+                log("👉 Silakan klik tombol Langkah 2!");
+            } catch (e) {
+                log(`<span class="text-red-500">ERROR: ${e.message}</span>`);
+            }
+        });
+
+        document.getElementById('btn-staging').addEventListener('click', async () => {
+            try {
+                log("Meminta login ke Staging...");
+                await signInWithPopup(authStaging, provider);
+                log("✅ Login Staging Berhasil!");
+
+                log("Menyalin ke Staging...");
+                let count = 0;
+                for(let s of tempStudents) {
+                    await setDoc(doc(dbStaging, "students", s.id), s.data);
+                    count++;
+                    if(count % 10 === 0) log(`... tersalin ${count} siswa`);
+                }
+
+                log(`🎉 SELESAI! ${count} siswa berhasil dipindahkan ke Staging.`);
+                log(`Silakan kembali ke aplikasi utama!`);
+            } catch (e) {
+                log(`<span class="text-red-500">ERROR: ${e.message}</span>`);
+            }
+        });
+    </script>
+</body>
+</html>

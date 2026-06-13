@@ -137,7 +137,7 @@ const startAuthListener = () => {
                 }
 
                 // 2. CHECK STATUS (PENDING/BLOCKED)
-                if (profile.status === 'pending') {
+                if (profile.status === 'pending' && profile.role !== ROLES.ORANG_TUA) {
                     hideLoading();
                     return showPendingScreen();
                 }
@@ -180,18 +180,47 @@ const startAuthListener = () => {
 };
 
 function showPendingScreen() {
-    // We'll use a simple alert-style screen or modal for now
     document.getElementById('app-root').innerHTML = `
         <div class="min-h-screen flex items-center justify-center bg-slate-50 p-6 text-center">
             <div class="max-w-md w-full glass-card p-10 bg-white space-y-6">
                 <div class="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-4xl mx-auto">⏳</div>
                 <h2 class="text-2xl font-black text-slate-900">Pendaftaran Diproses</h2>
                 <p class="text-sm text-slate-500 leading-relaxed">Akun Anda sedang dalam antrian persetujuan Admin. Silakan hubungi <b>Rizki Albatamy</b> untuk aktivasi akses Anda.</p>
-                <button onclick="window.logout()" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl">Keluar</button>
+                <div class="w-full bg-slate-100 h-px my-4"></div>
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Atau</p>
+                <div class="space-y-3">
+                    <input type="text" id="reg-code-input" placeholder="Kode Registrasi Guru" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-bold tracking-widest text-slate-700 uppercase" />
+                    <button onclick="window.activateTeacherAccount()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow hover:bg-indigo-700 transition">Aktivasi Otomatis</button>
+                </div>
+                <button onclick="window.logout()" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl mt-4">Keluar</button>
             </div>
         </div>
     `;
 }
+
+window.activateTeacherAccount = async () => {
+    const code = document.getElementById('reg-code-input')?.value?.trim()?.toUpperCase();
+    if (!code) return showCustomAlert("Masukkan Kode Registrasi terlebih dahulu!", true);
+    
+    showLoading("Memverifikasi Kode...");
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error("Sesi tidak valid.");
+        
+        await updateDoc(doc(db, "users", user.uid), {
+            status: 'active',
+            activationCode: code,
+            updatedAt: new Date().toISOString()
+        });
+        
+        showCustomAlert("Aktivasi Berhasil! Memuat Dashboard...");
+        setTimeout(() => window.location.reload(), 1500);
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Kode Registrasi salah atau tidak valid.", true);
+    }
+    hideLoading();
+};
 
 // --- NAVIGATION & UI FLOW ---
 function showLoginScreen() {
@@ -350,7 +379,32 @@ window.setLoginRole = (role) => {
     }
 };
 
-window.handleGoogleLogin = () => loginWithGoogle(state.currentRole);
+window.handleGoogleLogin = async () => {
+    const errorMsg = document.getElementById('login-error-msg');
+    if (errorMsg) {
+        errorMsg.classList.add('hidden');
+        errorMsg.innerText = '';
+    }
+    try {
+        await loginWithGoogle(state.currentRole);
+    } catch (e) {
+        console.error("Login Error:", e);
+        if (errorMsg) {
+            let userFriendlyMessage = "Gagal login. Silakan coba lagi.";
+            if (e.code === 'auth/operation-not-allowed') {
+                userFriendlyMessage = "Error: Google Auth belum diaktifkan di Firebase Console Staging.";
+            } else if (e.code === 'auth/popup-blocked') {
+                userFriendlyMessage = "Popup diblokir oleh browser. Izinkan popup untuk login.";
+            } else if (e.code === 'auth/popup-closed-by-user') {
+                userFriendlyMessage = "Login dibatalkan.";
+            } else {
+                userFriendlyMessage = e.message;
+            }
+            errorMsg.innerText = userFriendlyMessage;
+            errorMsg.classList.remove('hidden');
+        }
+    }
+};
 window.logout = () => {
     if (state.unsubscribeStudents) state.unsubscribeStudents();
     if (state.unsubscribeAssignments) state.unsubscribeAssignments();
@@ -377,6 +431,26 @@ window.switchTab = (mode) => {
 
 // --- USER MANAGEMENT (ACCESS MATRIX V2) ---
 
+window.ubahKodeRegistrasi = async () => {
+    const newCode = prompt("Masukkan Kode Registrasi baru (misal: GURU2026):");
+    if (!newCode || newCode.trim().length < 4) return showCustomAlert("Kode terlalu pendek atau dibatalkan.", true);
+    
+    showLoading("Menyimpan Kode...");
+    try {
+        await setDoc(doc(db, "settings", "registration"), {
+            code: newCode.trim().toUpperCase(),
+            updatedAt: new Date().toISOString(),
+            updatedBy: auth.currentUser.email
+        });
+        showCustomAlert("Kode Registrasi berhasil diubah!");
+        window.renderUsers();
+    } catch (e) {
+        console.error(e);
+        showCustomAlert("Gagal menyimpan kode. Pastikan Anda adalah Admin.", true);
+    }
+    hideLoading();
+};
+
 window.renderUsers = async () => {
     const container = document.getElementById('users-content');
     if (!container) return;
@@ -387,8 +461,25 @@ window.renderUsers = async () => {
         const usersSnap = await getDocs(collection(db, "users"));
         const allUsers = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
 
+        // Fetch Registration Code
+        let regCode = "BELUM DISET";
+        try {
+            const regDoc = await getDoc(doc(db, "settings", "registration"));
+            if (regDoc.exists()) regCode = regDoc.data().code || "BELUM DISET";
+        } catch(e) {}
+
         // 2. Render Table
         container.innerHTML = `
+            <div class="mb-6 flex items-center justify-between glass-card p-6 bg-white border border-slate-100 shadow-sm rounded-2xl">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Kode Registrasi Guru (Auto-Approve)</h3>
+                    <p class="text-xs text-slate-500 mt-1">Berikan kode ini kepada guru baru agar akun mereka langsung aktif tanpa persetujuan manual.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="px-4 py-2 bg-indigo-50 text-indigo-700 font-mono font-bold tracking-widest rounded-lg border border-indigo-100">${regCode}</div>
+                    <button onclick="window.ubahKodeRegistrasi()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 transition">Ubah Kode</button>
+                </div>
+            </div>
             <div class="glass-card overflow-hidden bg-white border border-slate-100 shadow-sm">
                 <table class="w-full text-left whitespace-nowrap">
                     <thead>
@@ -752,9 +843,14 @@ window.initNilaiHarian = async () => {
     const profile = await getUserProfile(user.uid);
     const role = profile?.role || 'GURU';
 
-    // NEW POLICY: ALL Staff can SEE all subjects in dropdown
     const subSnap = await getDocs(collection(db, "subjects"));
     let subjectsToShow = subSnap.docs.map(d => d.id);
+    const isAdmin = ['OWNER', 'SUPER_ADMIN'].includes(role);
+
+    if (!isAdmin) {
+        const managedSubjects = profile?.managedSubjects || [];
+        subjectsToShow = subjectsToShow.filter(s => managedSubjects.includes(s));
+    }
 
     const selectMapel = document.getElementById('nh-select-mapel');
     if (selectMapel) {
@@ -780,7 +876,6 @@ window.initNilaiHarian = async () => {
     if (selectKelas) {
         let classesHTML = '<option value="">Pilih Kelas...</option>';
 
-        const isAdmin = ['OWNER', 'SUPER_ADMIN'].includes(role);
         if (isAdmin) {
             // Admin sees all standard classes
             const allClasses = ["7A", "7B", "8", "9"];
@@ -1370,9 +1465,15 @@ window.renderNhGrid = () => {
 
 window.syncNhInput = (studentId, type, val) => {
     if (type === 'score') {
-        let num = parseInt(val) || 0;
-        if (num > 100) num = 100;
-        state.nhState.tempScores[studentId] = num;
+        if (val.trim() === '') {
+            state.nhState.tempScores[studentId] = null;
+        } else {
+            let num = parseInt(val);
+            if (isNaN(num)) num = 0;
+            if (num > 100) num = 100;
+            if (num < 0) num = 0;
+            state.nhState.tempScores[studentId] = num;
+        }
     } else {
         state.nhState.tempNotes[studentId] = val;
     }
@@ -1381,7 +1482,7 @@ window.syncNhInput = (studentId, type, val) => {
 
 function updateNhStats() {
     const scores = Object.values(state.nhState.tempScores);
-    const validScores = scores.filter(s => s > 0);
+    const validScores = scores.filter(s => s !== null && s !== undefined);
 
     const total = state.nhState.currentClassStudents.length;
     const max = validScores.length ? Math.max(...validScores) : 0;

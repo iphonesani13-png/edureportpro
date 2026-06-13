@@ -74,7 +74,7 @@ export const getAssessmentById = async (assessmentId) => {
  * Validasi Publish sesuai PRD
  */
 const validatePublish = (scores, reflection, totalStudents) => {
-    const scoreCount = Object.values(scores).filter(s => s > 0).length;
+    const scoreCount = Object.values(scores).filter(s => s !== null && s !== undefined && s !== "").length;
     if (scoreCount < totalStudents) {
         throw new Error(`Gagal Publish: Masih ada ${totalStudents - scoreCount} siswa yang belum memiliki nilai.`);
     }

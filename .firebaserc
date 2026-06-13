@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "smpitlaatahzan-raport"
+    "default": "smpitlaatahzan-raport",
+    "staging": "smpit-raport-staging",
+    "production": "smpitlaatahzan-raport"
   }
 }

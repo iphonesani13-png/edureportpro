@@ -80,6 +80,13 @@ service cloud.firestore {
                     request.resource.data.get('status', '') == 'pending' &&
                     (request.resource.data.get('role', '') == 'GURU' || request.resource.data.get('role', '') == 'ORANG_TUA');
       allow update: if 
+        // Teacher auto-activation using valid Registration Code
+        (request.auth.uid == userId && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'activationCode']) &&
+         request.resource.data.status == 'active' &&
+         request.resource.data.activationCode == get(/databases/$(database)/documents/settings/registration).data.code
+        )
+        ||
         // Self-update safe fields
         (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']))
         ||
@@ -120,8 +127,8 @@ service cloud.firestore {
     match /assessments/{assessmentId} {
       allow read: if isStaff() || 
                    (isSignedIn() && assessmentId.split('_')[0] == userData().get('childId', ''));
-      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
-      allow update: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow create: if managesSubject(request.resource.data.get('subjectId', '')) && managesClass(request.resource.data.get('classId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', '')) && managesClass(request.resource.data.get('classId', ''));
       allow delete: if isOwner();
     }
 
