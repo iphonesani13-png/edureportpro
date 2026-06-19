@@ -14,31 +14,66 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function getUserData() {
+    // FETCH SEKALI SAJA: Mengambil data user profil satu kali per request
+    function userData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
-    function hasRole(role) {
-      return isSignedIn() && getUserData().role == role;
+
+    function userRole() {
+      return userData().get('role', '');
+    }
+
+    function userStatus() {
+      // Default to active if missing, just in case
+      return userData().get('status', 'active');
     }
     
-    function isOwner() { return hasRole('OWNER'); }
-    function isSuperAdmin() { return hasRole('SUPER_ADMIN'); }
-    function isKurikulum() { return hasRole('KURIKULUM'); }
-    function isKepsek() { return hasRole('KEPALA_SEKOLAH'); }
-    function isGuru() { return hasRole('GURU'); }
+    function isOwner() { 
+      let role = userRole();
+      return isSignedIn() && (role == 'OWNER' || role == 'Owner' || role == 'owner') && userStatus() == 'active'; 
+    }
+    function isSuperAdmin() { 
+      let role = userRole();
+      return isSignedIn() && (role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin') && userStatus() == 'active'; 
+    }
+    function isKurikulum() { 
+      return isSignedIn() && userRole() == 'KURIKULUM' && userStatus() == 'active'; 
+    }
+    function isKepsek() { 
+      return isSignedIn() && userRole() == 'KEPALA_SEKOLAH' && userStatus() == 'active'; 
+    }
+    function isGuru() { 
+      return isSignedIn() && userRole() == 'GURU' && userStatus() == 'active'; 
+    }
     
-    function isAdmin() { return isOwner() || isSuperAdmin(); }
-    function isStaff() { return isOwner() || isSuperAdmin() || isKurikulum() || isKepsek() || isGuru(); }
+    function isAdmin() { 
+      let role = userRole();
+      let status = userStatus();
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'Owner' || role == 'owner' || role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin'); 
+    }
+
+    function isStaff() { 
+      let role = userRole();
+      let status = userStatus();
+      return isSignedIn() && status == 'active' && (role == 'OWNER' || role == 'Owner' || role == 'owner' || role == 'SUPER_ADMIN' || role == 'Super_Admin' || role == 'super_admin' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || role == 'GURU'); 
+    }
     
     // Guru hanya bisa akses jika subjectId ada di daftar pengampu
     function managesSubject(subjectId) {
-      return (isAdmin() || isKurikulum() || (isGuru() && subjectId in getUserData().managedSubjects));
+      let data = userData();
+      let role = data.get('role', '');
+      let status = data.get('status', '');
+      return status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || 
+             (role == 'GURU' && subjectId in data.get('managedSubjects', [])));
     }
     
     // Guru hanya bisa akses jika kelas siswa ada di daftar kelas yang diajar
     function managesClass(className) {
-      return (isAdmin() || isKurikulum() || isKepsek() || (isGuru() && className in getUserData().managedClasses));
+      let data = userData();
+      let role = data.get('role', '');
+      let status = data.get('status', '');
+      return status == 'active' && (role == 'OWNER' || role == 'SUPER_ADMIN' || role == 'KURIKULUM' || role == 'KEPALA_SEKOLAH' || 
+             (role == 'GURU' && className in data.get('managedClasses', [])));
     }
 
     // --- 📂 COLLECTION RULES ---
@@ -46,9 +81,31 @@ service cloud.firestore {
     // 1. USERS COLLECTION
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.status == 'pending';
-      allow update: if isAdmin() || (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']));
-      allow delete: if isOwner();
+      allow create: if isSignedIn() && 
+                    request.resource.data.get('status', '') == 'pending' &&
+                    (request.resource.data.get('role', '') == 'GURU' || request.resource.data.get('role', '') == 'ORANG_TUA');
+      allow update: if 
+        // Teacher auto-activation using valid Registration Code
+        (request.auth.uid == userId && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'activationCode']) &&
+         request.resource.data.status == 'active' &&
+         request.resource.data.activationCode == get(/databases/$(database)/documents/settings/registration).data.code
+        )
+        ||
+        // Self-update safe fields (name, photo, etc. — NOT role, status, managed*)
+        (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status', 'managedSubjects', 'managedClasses']))
+        ||
+        // Guru self-update: can edit own managedSubjects & managedClasses (but NOT role or status)
+        (request.auth.uid == userId && resource.data.get('role', '') == 'GURU' && resource.data.get('status', '') == 'active' &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
+        ||
+        // Admin self-update (can edit managed* but not role/status)
+        (isAdmin() && request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'status']))
+        ||
+        // Admin updates others (SUPER_ADMIN cannot update OWNER or promote to OWNER)
+        (isAdmin() && request.auth.uid != userId && (isOwner() || (resource.data.get('role', '') != 'OWNER' && request.resource.data.get('role', '') != 'OWNER')));
+      
+      allow delete: if isOwner() && request.auth.uid != userId;
     }
 
     // 2. AUTHORIZED USERS (WHITELIST)
@@ -59,31 +116,35 @@ service cloud.firestore {
 
     // 3. STUDENTS COLLECTION
     match /students/{studentId} {
-      allow read: if isStaff() && managesClass(resource.data.kelas) || (isSignedIn() && getUserData().childId == studentId);
-      allow write: if isAdmin();
+      allow read: if isStaff() || 
+                   (isSignedIn() && userData().get('childId', '') == studentId);
+      allow create: if isAdmin();
+      allow update: if isStaff();
       allow delete: if isOwner();
     }
 
     // 4. ASSESSMENT TEMPLATES (TP/ATP)
     match /assessment_templates/{templateId} {
       allow read: if isStaff();
-      allow create: if (isKurikulum() || isGuru()) && managesSubject(request.resource.data.subjectId);
-      allow update: if (isKurikulum() || isGuru()) && managesSubject(resource.data.subjectId) && request.resource.data.status != 'deleted';
+      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', '')) && 
+                    request.resource.data.get('status', '') != 'deleted';
       allow delete: if isOwner();
     }
 
     // 5. ASSESSMENTS (GRADES)
     match /assessments/{assessmentId} {
-      allow read: if (isStaff() && managesSubject(resource.data.subjectId)) || (isSignedIn() && assessmentId.split('_')[0] == getUserData().childId);
-      allow create: if isGuru() && managesSubject(request.resource.data.subjectId);
-      allow update: if isGuru() && managesSubject(resource.data.subjectId);
+      allow read: if isStaff() || 
+                   (isSignedIn() && assessmentId.split('_')[0] == userData().get('childId', ''));
+      allow create: if managesSubject(request.resource.data.get('subjectId', '')) && managesClass(request.resource.data.get('classId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', '')) && managesClass(request.resource.data.get('classId', ''));
       allow delete: if isOwner();
     }
 
     // 6. SUBJECTS (CP/KKM)
     match /subjects/{subjectId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin() || isKurikulum() || managesSubject(subjectId);
+      allow write: if isAdmin() || isKurikulum();
     }
     
     // 7. CLASSES
@@ -95,9 +156,33 @@ service cloud.firestore {
     // 8. ASSIGNMENTS
     match /assignments/{taskId} {
       allow read: if isSignedIn();
-      allow create: if isGuru() && managesSubject(request.resource.data.subjectId);
-      allow update: if isGuru() && managesSubject(resource.data.subjectId);
+      allow create: if managesSubject(request.resource.data.get('subjectId', ''));
+      allow update: if managesSubject(request.resource.data.get('subjectId', ''));
       allow delete: if isOwner();
+    }
+
+    // 9. SYSTEM LOGS (AUDIT TRAIL)
+    match /system_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isStaff(); // Log created by staff action
+      allow update, delete: if false; // Audit logs are immutable
+    }
+
+    // 10. PARENT INVITES
+    match /parent_invites/{inviteId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isStaff();
+      allow update: if isSignedIn() && 
+                    resource.data.get('status', '') == 'pending' && 
+                    request.resource.data.get('status', '') == 'used' && 
+                    request.resource.data.get('usedBy', '') == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // 11. GLOBAL SETTINGS (Registration Code, dll)
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
     }
   }
 }

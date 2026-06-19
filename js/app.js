@@ -24,7 +24,7 @@ import {
 } from "./modules/student-data.js";
 
 import {
-    updateDashboardSummary, renderTimeline, renderDashboardTable, renderLeaderboard as uiRenderLeaderboard, loadParentDashboard
+    updateDashboardSummary, renderTimeline, renderDashboardTable, loadParentDashboard
 } from "./modules/render-functions.js";
 
 import {
@@ -90,14 +90,13 @@ const startAuthListener = () => {
                 // 1. FIRST TIME LOGIN (REGISTRATION)
                 if (!profile) {
                     if (intentRole === ROLES.ORANG_TUA) {
-                        // Parents register with NIS later, save basic profile now
+                        // Register Parent
                         profile = await registerPendingUser(user.uid, {
                             email: user.email,
                             name: user.displayName,
                             role: ROLES.ORANG_TUA,
-                            status: 'active' // Parents are active by default once they login? 
+                            status: 'pending' // V2: Must be pending to pass Firestore rules
                         });
-                        // Or keep as active but stuck at NIS screen
                     } else {
                         // Teachers/Admins: Check database authorization
                         const authCheck = await checkAuthorizedEmail(user.email);
@@ -336,7 +335,7 @@ function setupUIForRole(profile) {
     document.getElementById('main-app')?.classList.remove('hidden');
 
     const badge = document.getElementById('user-role-badge');
-    const roleLabel = (role || '').replace('_', ' ');
+    const roleLabel = (role || '').replace(/_/g, ' ');
     if (badge) badge.innerText = roleLabel;
 
     // --- SIDEBAR VISIBILITY (ACCESS MATRIX V2) ---
@@ -650,6 +649,12 @@ function renderUserRow(u) {
                 </span>
             </td>
             <td class="py-4 px-6">
+                ${u.role === 'ORANG_TUA' ? `
+                    <div class="space-y-1">
+                        <span class="text-[9px] text-slate-400 italic">Role: Wali Murid</span>
+                        ${u.childId ? `<p class="text-[10px] font-bold text-emerald-600">🔗 Terhubung ke: ${u.childId}</p>` : '<p class="text-[10px] font-bold text-amber-500">⚠️ Belum link ke anak</p>'}
+                    </div>
+                ` : `
                 <div class="space-y-3 relative">
                     <!-- Managed Subjects -->
                     <div class="flex flex-wrap gap-1 max-w-[200px]">
@@ -673,6 +678,7 @@ function renderUserRow(u) {
                         ⚙️ Atur Akses
                     </button>
                 </div>
+                `}
             </td>
             <td class="py-4 px-6 text-center">
                 <div class="flex flex-col gap-2 items-center justify-center">
@@ -731,8 +737,8 @@ window.openAksesModal = (uid, userName, classesJson, subjectsJson) => {
     
     mapelContainer.innerHTML = allSubjects.map(s => {
         const cleanName = s.replace('SUBJ_', '');
-        // For backwards compatibility, the subject ID used in managedSubjects is usually SUBJ_ + NAME
-        const expectedId = s.startsWith('SUBJ_') ? s : 'SUBJ_' + s.toUpperCase().replace(/\\s+/g, '_');
+        // For backwards compatibility, the subject ID used in managedSubjects is usually
+        const expectedId = s.startsWith('SUBJ_') ? s : 'SUBJ_' + s.toUpperCase().replace(/\s+/g, '_');
         const isChecked = currentSubjects.includes(expectedId) || currentSubjects.includes(s);
 
         return `
@@ -1111,32 +1117,8 @@ window.onNhFilterChange = async () => {
         showCustomAlert("Gagal memuat daftar penilaian.", true);
     }
     hideLoading();
-};
 
-function renderNhList() {
-    const container = document.getElementById('nh-assessment-cards');
-    if (!container) return;
-
-    container.innerHTML = '';
-    if (state.nhState.assessmentsList.length === 0) {
-        container.innerHTML = `
-                <div class="col-span-full py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                    <p class="text-slate-400 font-bold text-sm">Belum ada aktivitas penilaian untuk TP ini.</p>
-                </div>
-            `;
-        return;
-    }
-
-    state.nhState.assessmentsList.forEach(asmt => {
-        const date = new Date(asmt.assessmentDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-        const isPub = asmt.status === 'published';
-
-        container.insertAdjacentHTML('beforeend', `
-                <div onclick="window.openAssessmentGrid('${asmt.id}')" class="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md hover:border-indigo-500 transition-all cursor-pointer group relative overflow-hidden">
-                    <div class="flex justify-between items-start mb-4">
-                        <span class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${isPub ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
-                            ${asmt.status}
-                        </span>
+    </span>
                         <span class="text-[9px] font-bold text-slate-400 uppercase">${date}</span>
                     </div>
                     <h4 class="font-black text-slate-900 leading-tight mb-1 group-hover:text-indigo-600 transition-colors">${asmt.assessmentName}</h4>
@@ -1423,7 +1405,7 @@ window.loadRekapData = async () => {
                                 <span class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded uppercase tracking-widest">${t.tpId}</span>
                                 ${statusBadge}
                             </div>
-                            <span class="text-[9px] font-bold text-slate-400 uppercase">Terkahir: ${lastDateStr}</span>
+                            <span class="text-[9px] font-bold text-slate-400 uppercase">Terakhir: ${lastDateStr}</span>
                         </div>
                         <h4 class="font-bold text-slate-900 text-sm mb-3 group-hover:text-indigo-600 transition-colors">${t.title}</h4>
                         
@@ -1655,13 +1637,6 @@ window.handlePublish = async () => {
     hideLoading();
 };
 
-window.renderKurikulum = () => {
-    const content = document.getElementById('kurikulum-content');
-    if (content && content.innerHTML.includes('Pilih Menu')) {
-        window.switchKurikulumTab('mapel');
-    }
-};
-
 window.renderKurikulum = async () => {
     const content = document.getElementById('kurikulum-content');
     if (!content) return;
@@ -1796,7 +1771,7 @@ window.renderWorkspace = async () => {
     const subjectId = state.nhState.currentSubjectId;
     const currentTab = state.nhState.currentWorkspaceTab || 'tp';
 
-    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+    const subjectName = subjectId.replace('SUBJ_', '').replace(/_/g, ' ');
 
     if (headerActions) headerActions.classList.add('hidden');
     if (workspaceActions) workspaceActions.classList.remove('hidden');
@@ -2300,22 +2275,39 @@ window.konfirmasiTambahMapel = async () => {
     if (state.subjectsList.includes(nama)) return showCustomAlert("Mapel sudah ada!", true);
 
     showLoading("Menambahkan Mapel...");
-    state.subjectsList.push(nama);
+    try {
+        const subjectId = "SUBJ_" + nama.toUpperCase().replace(/\\s+/g, '_');
+        await setDoc(doc(db, "subjects", subjectId), {
+            id: subjectId,
+            name: nama,
+            category: "nasional",
+            minPassingGrade: 75
+        });
+        state.subjectsList.push(nama);
 
-    // Tambahkan mapel ke seluruh siswa (optional, bisa lewat autoFix nantinya)
-    // Untuk saat ini biarkan sync yang handle atau user fix manual
-
-    toggleModal('tambah-mapel-modal', false);
-    document.getElementById('input-mapel-baru').value = '';
-    renderKurikulumContent('mapel');
+        toggleModal('tambah-mapel-modal', false);
+        document.getElementById('input-mapel-baru').value = '';
+        renderKurikulumContent('mapel');
+        showCustomAlert("Mata pelajaran berhasil ditambahkan.");
+    } catch (e) {
+        showCustomAlert("Gagal menambahkan mapel.", true);
+    }
     hideLoading();
-    showCustomAlert("Mata pelajaran berhasil ditambahkan.");
 };
 
-window.hapusMapel = (nama) => {
+window.hapusMapel = async (nama) => {
     if (confirm(`Yakin ingin menghapus mata pelajaran ${nama}? Nilai siswa untuk mapel ini akan tetap ada di database tapi tidak muncul di daftar ini.`)) {
-        state.subjectsList = state.subjectsList.filter(s => s !== nama);
-        renderKurikulumContent('mapel');
+        showLoading("Menghapus Mapel...");
+        try {
+            const subjectId = "SUBJ_" + nama.toUpperCase().replace(/\\s+/g, '_');
+            await deleteDoc(doc(db, "subjects", subjectId));
+            state.subjectsList = state.subjectsList.filter(s => s !== nama);
+            renderKurikulumContent('mapel');
+            showCustomAlert("Mapel berhasil dihapus.");
+        } catch (e) {
+            showCustomAlert("Gagal menghapus mapel.", true);
+        }
+        hideLoading();
     }
 };
 
@@ -2695,7 +2687,7 @@ window.refreshBukuInduk = async () => {
             mapelListContainer.innerHTML = `<div class="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200"><p class="text-xs font-bold text-slate-400">Tidak ada data untuk periode ini.</p></div>`;
         } else {
             for (const [sid, stats] of Object.entries(mapelStats)) {
-                const subjectName = sid.replace('SUBJ_', '').replace('_', ' ');
+                const subjectName = sid.replace('SUBJ_', '').replace(/_/g, ' ');
                 const kkm = 75;
                 const avg = stats.totalWeight > 0 ? Math.round(stats.totalScore / stats.totalWeight) : 0;
                 const isPassing = avg >= kkm;
@@ -2745,7 +2737,7 @@ window.refreshBukuInduk = async () => {
             const dataRAT = [];
 
             for (const [sid, stats] of Object.entries(mapelStats)) {
-                const subjectName = sid.replace('SUBJ_', '').replace('_', ' ');
+                const subjectName = sid.replace('SUBJ_', '').replace(/_/g, ' ');
                 chartLabels.push(subjectName);
                 
                 const avgTugas = stats.tugasWeight > 0 ? Math.round(stats.tugasSum / stats.tugasWeight) : 0;
@@ -3035,7 +3027,8 @@ window.verifyAndLinkStudent = async () => {
         });
         
         showCustomAlert("Berhasil terhubung dengan data ananda!");
-        setupUIForRole(ROLES.ORANG_TUA, result);
+        const updatedProfile = await getUserProfile(uid);
+        setupUIForRole(updatedProfile);
     } catch (e) {
         console.error("Error linking student:", e);
         showCustomAlert(typeof e === 'string' ? e : "Gagal menghubungkan akun. Periksa kembali kode Anda.", true);
@@ -3103,7 +3096,7 @@ window.initUjianSemester = async () => {
     if (selectMapel) {
         selectMapel.innerHTML = '<option value="">Pilih Mapel...</option>';
         subjectsToShow.forEach(sid => {
-            const label = sid.replace('SUBJ_', '').replace('_', ' ');
+            const label = sid.replace('SUBJ_', '').replace(/_/g, ' ');
             selectMapel.insertAdjacentHTML('beforeend', `<option value="${sid}">${label}</option>`);
         });
     }
@@ -3153,7 +3146,7 @@ window.onUsFilterChange = async () => {
     const academicYear = getActiveTahun();
     const semester = jenis === 'pas' ? 1 : 2;
     const jenisLabel = jenis === 'pas' ? 'PAS (Penilaian Akhir Semester)' : 'PAT (Penilaian Akhir Tahun)';
-    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+    const subjectName = subjectId.replace('SUBJ_', '').replace(/_/g, ' ');
 
     showLoading("Memuat data ujian...");
 
@@ -3248,7 +3241,7 @@ window.usSaveDraft = async () => {
     const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
     const academicYear = getActiveTahun();
     const semester = jenis === 'pas' ? 1 : 2;
-    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+    const subjectName = subjectId.replace('SUBJ_', '').replace(/_/g, ' ');
 
     showLoading("Menyimpan Draft...");
     try {
@@ -3305,7 +3298,7 @@ window.usPublish = async () => {
     const classId = `${yearParts[0].slice(-2)}${yearParts[1].slice(-2)}_${rawClassId}`;
     const academicYear = getActiveTahun();
     const semester = jenis === 'pas' ? 1 : 2;
-    const subjectName = subjectId.replace('SUBJ_', '').replace('_', ' ');
+    const subjectName = subjectId.replace('SUBJ_', '').replace(/_/g, ' ');
 
     showLoading("Mempublish Nilai...");
     try {

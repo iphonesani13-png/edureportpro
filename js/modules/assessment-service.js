@@ -140,7 +140,9 @@ export const saveAssessment = async (assessmentId, assessmentData, isPublish = f
             const existing = snap.data();
             if (existing.status === "published" && !isPublish) {
                 // Principal/Admin can override this via rules, but logic prevents it for teachers
-                if (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.KEPALA_SEKOLAH && user.role !== ROLES.OWNER) {
+                const userDoc = await transaction.get(doc(db, "users", teacherId));
+                const userRole = userDoc.exists() ? userDoc.data().role : null;
+                if (userRole !== ROLES.SUPER_ADMIN && userRole !== ROLES.KEPALA_SEKOLAH && userRole !== ROLES.OWNER) {
                     throw new Error("Dokumen sudah dipublish dan terkunci.");
                 }
             }

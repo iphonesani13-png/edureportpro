@@ -159,7 +159,7 @@ service cloud.firestore {
     // 9. SYSTEM LOGS (AUDIT TRAIL)
     match /system_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin(); // Log created by admin action
+      allow create: if isStaff(); // Log created by staff action
       allow update, delete: if false; // Audit logs are immutable
     }
 
@@ -173,6 +173,11 @@ service cloud.firestore {
                     request.resource.data.get('status', '') == 'used' && 
                     request.resource.data.get('usedBy', '') == request.auth.uid;
       allow delete: if isAdmin();
+    }
+
+    // 11. GLOBAL SETTINGS (Registration Code, dll)
+    match /settings/{settingId} {
+      allow read, write: if isAdmin();
     }
   }
 }

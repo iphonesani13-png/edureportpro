@@ -338,7 +338,7 @@ export const loadParentDashboard = (st, assignmentsData, ortuTahun) => {
                     `);
                 });
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400 font-bold">Data nilai belum diinput guru.</td></tr>';
             }
         }
 
